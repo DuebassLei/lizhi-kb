@@ -1,17 +1,4 @@
-/** 在 Markdown 正文中查找第 n 次出现的标题行索引 */
-export function findHeadingLineIndex(content: string, headingText: string, occurrence = 0): number {
-  const target = headingText.trim();
-  const lines = content.split("\n");
-  let count = 0;
-  for (let i = 0; i < lines.length; i += 1) {
-    const m = /^(#{1,6})\s+(.+)$/.exec(lines[i].trim());
-    if (m && m[2].trim() === target) {
-      if (count === occurrence) return i;
-      count += 1;
-    }
-  }
-  return -1;
-}
+import { findHeadingLineIndex } from "./headings";
 
 /** 在预览 DOM 中滚动到匹配标题 */
 export function scrollToHeadingInContainer(container: HTMLElement, headingText: string, occurrence = 0): boolean {
@@ -30,49 +17,69 @@ export function scrollToHeadingInContainer(container: HTMLElement, headingText: 
   return false;
 }
 
-function scrollCmToLine(content: string, headingText: string): boolean {
-  const line = findHeadingLineIndex(content, headingText);
-  if (line < 0) return false;
-
-  const lineEls = document.querySelectorAll(".cm-line");
-  const lineEl = lineEls[line] as HTMLElement | undefined;
+function scrollCmToLine(lineIndex: number): boolean {
+  const lineEls = document.querySelectorAll(".cm-editor-host .cm-line");
+  const lineEl = lineEls[lineIndex] as HTMLElement | undefined;
   if (lineEl) {
     lineEl.scrollIntoView({ behavior: "smooth", block: "center" });
     return true;
   }
 
-  const scroller = document.querySelector(".cm-scroller") as HTMLElement | null;
+  const scroller = document.querySelector(".cm-editor-host .cm-scroller") as HTMLElement | null;
   if (scroller) {
     const style = getComputedStyle(scroller);
     const lineHeight = Number.parseFloat(style.lineHeight) || 20;
-    scroller.scrollTop = Math.max(0, line * lineHeight - scroller.clientHeight / 3);
+    scroller.scrollTop = Math.max(0, lineIndex * lineHeight - scroller.clientHeight / 3);
     return true;
   }
 
   return false;
 }
 
+export interface ScrollToDocumentHeadingOptions {
+  content: string;
+  headingText?: string;
+  lineIndex?: number;
+  occurrence?: number;
+  scrollEditorLine?: (lineIndex: number) => void;
+  splitPreviewVisible?: boolean;
+  splitPreviewKind?: "gfm" | "wechat";
+}
+
 /** 滚动到文档标题（支持分栏预览） */
-export function scrollToDocumentHeading(
-  headingText: string,
-  options: {
-    content: string;
-    splitPreviewVisible?: boolean;
-    splitPreviewKind?: "gfm" | "wechat";
-  },
-): boolean {
-  const { content, splitPreviewVisible = false, splitPreviewKind = "gfm" } = options;
+export function scrollToDocumentHeading(options: ScrollToDocumentHeadingOptions): boolean {
+  const {
+    content,
+    headingText,
+    lineIndex: explicitLineIndex,
+    occurrence = 0,
+    scrollEditorLine,
+    splitPreviewVisible = false,
+    splitPreviewKind = "gfm",
+  } = options;
 
-  let ok = scrollCmToLine(content, headingText);
+  let lineIndex = explicitLineIndex;
+  if (lineIndex == null && headingText) {
+    lineIndex = findHeadingLineIndex(content, headingText, occurrence);
+  }
+  if (lineIndex == null || lineIndex < 0) return false;
 
-  if (splitPreviewVisible) {
+  let ok = false;
+  if (scrollEditorLine) {
+    scrollEditorLine(lineIndex);
+    ok = true;
+  } else {
+    ok = scrollCmToLine(lineIndex);
+  }
+
+  if (splitPreviewVisible && headingText) {
     const selector =
       splitPreviewKind === "wechat"
         ? '[data-testid="wechat-preview-content"]'
         : '[data-testid="markdown-preview"]';
     const el = document.querySelector(selector) as HTMLElement | null;
     if (el) {
-      ok = scrollToHeadingInContainer(el, headingText) || ok;
+      ok = scrollToHeadingInContainer(el, headingText, occurrence) || ok;
     }
   }
 

@@ -8,7 +8,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  select: [text: string];
+  select: [payload: { text: string; lineIndex: number }];
 }>();
 
 const activeKey = ref<string | null>(null);
@@ -25,7 +25,7 @@ function levelIndent(level: number) {
 
 function onSelect(h: HeadingItem, index: number) {
   activeKey.value = itemKey(h, index);
-  emit("select", h.text);
+  emit("select", { text: h.text, lineIndex: h.lineIndex });
 }
 
 watch(

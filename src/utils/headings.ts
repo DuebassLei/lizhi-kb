@@ -2,6 +2,8 @@ export interface HeadingItem {
   level: number;
   text: string;
   slug: string;
+  /** 0-based line index in Markdown source */
+  lineIndex: number;
 }
 
 export interface HeadingTreeNode {
@@ -22,13 +24,22 @@ function isIndentedCodeLine(line: string): boolean {
   return /^(?:\t| {4})/.test(line);
 }
 
-export function extractHeadings(content: string): HeadingItem[] {
-  const headings: HeadingItem[] = [];
+interface HeadingLine {
+  level: number;
+  text: string;
+  lineIndex: number;
+}
+
+function walkHeadingLines(
+  content: string,
+  visitor: (item: HeadingLine) => void | false,
+): void {
   const lines = content.split("\n");
   let inFencedCodeBlock = false;
   let inIndentedCodeBlock = false;
 
-  for (const line of lines) {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
     const trimmedStart = line.trimStart();
 
     if (/^```/.test(trimmedStart)) {
@@ -51,14 +62,41 @@ export function extractHeadings(content: string): HeadingItem[] {
 
     const m = /^(#{1,6})\s+(.+)$/.exec(line.trim());
     if (!m) continue;
-    const text = m[2].trim();
-    headings.push({
+    const item: HeadingLine = {
       level: m[1].length,
+      text: m[2].trim(),
+      lineIndex,
+    };
+    if (visitor(item) === false) return;
+  }
+}
+
+export function extractHeadings(content: string): HeadingItem[] {
+  const headings: HeadingItem[] = [];
+  walkHeadingLines(content, ({ level, text, lineIndex }) => {
+    headings.push({
+      level,
       text,
       slug: slugifyHeading(text),
+      lineIndex,
     });
-  }
+  });
   return headings;
+}
+
+export function findHeadingLineIndex(content: string, headingText: string, occurrence = 0): number {
+  const target = headingText.trim();
+  let count = 0;
+  let found = -1;
+  walkHeadingLines(content, ({ text, lineIndex }) => {
+    if (text !== target) return;
+    if (count === occurrence) {
+      found = lineIndex;
+      return false;
+    }
+    count += 1;
+  });
+  return found;
 }
 
 /** @internal Self-check for extractHeadings edge cases */
@@ -85,6 +123,18 @@ export function verifyExtractHeadings(): void {
     "# Real\n    # not a heading\n## After",
     ["Real", "After"],
   );
+  assert(
+    "duplicate headings keep distinct line indexes",
+    "# First\n## Target\n```\n## Target\n```\n## Target",
+    ["First", "Target", "Target"],
+  );
+  const dup = extractHeadings("# First\n## Target\n```\n## Target\n```\n## Target");
+  if (dup[1].lineIndex === dup[2].lineIndex) {
+    throw new Error("duplicate headings: line indexes must differ");
+  }
+  if (findHeadingLineIndex("# First\n## Target\n```\n## Target\n```\n## Target", "Target", 1) !== dup[2].lineIndex) {
+    throw new Error("findHeadingLineIndex occurrence mismatch");
+  }
 }
 
 /** 以文档标题为根节点，将 Markdown 标题解析为树 */

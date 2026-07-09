@@ -157,16 +157,23 @@ async function commitTitle() {
   await documents.renameTitle(documents.activeId, titleDraft.value);
 }
 
-function onTocSelect(text: string) {
-  void scrollToHeading(text);
+function onTocSelect(payload: { text: string; lineIndex: number }) {
+  const occurrence = headings.value.filter(
+    (h) => h.text === payload.text && h.lineIndex < payload.lineIndex,
+  ).length;
+  void scrollToHeading(payload.text, payload.lineIndex, occurrence);
 }
 
-async function scrollToHeading(text: string) {
+async function scrollToHeading(text: string, lineIndex?: number, occurrence = 0) {
   for (let attempt = 0; attempt < 8; attempt += 1) {
     await nextTick();
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const ok = scrollToDocumentHeading(text, {
+    const ok = scrollToDocumentHeading({
+      headingText: text,
+      lineIndex,
+      occurrence,
       content: documents.content,
+      scrollEditorLine: (line) => cmRef.value?.scrollToLine(line),
       splitPreviewVisible: ui.splitPreviewVisible || ui.previewOnlyMode,
       splitPreviewKind: ui.splitPreviewKind,
     });
