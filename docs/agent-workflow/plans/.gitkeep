@@ -1,0 +1,3 @@
+# Agent 计划输出目录（Claude Code plansDirectory）
+
+由 `/lizhi-feature` 等命令产生的计划可存放于此。可 gitignore 个人草稿。
