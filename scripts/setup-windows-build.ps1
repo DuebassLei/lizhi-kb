@@ -6,9 +6,11 @@
 .EXAMPLE
   .\scripts\setup-windows-build.ps1
   .\scripts\setup-windows-build.ps1 -TauriDev
+  .\scripts\setup-windows-build.ps1 -InstallIfMissing
 #>
 param(
     [switch]$TauriDev,
+    [switch]$InstallIfMissing,
     [string]$OpenSslDir = "C:\Program Files\OpenSSL-Win64"
 )
 
@@ -34,8 +36,33 @@ function Test-OpenSslInstall {
     return $hasHeaders -and ($null -ne $libDir)
 }
 
+function Install-OpenSslDev {
+    Write-Host "Installing OpenSSL Dev via winget (ShiningLight.OpenSSL.Dev)..." -ForegroundColor Cyan
+    winget install --id ShiningLight.OpenSSL.Dev `
+        --exact `
+        --accept-package-agreements `
+        --accept-source-agreements `
+        --disable-interactivity
+}
+
+function Export-OpenSslEnv {
+    param([string]$Dir)
+    $libDir = Get-OpenSslLibDir -Dir $Dir
+    $env:OPENSSL_DIR = $Dir
+    $env:OPENSSL_LIB_DIR = $libDir
+    Write-Host "OPENSSL_DIR=$Dir"
+    Write-Host "OPENSSL_LIB_DIR=$libDir"
+    if ($env:GITHUB_ENV) {
+        Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_DIR=$Dir"
+        Add-Content -Path $env:GITHUB_ENV -Value "OPENSSL_LIB_DIR=$libDir"
+    }
+}
+
 if (-not (Test-OpenSslInstall $OpenSslDir)) {
-    Write-Host @"
+    if ($InstallIfMissing) {
+        Install-OpenSslDev
+    } else {
+        Write-Host @"
 未找到 OpenSSL（预期路径：$OpenSslDir）。
 
 请一次性安装 **Dev 版**（含头文件；Light 版无法编译 SQLCipher）：
@@ -46,14 +73,15 @@ if (-not (Test-OpenSslInstall $OpenSslDir)) {
 
 安装完成后重新打开终端，再运行本脚本。
 "@ -ForegroundColor Yellow
-    exit 1
+        exit 1
+    }
 }
 
-$libDir = Get-OpenSslLibDir -Dir $OpenSslDir
-$env:OPENSSL_DIR = $OpenSslDir
-$env:OPENSSL_LIB_DIR = $libDir
-Write-Host "OPENSSL_DIR=$OpenSslDir"
-Write-Host "OPENSSL_LIB_DIR=$libDir"
+if (-not (Test-OpenSslInstall $OpenSslDir)) {
+    Write-Error "OpenSSL Dev 安装不完整，未找到头文件或 libcrypto.lib（路径：$OpenSslDir）"
+}
+
+Export-OpenSslEnv -Dir $OpenSslDir
 
 if ($TauriDev) {
     Set-Location (Join-Path $PSScriptRoot "..")

@@ -58,10 +58,7 @@ jobs:
       - name: Install OpenSSL (Windows)
         if: matrix.platform == 'windows'
         shell: pwsh
-        run: |
-          choco install openssl --version=3.4.0 -y --no-progress
-          echo "OPENSSL_DIR=C:\Program Files\OpenSSL-Win64" >> $env:GITHUB_ENV
-          echo "OPENSSL_LIB_DIR=C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD" >> $env:GITHUB_ENV
+        run: ./scripts/setup-windows-build.ps1 -InstallIfMissing
 
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
