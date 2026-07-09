@@ -1,0 +1,34 @@
+---
+description: Vue 3 前端、TipTap 编辑器、Pinia 状态
+globs: src/**/*
+alwaysApply: false
+---
+
+# Vue 前端规则
+
+## 结构
+
+- 组件：`src/components/<domain>/`
+- 页面：`src/views/`
+- Store：`src/stores/`（Pinia setup 风格）
+- Composables：`src/composables/`
+- 编辑器：TipTap（`src/components/editor/`、`src/extensions/`）
+
+## 约定
+
+- Composition API + `<script setup lang="ts">`
+- Workspace 内编辑/图谱为**视图切换**，非独立顶级路由
+- 样式：`src/styles/tokens.css` + Tailwind 4
+- Wiki 链接：`extensions/WikiLink.ts`、`stores/links.ts`
+
+## 禁止
+
+- 在组件中硬编码 vault 路径或密钥
+- 引入与 spec Won't 冲突的功能（云同步、插件市场等）
+
+## 验证
+
+```bash
+pnpm dev
+pnpm build
+```

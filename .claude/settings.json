@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(*)",
+      "Write(*)",
+      "Bash(pnpm *)",
+      "Bash(cargo *)",
+      "Bash(node *)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git push*)",
+      "Bash(rm *)",
+      "Bash(cargo clean*)"
+    ]
+  },
+  "plansDirectory": "./docs/agent-workflow/plans",
+  "respectGitignore": true
+}

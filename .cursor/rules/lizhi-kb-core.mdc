@@ -1,0 +1,34 @@
+---
+description: 狸知知识库核心 Agent 约定与多 Agent 工作流
+alwaysApply: true
+---
+
+# 狸知知识库 · 核心规则
+
+完整上下文见 `AGENTS.md` 与 `docs/agent-workflow/`。
+
+## 项目
+
+Vue 3 + Tauri 2 加密知识库。工作目录为本目录（`lizhi-kb/` 代码路径）。
+
+## 工作流
+
+复杂任务：**Plan → 用户确认 → Implement → Review → Verify**
+
+角色：Planner / Implementer / Reviewer / Debugger — 见 `docs/agent-workflow/multi-agent-workflow.md`
+
+任务模板：`docs/agent-workflow/templates/`
+
+## 命令
+
+```bash
+pnpm dev | pnpm tauri dev | pnpm build | pnpm test:e2e
+```
+
+## 原则
+
+- 最小 diff；匹配现有 Vue/Pinia 风格
+- 垂直切片交付；安全优先（vault/加密）
+- 用户可见文案中文
+- 不主动 git commit
+- 路由 IA 以 complete-design spec 为准，非 prototype 七屏

@@ -1,0 +1,33 @@
+---
+description: Tauri 2 Rust 后端、IPC、加密与文件 IO
+globs: src-tauri/**/*
+alwaysApply: false
+---
+
+# Tauri / Rust 规则
+
+## 结构
+
+- Commands：`src-tauri/src/`
+- 权限：`src-tauri/capabilities/`
+- 配置：`tauri.conf.json`
+
+## 前端桥接
+
+- 统一通过 `composables/useTauriCommand.ts` 或 `services/` 调用
+- 错误映射为用户可读中文消息
+
+## 安全（必须）
+
+- 密钥材料仅 Rust 侧；敏感 buffer 及时 zeroize/drop
+- vault 未解锁时不执行敏感 IO
+- 校验所有路径与用户输入（防 traversal）
+- capabilities 最小权限原则
+- 日志不输出密钥、明文内容、完整 vault 路径
+
+## 验证
+
+```bash
+pnpm tauri dev
+cargo check --manifest-path src-tauri/Cargo.toml
+```
