@@ -99,44 +99,6 @@ export function findHeadingLineIndex(content: string, headingText: string, occur
   return found;
 }
 
-/** @internal Self-check for extractHeadings edge cases */
-export function verifyExtractHeadings(): void {
-  const assert = (label: string, content: string, expected: string[]) => {
-    const got = extractHeadings(content).map((h) => h.text);
-    const ok =
-      got.length === expected.length && got.every((t, i) => t === expected[i]);
-    if (!ok) {
-      throw new Error(
-        `${label}: expected [${expected.join(", ")}], got [${got.join(", ")}]`,
-      );
-    }
-  };
-
-  assert("real headings", "# One\n## Two\n### Three", ["One", "Two", "Three"]);
-  assert(
-    "fenced bash comment",
-    "# Real\n```bash\n# sdwan生产的改用编排的回单接口\n```\n## After",
-    ["Real", "After"],
-  );
-  assert(
-    "indented code",
-    "# Real\n    # not a heading\n## After",
-    ["Real", "After"],
-  );
-  assert(
-    "duplicate headings keep distinct line indexes",
-    "# First\n## Target\n```\n## Target\n```\n## Target",
-    ["First", "Target", "Target"],
-  );
-  const dup = extractHeadings("# First\n## Target\n```\n## Target\n```\n## Target");
-  if (dup[1].lineIndex === dup[2].lineIndex) {
-    throw new Error("duplicate headings: line indexes must differ");
-  }
-  if (findHeadingLineIndex("# First\n## Target\n```\n## Target\n```\n## Target", "Target", 1) !== dup[2].lineIndex) {
-    throw new Error("findHeadingLineIndex occurrence mismatch");
-  }
-}
-
 /** 以文档标题为根节点，将 Markdown 标题解析为树 */
 export function buildHeadingTree(docTitle: string, content: string): HeadingTreeNode {
   const headings = extractHeadings(content);

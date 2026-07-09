@@ -81,9 +81,10 @@ jobs:
         run: rm -f src-tauri/.cargo/config.toml
 
       - name: Install frontend dependencies
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm install --frozen-lockfile --dir packages/lizhi-mcp
+        run: pnpm install --frozen-lockfile
+
+      - name: Check frontend
+        run: pnpm exec vue-tsc --noEmit && pnpm test:unit
 
       - name: Build Tauri
         run: pnpm tauri build

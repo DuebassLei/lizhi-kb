@@ -1,8 +1,8 @@
 ﻿<script setup lang="ts">
 
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
-import { Lock, Shield, WifiOff } from "@lucide/vue";
+import { Globe, Lock, Shield, WifiOff } from "@lucide/vue";
 
 import { useRouter } from "vue-router";
 
@@ -17,6 +17,7 @@ import { TauriCommandError } from "../../composables/useTauriCommand";
 import { DEFAULT_APP_ROUTE } from "../../router/constants";
 
 import { getVaultStatus, isTauriRuntime } from "../../services/vaultService";
+import { getAiConfig } from "../../services/aiService";
 
 import { useVaultStore } from "../../stores/vault";
 
@@ -40,17 +41,25 @@ const error = ref("");
 
 const mode = ref<"password" | "recovery" | "reset">("password");
 
+const aiNetworkActive = ref(false);
 
+onMounted(async () => {
+  try {
+    const cfg = await getAiConfig();
+    aiNetworkActive.value = cfg.enabled || cfg.cloudEnabled;
+  } catch {
+    aiNetworkActive.value = false;
+  }
+});
 
-const securityBadges = [
-
+const securityBadges = computed(() => [
   { icon: Shield, label: "Argon2id" },
-
   { icon: Lock, label: "AES-256-GCM" },
-
-  { icon: WifiOff, label: "零网络" },
-
-];
+  {
+    icon: aiNetworkActive.value ? Globe : WifiOff,
+    label: aiNetworkActive.value ? "AI 联网" : "本地优先",
+  },
+]);
 
 
 

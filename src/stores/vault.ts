@@ -14,6 +14,7 @@ import {
 import { TauriCommandError } from "../composables/useTauriCommand";
 import type { VaultStatus } from "../types/vault";
 import { bruteForceLockSeconds } from "../utils/autoLockSetting";
+import { clearSensitiveSessionData } from "../utils/clearSensitiveSession";
 
 export const useVaultStore = defineStore("vault", () => {
   const hasVault = ref(false);
@@ -213,6 +214,7 @@ export const useVaultStore = defineStore("vault", () => {
     if (isTauriRuntime()) {
       await lockVault();
     }
+    clearSensitiveSessionData();
     isLocked.value = true;
     lockCountdown.value = null;
   }

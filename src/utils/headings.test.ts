@@ -1,0 +1,37 @@
+import { describe, expect, it } from "vitest";
+import { extractHeadings, findHeadingLineIndex } from "./headings";
+
+describe("extractHeadings", () => {
+  it("extracts real headings", () => {
+    expect(extractHeadings("# One\n## Two\n### Three").map((h) => h.text)).toEqual([
+      "One",
+      "Two",
+      "Three",
+    ]);
+  });
+
+  it("ignores headings inside fenced code blocks", () => {
+    const content = "# Real\n```bash\n# sdwan生产的改用编排的回单接口\n```\n## After";
+    expect(extractHeadings(content).map((h) => h.text)).toEqual(["Real", "After"]);
+  });
+
+  it("ignores indented code lines", () => {
+    const content = "# Real\n    # not a heading\n## After";
+    expect(extractHeadings(content).map((h) => h.text)).toEqual(["Real", "After"]);
+  });
+
+  it("keeps distinct line indexes for duplicate titles", () => {
+    const content = "# First\n## Target\n```\n## Target\n```\n## Target";
+    const headings = extractHeadings(content);
+    expect(headings.map((h) => h.text)).toEqual(["First", "Target", "Target"]);
+    expect(headings[1].lineIndex).not.toBe(headings[2].lineIndex);
+  });
+});
+
+describe("findHeadingLineIndex", () => {
+  it("finds heading by occurrence outside code blocks", () => {
+    const content = "# First\n## Target\n```\n## Target\n```\n## Target";
+    const headings = extractHeadings(content);
+    expect(findHeadingLineIndex(content, "Target", 1)).toBe(headings[2].lineIndex);
+  });
+});
