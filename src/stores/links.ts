@@ -1,12 +1,19 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 import { readAllDocuments, readDocument, saveDocument } from "../services/documentService";
-import { fetchLinkIndexSnapshot } from "../services/knowledgeIndexService";
+import {
+  fetchDocumentBacklinks,
+  fetchDocumentOutboundTitles,
+  fetchDocumentUnlinkedMentions,
+  fetchLinkIndexSnapshot,
+  fetchLinkInsights,
+} from "../services/knowledgeIndexService";
 import { isTauriRuntime } from "../services/vaultService";
 import type { DocumentMeta } from "../types/document";
 import {
   buildIndexFromContents,
   isIndexComplete,
+  isLinkGraphComplete,
   patchDocumentIndex,
   removeDocumentIndex,
   recomputeLinkStats,
@@ -28,28 +35,6 @@ function treeFingerprint(tree: DocumentMeta[]): string {
     .join("\n");
 }
 
-function snapshotMaps(
-  outboundMap: Record<string, string[]>,
-  backlinkMap: Record<string, LinkMention[]>,
-  unlinkedMap: Record<string, LinkMention[]>,
-  plainTextMap: Record<string, string>,
-  strippedTextMap: Record<string, string>,
-  snippetMap: Record<string, string>,
-): LinkIndexMaps {
-  return {
-    outboundMap: { ...outboundMap },
-    backlinkMap: Object.fromEntries(
-      Object.entries(backlinkMap).map(([k, v]) => [k, [...v]]),
-    ),
-    unlinkedMap: Object.fromEntries(
-      Object.entries(unlinkedMap).map(([k, v]) => [k, [...v]]),
-    ),
-    plainTextMap: { ...plainTextMap },
-    strippedTextMap: { ...strippedTextMap },
-    snippetMap: { ...snippetMap },
-  };
-}
-
 export const useLinksStore = defineStore("links", () => {
   const backlinkMap = ref<Record<string, LinkMention[]>>({});
   const unlinkedMap = ref<Record<string, LinkMention[]>>({});
@@ -62,11 +47,35 @@ export const useLinksStore = defineStore("links", () => {
   const topHubs = ref<HubRank[]>([]);
   const indexing = ref(false);
   const indexedFingerprint = ref("");
+  const linkInsightsLoaded = ref(false);
   let ensurePromise: Promise<void> | null = null;
+  let activeDocLinksPromise: Promise<void> | null = null;
+  let activeDocLinksId = "";
+
+  function liveMaps(): LinkIndexMaps {
+    return {
+      outboundMap: outboundMap.value,
+      backlinkMap: backlinkMap.value,
+      unlinkedMap: unlinkedMap.value,
+      plainTextMap: plainTextMap.value,
+      strippedTextMap: strippedTextMap.value,
+      snippetMap: snippetMap.value,
+    };
+  }
+
+  function isStoreIndexComplete(tree: DocumentMeta[]): boolean {
+    if (isTauriRuntime()) {
+      return isLinkGraphComplete(tree, outboundMap.value);
+    }
+    return isIndexComplete(tree, plainTextMap.value);
+  }
 
   const indexReady = computed(() => {
     const docs = useDocumentsStore().tree;
     if (!docs.length) return true;
+    if (isTauriRuntime()) {
+      return linkInsightsLoaded.value && !indexing.value;
+    }
     return (
       isIndexComplete(docs, plainTextMap.value) &&
       treeFingerprint(docs) === indexedFingerprint.value &&
@@ -98,7 +107,6 @@ export const useLinksStore = defineStore("links", () => {
     return snippetMap.value[doc.id] ?? null;
   }
 
-  /** 按需加载单篇摘要（悬浮预览等），避免为预览触发全库索引 */
   async function ensureSnippetForTitle(title: string): Promise<string | null> {
     const docs = useDocumentsStore();
     const norm = normalizeTitle(title);
@@ -125,20 +133,96 @@ export const useLinksStore = defineStore("links", () => {
     snippetMap.value = maps.snippetMap;
   }
 
-  function applyDerived(
-    tree: DocumentMeta[],
-    maps: LinkIndexMaps,
-  ) {
+  function applyDerived(tree: DocumentMeta[], maps: LinkIndexMaps) {
     const derived = recomputeLinkStats(tree, maps.outboundMap, maps.backlinkMap);
     orphanIds.value = derived.orphanIds;
     stats.value = derived.stats;
     topHubs.value = derived.topHubs;
   }
 
+  function applyLinkInsights(payload: {
+    orphanIds: string[];
+    stats: LinkStats;
+    topHubs: HubRank[];
+  }) {
+    orphanIds.value = payload.orphanIds;
+    stats.value = payload.stats;
+    topHubs.value = payload.topHubs;
+    linkInsightsLoaded.value = true;
+  }
+
   function trySyncFingerprint(tree: DocumentMeta[]) {
-    if (isIndexComplete(tree, plainTextMap.value)) {
+    if (isStoreIndexComplete(tree)) {
       indexedFingerprint.value = treeFingerprint(tree);
     }
+  }
+
+  async function syncActiveDocLinksFromRust(docId: string): Promise<void> {
+    if (!isTauriRuntime() || !docId) return;
+
+    const [backlinks, unlinked, outbound] = await Promise.all([
+      fetchDocumentBacklinks(docId),
+      fetchDocumentUnlinkedMentions(docId),
+      fetchDocumentOutboundTitles(docId),
+    ]);
+
+    if (backlinks.length) backlinkMap.value[docId] = backlinks;
+    else delete backlinkMap.value[docId];
+
+    if (unlinked.length) unlinkedMap.value[docId] = unlinked;
+    else delete unlinkedMap.value[docId];
+
+    outboundMap.value[docId] = outbound;
+  }
+
+  async function ensureActiveDocLinks(docId: string): Promise<void> {
+    if (!docId) return;
+
+    if (!isTauriRuntime()) {
+      await ensureIndex(useDocumentsStore().tree);
+      return;
+    }
+
+    if (activeDocLinksId === docId && activeDocLinksPromise) {
+      return activeDocLinksPromise;
+    }
+
+    activeDocLinksId = docId;
+    activeDocLinksPromise = syncActiveDocLinksFromRust(docId).finally(() => {
+      activeDocLinksPromise = null;
+    });
+    return activeDocLinksPromise;
+  }
+
+  async function ensureLinkInsights(): Promise<void> {
+    const tree = useDocumentsStore().tree;
+    if (!tree.length) {
+      orphanIds.value = [];
+      stats.value = { totalLinks: 0, orphanCount: 0, hubDoc: null };
+      topHubs.value = [];
+      linkInsightsLoaded.value = true;
+      return;
+    }
+
+    if (!isTauriRuntime()) {
+      await ensureIndex(tree);
+      return;
+    }
+
+    if (linkInsightsLoaded.value && !indexing.value) return;
+    if (ensurePromise) return ensurePromise;
+
+    indexing.value = true;
+    ensurePromise = fetchLinkInsights()
+      .then((payload) => {
+        if (payload) applyLinkInsights(payload);
+        indexedFingerprint.value = treeFingerprint(tree);
+      })
+      .finally(() => {
+        indexing.value = false;
+        ensurePromise = null;
+      });
+    return ensurePromise;
   }
 
   async function rebuildIndex(tree: DocumentMeta[]) {
@@ -153,9 +237,7 @@ export const useLinksStore = defineStore("links", () => {
         const snap = await fetchLinkIndexSnapshot();
         if (snap) {
           applyMaps(snap);
-          orphanIds.value = snap.orphanIds;
-          stats.value = snap.stats;
-          topHubs.value = snap.topHubs;
+          applyLinkInsights(snap);
           return;
         }
       }
@@ -173,12 +255,12 @@ export const useLinksStore = defineStore("links", () => {
       orphanIds.value = built.orphanIds;
       stats.value = built.stats;
       topHubs.value = built.topHubs;
+      linkInsightsLoaded.value = true;
     } finally {
       indexing.value = false;
     }
   }
 
-  /** 按需全量构建；指纹一致且索引完整时跳过 */
   async function ensureIndex(tree: DocumentMeta[]): Promise<void> {
     const fp = treeFingerprint(tree);
     if (!tree.length) {
@@ -186,6 +268,12 @@ export const useLinksStore = defineStore("links", () => {
       indexedFingerprint.value = "";
       return;
     }
+
+    if (isTauriRuntime()) {
+      await ensureLinkInsights();
+      return;
+    }
+
     if (isIndexComplete(tree, plainTextMap.value) && fp === indexedFingerprint.value && !indexing.value) {
       return;
     }
@@ -201,46 +289,42 @@ export const useLinksStore = defineStore("links", () => {
     return ensurePromise;
   }
 
-  /** 增量更新单篇（保存/编辑后，无磁盘 IO） */
   function patchDocument(tree: DocumentMeta[], docId: string, content: string) {
-    const maps = snapshotMaps(
-      outboundMap.value,
-      backlinkMap.value,
-      unlinkedMap.value,
-      plainTextMap.value,
-      strippedTextMap.value,
-      snippetMap.value,
-    );
+    const maps = liveMaps();
     patchDocumentIndex(tree, docId, content, maps);
-    applyMaps(maps);
-    applyDerived(tree, maps);
+    if (!isTauriRuntime()) {
+      applyDerived(tree, maps);
+    }
     trySyncFingerprint(tree);
   }
 
-  /** 增量移除单篇（删除前调用） */
   function removeDocument(tree: DocumentMeta[], docId: string) {
-    const maps = snapshotMaps(
-      outboundMap.value,
-      backlinkMap.value,
-      unlinkedMap.value,
-      plainTextMap.value,
-      strippedTextMap.value,
-      snippetMap.value,
-    );
+    const maps = liveMaps();
     removeDocumentIndex(tree, docId, maps);
-    applyMaps(maps);
     const remainingTree = tree.filter((d) => d.id !== docId);
-    applyDerived(remainingTree, maps);
+    if (!isTauriRuntime()) {
+      applyDerived(remainingTree, maps);
+    } else {
+      delete backlinkMap.value[docId];
+      delete unlinkedMap.value[docId];
+      delete outboundMap.value[docId];
+      linkInsightsLoaded.value = false;
+    }
     trySyncFingerprint(remainingTree);
   }
 
   function invalidateIndex() {
     indexedFingerprint.value = "";
+    linkInsightsLoaded.value = false;
+    activeDocLinksId = "";
   }
 
-  function updatePlainTextForDoc(id: string, content: string) {
+  async function updatePlainTextForDoc(id: string, content: string) {
     const docs = useDocumentsStore();
     patchDocument(docs.tree, id, content);
+    if (isTauriRuntime()) {
+      await syncActiveDocLinksFromRust(id);
+    }
   }
 
   function clear() {
@@ -254,7 +338,10 @@ export const useLinksStore = defineStore("links", () => {
     stats.value = { totalLinks: 0, orphanCount: 0, hubDoc: null };
     topHubs.value = [];
     indexedFingerprint.value = "";
+    linkInsightsLoaded.value = false;
+    activeDocLinksId = "";
     ensurePromise = null;
+    activeDocLinksPromise = null;
   }
 
   async function convertUnlinkedMention(sourceId: string, targetTitle: string) {
@@ -277,6 +364,13 @@ export const useLinksStore = defineStore("links", () => {
       docs.updateContent(updated);
     }
     patchDocument(docs.tree, sourceId, updated);
+    if (isTauriRuntime()) {
+      await Promise.all([
+        syncActiveDocLinksFromRust(sourceId),
+        docs.activeId ? syncActiveDocLinksFromRust(docs.activeId) : Promise.resolve(),
+      ]);
+      linkInsightsLoaded.value = false;
+    }
   }
 
   return {
@@ -291,6 +385,7 @@ export const useLinksStore = defineStore("links", () => {
     topHubs,
     indexing,
     indexReady,
+    linkInsightsLoaded,
     backlinks,
     unlinkedMentions,
     getSnippet,
@@ -298,6 +393,9 @@ export const useLinksStore = defineStore("links", () => {
     ensureSnippetForTitle,
     rebuildIndex,
     ensureIndex,
+    ensureActiveDocLinks,
+    ensureLinkInsights,
+    syncActiveDocLinksFromRust,
     patchDocument,
     removeDocument,
     invalidateIndex,

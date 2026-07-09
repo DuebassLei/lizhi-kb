@@ -9,7 +9,7 @@ const documents = useDocumentsStore();
 const router = useRouter();
 
 onMounted(() => {
-  void links.ensureIndex(documents.tree);
+  void links.ensureLinkInsights();
 });
 
 const hasLinks = computed(() => links.stats.totalLinks > 0);

@@ -694,7 +694,10 @@ html *::-webkit-scrollbar-corner {
 }
 
 .toc-item--h2 .toc-item__rail,
-.toc-item--h3 .toc-item__rail {
+.toc-item--h3 .toc-item__rail,
+.toc-item--h4 .toc-item__rail,
+.toc-item--h5 .toc-item__rail,
+.toc-item--h6 .toc-item__rail {
   opacity: 1;
 }
 
@@ -747,6 +750,25 @@ html *::-webkit-scrollbar-corner {
 .toc-item--h3 .toc-item__label {
   font-size: var(--text-xs);
   color: var(--color-muted);
+}
+
+.toc-item--h4 .toc-item__label {
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.toc-item--h5 .toc-item__label,
+.toc-item--h6 .toc-item__label {
+  font-size: 10px;
+  color: color-mix(in srgb, var(--color-muted) 85%, transparent);
+}
+
+.toc-item--h4 .toc-item__dot,
+.toc-item--h5 .toc-item__dot,
+.toc-item--h6 .toc-item__dot {
+  height: 0.25rem;
+  width: 0.25rem;
+  opacity: 0.75;
 }
 
 .toc-item--active .toc-item__label {

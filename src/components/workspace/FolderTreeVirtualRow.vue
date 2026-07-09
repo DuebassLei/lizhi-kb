@@ -18,6 +18,7 @@ import {
   folderRowPadding,
 } from "../../constants/folderTree";
 import { useFolderTreeRow } from "../../composables/useFolderTreeRow";
+import { useDocumentDelete } from "../../composables/useDocumentDelete";
 
 const props = defineProps<{
   row: FlatTreeRow;
@@ -59,6 +60,8 @@ const {
 } = useFolderTreeRow(folderNode, (folderId, docId, beforeDocId) => {
   emit("reorder", folderId, docId, beforeDocId);
 });
+
+const { requestDelete } = useDocumentDelete();
 
 const indentStyle = computed(() => {
   const depth = props.row.kind === "folder" ? props.row.node.depth : props.row.depth;
@@ -213,7 +216,7 @@ const rowStyle = computed(() => ({
             class="focus-ring hidden shrink-0 rounded p-0.5 text-muted hover:bg-surface-1 hover:text-danger group-hover/doc:inline-flex"
             title="删除"
             aria-label="删除文档"
-            @click.stop="documents.remove(row.doc.id)"
+            @click.stop="requestDelete(row.doc.id)"
           >
             <Trash2 :size="11" aria-hidden="true" />
           </button>

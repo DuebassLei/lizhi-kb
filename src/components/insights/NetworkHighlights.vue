@@ -11,7 +11,7 @@ const router = useRouter();
 const { avgWordsPerDoc } = useDashboardInsights();
 
 onMounted(() => {
-  void links.ensureIndex(documents.tree);
+  void links.ensureLinkInsights();
 });
 
 const linkDensity = computed(() => {

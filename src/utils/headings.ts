@@ -8,7 +8,7 @@ export interface HeadingTreeNode {
   id: string;
   text: string;
   slug: string;
-  /** Markdown heading level 1–3; root is 0 */
+  /** Markdown heading level 1–6; root is 0 */
   level: number;
   isRoot?: boolean;
   children: HeadingTreeNode[];
@@ -49,7 +49,7 @@ export function extractHeadings(content: string): HeadingItem[] {
       inIndentedCodeBlock = false;
     }
 
-    const m = /^(#{1,3})\s+(.+)$/.exec(line.trim());
+    const m = /^(#{1,6})\s+(.+)$/.exec(line.trim());
     if (!m) continue;
     const text = m[2].trim();
     headings.push({

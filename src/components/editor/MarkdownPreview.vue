@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onUnmounted, ref, watch } from "vue";
 import { resolveAssetUrl, isAssetRef } from "../../services/assetService";
 import { useDocumentsStore } from "../../stores/documents";
 import { useUiStore } from "../../stores/ui";
@@ -13,8 +13,19 @@ const props = defineProps<{
 const documents = useDocumentsStore();
 const ui = useUiStore();
 const containerRef = ref<HTMLElement | null>(null);
+const html = ref("");
 
-const html = computed(() => markdownToPreviewHtml(props.content || ""));
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleHtmlUpdate() {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    html.value = markdownToPreviewHtml(props.content || "");
+    void nextTick(() => resolvePreviewAssets());
+  }, 200);
+}
+
+defineExpose({ containerRef });
 
 const themeClass = computed(() => `preview-theme-${ui.previewTheme}`);
 
@@ -49,11 +60,13 @@ function onClick(event: MouseEvent) {
 
 watch(
   () => props.content,
-  () => {
-    void nextTick(() => resolvePreviewAssets());
-  },
+  () => scheduleHtmlUpdate(),
   { immediate: true },
 );
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+});
 </script>
 
 <template>
@@ -216,6 +229,36 @@ watch(
 
 .markdown-preview :deep(.preview-link:hover) {
   color: var(--color-link-hover);
+}
+
+.markdown-preview :deep(.preview-table-wrap) {
+  margin: 1rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.markdown-preview :deep(.preview-table) {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.markdown-preview :deep(.preview-table th),
+.markdown-preview :deep(.preview-table td) {
+  border: 1px solid var(--color-border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-preview :deep(.preview-table th) {
+  background: var(--color-surface-1);
+  font-weight: 600;
+}
+
+.markdown-preview :deep(.preview-table tr:nth-child(even) td) {
+  background: color-mix(in srgb, var(--color-surface-1) 40%, transparent);
 }
 
 .markdown-preview :deep(.preview-img) {

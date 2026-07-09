@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import {
   buildWechatPreviewHtml,
   getThemeCss,
@@ -25,13 +25,17 @@ const themeStyle = computed(() => {
 });
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let renderGeneration = 0;
 
 async function renderPreview() {
+  const generation = ++renderGeneration;
   loading.value = true;
   try {
-    previewHtml.value = await buildWechatPreviewHtml(props.content, props.themeId);
+    const html = await buildWechatPreviewHtml(props.content, props.themeId);
+    if (generation !== renderGeneration) return;
+    previewHtml.value = html;
   } finally {
-    loading.value = false;
+    if (generation === renderGeneration) loading.value = false;
   }
 }
 
@@ -47,6 +51,11 @@ watch(
   () => scheduleRender(),
   { immediate: true },
 );
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  renderGeneration += 1;
+});
 </script>
 
 <template>

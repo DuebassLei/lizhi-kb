@@ -445,6 +445,15 @@ impl DocumentService {
         link_index::get_link_stats(self.conn()?, &metas)
     }
 
+    pub fn get_outbound_titles(
+        &self,
+        id: &str,
+        dek: Option<&[u8; DEK_LEN]>,
+    ) -> Result<Vec<String>, AppError> {
+        self.ensure_indexes_fresh(dek)?;
+        link_index::get_outbound_titles(self.conn()?, id)
+    }
+
     pub fn get_link_index_snapshot(
         &self,
         dek: Option<&[u8; DEK_LEN]>,

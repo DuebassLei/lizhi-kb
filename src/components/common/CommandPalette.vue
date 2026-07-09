@@ -6,6 +6,8 @@ import { useDocumentsStore } from "../../stores/documents";
 import { useFoldersStore } from "../../stores/folders";
 import { useJournalStore } from "../../stores/journal";
 import { useFolderActions } from "../../composables/useFolderActions";
+import { useDocumentDelete } from "../../composables/useDocumentDelete";
+import { useFolderNameDialog } from "../../composables/useFolderNameDialog";
 import { useUiStore } from "../../stores/ui";
 import { useLinksStore } from "../../stores/links";
 import { searchKnowledgeBase } from "../../services/knowledgeIndexService";
@@ -26,6 +28,8 @@ const folders = useFoldersStore();
 const journal = useJournalStore();
 const links = useLinksStore();
 const { createSubfolder } = useFolderActions();
+const { requestDelete } = useDocumentDelete();
+const folderDialog = useFolderNameDialog();
 const router = useRouter();
 
 const query = ref("");
@@ -225,7 +229,8 @@ const staticActions = computed((): Action[] => {
       hint: folders.pathLabel(folders.selectedFolderId),
       run: async () => {
         await router.push("/workspace");
-        const name = window.prompt("子目录名称");
+        const parent = folders.folders.find((f) => f.id === folders.selectedFolderId);
+        const name = await folderDialog.promptCreateSubfolder(parent?.label);
         if (name) {
           const created = createSubfolder(folders.selectedFolderId, name);
           if (created) folders.selectFolder(created.id);
@@ -308,7 +313,7 @@ const staticActions = computed((): Action[] => {
       hint: activeTitle,
       run: async () => {
         const id = documents.activeId!;
-        await documents.remove(id);
+        requestDelete(id);
       },
     });
   }

@@ -30,7 +30,7 @@ use crate::requirements::{
 
 };
 
-use crate::link_index::LinkIndexSnapshot;
+use crate::link_index::{GraphPayload, LinkIndexSnapshot, LinkMention, LinkStats};
 
 use crate::launch_records::{
     CreateLaunchRecordInput, LaunchRecord, UpdateLaunchRecordPatch,
@@ -551,6 +551,142 @@ pub fn get_link_index_snapshot(
         .map_err(|_| "document service lock poisoned".to_string())?
 
         .get_link_index_snapshot(dek.as_ref())
+
+        .map_err(|e| e.to_string())
+
+}
+
+
+
+#[tauri::command]
+
+pub fn get_backlinks(
+
+    state: State<Arc<AppState>>,
+
+    document_id: String,
+
+) -> Result<Vec<LinkMention>, String> {
+
+    let dek = session_dek(&state)?;
+
+    state
+
+        .document_service
+
+        .lock()
+
+        .map_err(|_| "document service lock poisoned".to_string())?
+
+        .get_backlinks(&document_id, dek.as_ref())
+
+        .map_err(|e| e.to_string())
+
+}
+
+
+
+#[tauri::command]
+
+pub fn get_unlinked_mentions(
+
+    state: State<Arc<AppState>>,
+
+    document_id: String,
+
+) -> Result<Vec<LinkMention>, String> {
+
+    let dek = session_dek(&state)?;
+
+    state
+
+        .document_service
+
+        .lock()
+
+        .map_err(|_| "document service lock poisoned".to_string())?
+
+        .get_unlinked_mentions(&document_id, dek.as_ref())
+
+        .map_err(|e| e.to_string())
+
+}
+
+
+
+#[tauri::command]
+
+pub fn get_outbound_link_titles(
+
+    state: State<Arc<AppState>>,
+
+    document_id: String,
+
+) -> Result<Vec<String>, String> {
+
+    let dek = session_dek(&state)?;
+
+    state
+
+        .document_service
+
+        .lock()
+
+        .map_err(|_| "document service lock poisoned".to_string())?
+
+        .get_outbound_titles(&document_id, dek.as_ref())
+
+        .map_err(|e| e.to_string())
+
+}
+
+
+
+#[tauri::command]
+
+pub fn get_link_stats(state: State<Arc<AppState>>) -> Result<LinkStats, String> {
+
+    let dek = session_dek(&state)?;
+
+    state
+
+        .document_service
+
+        .lock()
+
+        .map_err(|_| "document service lock poisoned".to_string())?
+
+        .get_link_stats(dek.as_ref())
+
+        .map_err(|e| e.to_string())
+
+}
+
+
+
+#[tauri::command]
+
+pub fn get_local_graph(
+
+    state: State<Arc<AppState>>,
+
+    center_id: String,
+
+    depth: Option<u32>,
+
+) -> Result<GraphPayload, String> {
+
+    let dek = session_dek(&state)?;
+
+    state
+
+        .document_service
+
+        .lock()
+
+        .map_err(|_| "document service lock poisoned".to_string())?
+
+        .get_local_graph(&center_id, depth.unwrap_or(2), dek.as_ref())
 
         .map_err(|e| e.to_string())
 

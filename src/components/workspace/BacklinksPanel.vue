@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 
-import { computed, onMounted } from "vue";
+import { computed, watch } from "vue";
 
 import { useDocumentsStore } from "../../stores/documents";
 
@@ -50,9 +50,15 @@ const pureUnlinked = computed(() =>
 
 );
 
-onMounted(() => {
-  void links.ensureIndex(documents.tree);
-});
+watch(
+  () => [documents.activeId, ui.backlinksVisible] as const,
+  ([id, visible]) => {
+    if (id && visible) {
+      void links.ensureActiveDocLinks(id);
+    }
+  },
+  { immediate: true },
+);
 
 async function convertMention(sourceId: string) {
   if (!documents.activeId) return;

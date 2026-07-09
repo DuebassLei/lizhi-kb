@@ -10,6 +10,7 @@ import {
   Bot,
   Save,
   Columns2,
+  Eye,
   Network,
   PanelLeftClose,
   PanelLeftOpen,
@@ -79,7 +80,16 @@ const showMindMap = computed(
 );
 
 function toggleSplitPreview() {
+  if (ui.previewOnlyMode) {
+    ui.setPreviewOnly(false);
+    ui.setSplitPreview(true);
+    return;
+  }
   ui.toggleSplitPreview();
+}
+
+function togglePreviewOnly() {
+  ui.togglePreviewOnly();
 }
 
 function insertModuleSnippetInDoc(snippet: string) {
@@ -185,11 +195,21 @@ const isPinned = computed(() =>
           <BtnIcon
           v-if="showSplitPreview"
           label="分栏预览"
-          :pressed="ui.splitPreviewVisible"
+          :pressed="ui.splitPreviewVisible && !ui.previewOnlyMode"
           data-testid="toolbar-split-preview"
           @click="toggleSplitPreview()"
         >
           <Columns2 class="h-3.5 w-3.5" aria-hidden="true" />
+        </BtnIcon>
+
+        <BtnIcon
+          v-if="showSplitPreview"
+          label="全屏预览"
+          :pressed="ui.previewOnlyMode"
+          data-testid="toolbar-preview-only"
+          @click="togglePreviewOnly()"
+        >
+          <Eye class="h-3.5 w-3.5" aria-hidden="true" />
         </BtnIcon>
 
         <div

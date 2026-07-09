@@ -155,7 +155,7 @@ export async function buildWechatPreviewHtml(
   markdown: string,
   themeId: WechatThemeId,
 ): Promise<string> {
-  const normalized = markdown.trim();
+  const normalized = (await embedAssetsInMarkdown(markdown)).trim();
   if (!normalized) return "";
 
   let markdownHtml = renderMarkdownHtml(normalized, themeId);

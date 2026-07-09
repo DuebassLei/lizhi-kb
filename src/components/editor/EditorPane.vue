@@ -17,6 +17,7 @@ import MarkdownPreview from "./MarkdownPreview.vue";
 import WechatPreviewPanel from "../wechat/WechatPreviewPanel.vue";
 import EmptyState from "../ui/EmptyState.vue";
 import { useSplitPreviewResize } from "../../composables/useSplitPreviewResize";
+import { useEditorPreviewScrollSync } from "../../composables/useEditorPreviewScrollSync";
 import { useWechatTheme } from "../../composables/useWechatTheme";
 import { getDocumentTags, setDocumentTags } from "../../utils/documentTags";
 import { getTagPillClass } from "../../utils/tagColor";
@@ -35,6 +36,8 @@ const titleDraft = ref("");
 const cmRef = ref<InstanceType<typeof MarkdownCodeEditor> | null>(null);
 const findReplaceRef = ref<InstanceType<typeof EditorFindReplace> | null>(null);
 const splitContainerRef = ref<HTMLElement | null>(null);
+const gfmPreviewCmp = ref<{ containerRef: HTMLElement | null } | null>(null);
+const previewRef = computed(() => gfmPreviewCmp.value?.containerRef ?? null);
 const tagDraft = ref("");
 const tagsTick = ref(0);
 
@@ -62,7 +65,11 @@ function selectBreadcrumbFolder(folderId: string) {
 const headings = computed(() => extractHeadings(documents.content));
 
 const showSplitPreview = computed(
-  () => ui.workspaceViewMode === "edit" && ui.splitPreviewVisible,
+  () => ui.workspaceViewMode === "edit" && ui.splitPreviewVisible && !ui.previewOnlyMode,
+);
+
+const showPreviewOnly = computed(
+  () => ui.workspaceViewMode === "edit" && ui.previewOnlyMode,
 );
 
 const showWechatSplitPreview = computed(
@@ -160,7 +167,7 @@ async function scrollToHeading(text: string) {
     await new Promise((resolve) => setTimeout(resolve, 50));
     const ok = scrollToDocumentHeading(text, {
       content: documents.content,
-      splitPreviewVisible: ui.splitPreviewVisible,
+      splitPreviewVisible: ui.splitPreviewVisible || ui.previewOnlyMode,
       splitPreviewKind: ui.splitPreviewKind,
     });
     if (ok) return;
@@ -180,6 +187,10 @@ const cmView = computed(() => {
   const exposed = cmRef.value as { editorView?: import("@codemirror/view").EditorView | null } | null;
   return exposed?.editorView ?? null;
 });
+
+const scrollSyncEnabled = computed(() => showSplitPreview.value);
+
+useEditorPreviewScrollSync(cmView, previewRef, scrollSyncEnabled);
 
 function addTag() {
   if (!documents.activeId) return;
@@ -388,6 +399,7 @@ function removeTag(tag: string) {
             <MarkdownPreview
               v-if="!showWechatSplitPreview"
               :key="`split-preview-${documents.activeId}`"
+            ref="gfmPreviewCmp"
               :content="documents.content"
               :typewriter="ui.typewriterMode"
               class="h-full min-h-0"
@@ -401,6 +413,29 @@ function removeTag(tag: string) {
               class="h-full min-h-0"
             />
           </div>
+        </div>
+
+        <div
+          v-else-if="showPreviewOnly"
+          class="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          data-testid="preview-only-pane"
+        >
+          <MarkdownPreview
+            v-if="!showWechatSplitPreview"
+            :key="`preview-only-${documents.activeId}`"
+            ref="gfmPreviewCmp"
+            :content="documents.content"
+            :typewriter="ui.typewriterMode"
+            class="h-full min-h-0"
+          />
+          <WechatPreviewPanel
+            v-else
+            :key="`wechat-preview-only-${documents.activeId}`"
+            :content="documents.content"
+            :theme-id="wechatThemeId"
+            embedded
+            class="h-full min-h-0"
+          />
         </div>
 
         <div

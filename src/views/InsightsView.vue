@@ -268,7 +268,7 @@ async function quickCreate() {
 
 
 
-          <DashboardSection title="写作热力图" subtitle="过去 52 周 · 贪吃蛇热力图">
+          <DashboardSection title="写作热力图" subtitle="近一年 · 贪吃蛇热力图">
 
             <HeatmapCalendar />
 

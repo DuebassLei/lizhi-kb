@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { useDocumentsStore } from "../../stores/documents";
-import { useLinksStore } from "../../stores/links";
 import { useUiStore } from "../../stores/ui";
+import { fetchLocalGraph, type GraphPayload } from "../../services/knowledgeIndexService";
+import { isTauriRuntime } from "../../services/vaultService";
 import { buildLocalGraph } from "../../composables/useGraphCanvas";
+import { useLinksStore } from "../../stores/links";
 import {
   loadGraphNodePositions,
   saveGraphNodePosition,
@@ -20,15 +22,48 @@ const panZoom = useSvgPanZoom(containerRef);
 const nodeDrag = useNodeDrag();
 
 const customPositions = ref(loadGraphNodePositions());
+const remoteGraph = ref<GraphPayload | null>(null);
+const graphLoading = ref(false);
+let graphSeq = 0;
 
-const baseGraph = computed(() =>
-  buildLocalGraph(
+async function loadGraph(centerId: string | null) {
+  if (!centerId) {
+    remoteGraph.value = null;
+    return;
+  }
+
+  const seq = ++graphSeq;
+  graphLoading.value = true;
+  try {
+    if (isTauriRuntime()) {
+      remoteGraph.value = await fetchLocalGraph(centerId, 2);
+      if (seq !== graphSeq) return;
+      return;
+    }
+
+    await links.ensureIndex(documents.tree);
+    if (seq !== graphSeq) return;
+    remoteGraph.value = null;
+  } finally {
+    if (seq === graphSeq) graphLoading.value = false;
+  }
+}
+
+const baseGraph = computed(() => {
+  if (remoteGraph.value) {
+    return {
+      nodes: remoteGraph.value.nodes,
+      edges: remoteGraph.value.edges,
+    };
+  }
+
+  return buildLocalGraph(
     documents.activeId,
     documents.tree,
     links.outboundMap,
     links.backlinkMap,
-  ),
-);
+  );
+});
 
 const graphNodes = computed(() => {
   return baseGraph.value.nodes.map((n) => {
@@ -43,15 +78,13 @@ const graphNodes = computed(() => {
 
 watch(
   () => documents.activeId,
-  () => {
+  (id) => {
     customPositions.value = loadGraphNodePositions();
     panZoom.resetView();
+    void loadGraph(id);
   },
+  { immediate: true },
 );
-
-onMounted(() => {
-  void links.ensureIndex(documents.tree);
-});
 
 function nodeById(id: string) {
   return graphNodes.value.find((n) => n.id === id);
@@ -95,6 +128,12 @@ const centerTitle = computed(
   <div class="relative flex h-full flex-col bg-base" data-testid="local-graph">
     <div v-if="!documents.activeId" class="flex flex-1 items-center justify-center text-sm text-muted">
       请先打开一篇文档以查看局部图谱
+    </div>
+    <div
+      v-else-if="graphLoading"
+      class="flex flex-1 items-center justify-center text-sm text-muted"
+    >
+      正在加载图谱…
     </div>
     <div
       v-else-if="!graphNodes.length"

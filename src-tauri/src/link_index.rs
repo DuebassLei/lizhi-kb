@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use crate::documents::DocumentMeta;
 use crate::search_index;
-use crate::text_util::{content_snippet, extract_wiki_links, mentions_title, normalize_title, strip_wiki_links};
+use crate::text_util::{extract_wiki_links, mentions_title, normalize_title, strip_wiki_links};
 use crate::AppError;
 
 const LINKS_DDL: &str = "
@@ -47,6 +47,7 @@ pub struct LinkStats {
     pub orphan_count: usize,
     pub hub_doc: Option<LinkMention>,
     pub top_hubs: Vec<HubRank>,
+    pub orphan_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -220,6 +221,7 @@ pub fn get_link_stats(conn: &Connection, metas: &[DocumentMeta]) -> Result<LinkS
     ensure_links_schema(conn)?;
     let mut hubs = Vec::new();
     let mut orphan_count = 0usize;
+    let mut orphan_ids = Vec::new();
     let mut hub_doc: Option<LinkMention> = None;
     let mut max_inbound = 0i32;
 
@@ -228,6 +230,7 @@ pub fn get_link_stats(conn: &Connection, metas: &[DocumentMeta]) -> Result<LinkS
         let inbound = get_backlinks(conn, &meta.id)?.len() as i32;
         if outbound == 0 && inbound == 0 {
             orphan_count += 1;
+            orphan_ids.push(meta.id.clone());
         }
         if inbound > 0 || outbound > 0 {
             hubs.push(HubRank {
@@ -261,6 +264,7 @@ pub fn get_link_stats(conn: &Connection, metas: &[DocumentMeta]) -> Result<LinkS
         orphan_count,
         hub_doc: if max_inbound > 0 { hub_doc } else { None },
         top_hubs: hubs.into_iter().take(5).collect(),
+        orphan_ids,
     })
 }
 
@@ -493,30 +497,23 @@ pub fn build_link_index_snapshot(
     let mut outbound_map: HashMap<String, Vec<String>> = HashMap::new();
     let mut backlink_map: HashMap<String, Vec<LinkMention>> = HashMap::new();
     let mut unlinked_map: HashMap<String, Vec<LinkMention>> = HashMap::new();
-    let mut plain_text_map: HashMap<String, String> = HashMap::new();
-    let mut stripped_text_map: HashMap<String, String> = HashMap::new();
+    let plain_text_map: HashMap<String, String> = HashMap::new();
+    let stripped_text_map: HashMap<String, String> = HashMap::new();
     let mut snippet_map: HashMap<String, String> = HashMap::new();
 
+    // 轻量快照：仅 snippet，不把 FTS 全文 body 载入前端
     {
-        let mut stmt = conn.prepare("SELECT document_id, body FROM documents_fts")?;
+        let mut stmt = conn.prepare(
+            "SELECT document_id,
+                    snippet(documents_fts, 2, '', '', '…', 120) AS body_snippet
+             FROM documents_fts",
+        )?;
         let rows = stmt.query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })?;
         for row in rows {
-            let (id, body) = row?;
-            plain_text_map.insert(id.clone(), body.clone());
-            snippet_map.insert(id, content_snippet(&body, 120));
-        }
-    }
-
-    {
-        let mut stmt = conn.prepare("SELECT document_id, stripped_text FROM document_stripped")?;
-        let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?;
-        for row in rows {
-            let (id, stripped) = row?;
-            stripped_text_map.insert(id, stripped);
+            let (id, snippet) = row?;
+            snippet_map.insert(id, snippet);
         }
     }
 
@@ -533,26 +530,12 @@ pub fn build_link_index_snapshot(
         if !unlinked.is_empty() {
             unlinked_map.insert(meta.id.clone(), unlinked);
         }
-        stripped_text_map
-            .entry(meta.id.clone())
-            .or_insert_with(String::new);
-        plain_text_map
-            .entry(meta.id.clone())
-            .or_insert_with(String::new);
         snippet_map
             .entry(meta.id.clone())
             .or_insert_with(|| "（空文档）".to_string());
     }
 
     let stats = get_link_stats(conn, metas)?;
-    let mut orphan_ids = Vec::new();
-    for meta in metas {
-        let outbound = outbound_map.get(&meta.id).map(|v| v.len()).unwrap_or(0);
-        let inbound = backlink_map.get(&meta.id).map(|v| v.len()).unwrap_or(0);
-        if outbound == 0 && inbound == 0 {
-            orphan_ids.push(meta.id.clone());
-        }
-    }
 
     Ok(LinkIndexSnapshot {
         outbound_map,
@@ -561,7 +544,7 @@ pub fn build_link_index_snapshot(
         plain_text_map,
         stripped_text_map,
         snippet_map,
-        orphan_ids,
+        orphan_ids: stats.orphan_ids.clone(),
         stats,
     })
 }

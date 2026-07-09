@@ -20,7 +20,7 @@ function itemKey(h: HeadingItem, index: number) {
 }
 
 function levelIndent(level: number) {
-  return `${(level - 1) * 0.75}rem`;
+  return `${(level - 1) * 0.65}rem`;
 }
 
 function onSelect(h: HeadingItem, index: number) {

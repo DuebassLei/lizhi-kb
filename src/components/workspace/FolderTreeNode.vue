@@ -23,6 +23,7 @@ import { useFolderContextMenu } from "../../composables/useFolderContextMenu";
 import { canDeleteFolder } from "../../utils/folderHelpers";
 import { isExternalFileDrag } from "../../utils/importMarkdown";
 import { useUiStore } from "../../stores/ui";
+import { useDocumentDelete } from "../../composables/useDocumentDelete";
 import FolderTreeNode from "./FolderTreeNode.vue";
 
 const props = defineProps<{
@@ -37,6 +38,7 @@ const documents = useDocumentsStore();
 const folders = useFoldersStore();
 const ui = useUiStore();
 const { showFolderMenu, showDocMenu } = useFolderContextMenu();
+const { requestDelete } = useDocumentDelete();
 
 const DRAG_DOC_MIME = "application/x-lizhi-doc";
 const DRAG_FOLDER_MIME = "application/x-lizhi-folder";
@@ -454,7 +456,7 @@ function onDocKeydown(e: KeyboardEvent, docId: string) {
             class="focus-ring hidden shrink-0 rounded p-0.5 text-muted hover:bg-surface-1 hover:text-danger group-hover/doc:inline-flex"
             title="删除"
             aria-label="删除文档"
-            @click.stop="documents.remove(doc.id)"
+            @click.stop="requestDelete(doc.id)"
           >
             <Trash2 :size="11" aria-hidden="true" />
           </button>

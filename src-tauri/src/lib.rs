@@ -329,6 +329,16 @@ pub fn run() {
 
             commands::get_link_index_snapshot,
 
+            commands::get_backlinks,
+
+            commands::get_unlinked_mentions,
+
+            commands::get_outbound_link_titles,
+
+            commands::get_link_stats,
+
+            commands::get_local_graph,
+
             commands::create_vault,
 
             commands::unlock_vault,

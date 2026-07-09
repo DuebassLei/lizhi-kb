@@ -3,6 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { BookOpen, Download, PenLine, Plus, Search, Sparkles, X } from "@lucide/vue";
 import Btn from "../ui/Btn.vue";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 import EmptyState from "../ui/EmptyState.vue";
 import JournalDayGroup from "./JournalDayGroup.vue";
 import JournalEntryDrawer from "./JournalEntryDrawer.vue";
@@ -11,6 +12,7 @@ import { useJournalStore } from "../../stores/journal";
 import { useUiStore } from "../../stores/ui";
 import { exportJournalMarkdown } from "../../utils/exportJournal";
 import { formatDayLabel, todayDayDate } from "../../utils/journalDates";
+import { journalEntryTitle } from "../../utils/journalSearch";
 import type { JournalDayGroup as DayGroup } from "../../types/journal";
 
 const store = useJournalStore();
@@ -18,6 +20,7 @@ const ui = useUiStore();
 const route = useRoute();
 const router = useRouter();
 const searchFocused = ref(false);
+const deletePending = ref<{ id: string; title: string } | null>(null);
 
 const groupsToShow = computed((): DayGroup[] => {
   if (store.isSearching) return store.dayGroups;
@@ -75,8 +78,16 @@ function onEdit(id: string) {
   store.select(id);
 }
 
-async function onDelete(id: string) {
-  if (!window.confirm("确定删除这条小记？")) return;
+function onDelete(id: string) {
+  const entry = store.entries.find((e) => e.id === id);
+  if (!entry) return;
+  deletePending.value = { id, title: journalEntryTitle(entry) || "小记" };
+}
+
+async function confirmDeleteJournal() {
+  if (!deletePending.value) return;
+  const { id } = deletePending.value;
+  deletePending.value = null;
   await store.remove(id);
 }
 
@@ -86,10 +97,9 @@ async function onDrawerSave(content: string) {
   store.closeDrawer();
 }
 
-async function onDrawerDelete() {
+function onDrawerDelete() {
   if (!store.selected) return;
-  if (!window.confirm("确定删除这条小记？")) return;
-  await store.remove(store.selected.id);
+  onDelete(store.selected.id);
 }
 
 function focusQuickCapture() {
@@ -264,6 +274,18 @@ async function onExport() {
       @close="store.closeDrawer()"
       @save="onDrawerSave"
       @delete="onDrawerDelete"
+    />
+
+    <ConfirmDialog
+      :open="!!deletePending"
+      title="删除小记"
+      :item-name="deletePending?.title"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-journal-dialog"
+      @confirm="confirmDeleteJournal"
+      @cancel="deletePending = null"
     />
   </div>
 </template>

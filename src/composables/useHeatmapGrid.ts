@@ -1,8 +1,7 @@
 import { computed, type Ref } from "vue";
 import type { EditActivityDay } from "../types/document";
 
-export const HEATMAP_WEEKS = 52;
-export const HEATMAP_TOTAL_DAYS = HEATMAP_WEEKS * 7;
+export const HEATMAP_TOTAL_DAYS = 365;
 export const HEATMAP_CELL_SIZE = 11;
 export const HEATMAP_CELL_GAP = 3;
 export const HEATMAP_CELL_STEP = HEATMAP_CELL_SIZE + HEATMAP_CELL_GAP;

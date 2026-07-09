@@ -73,6 +73,8 @@ pnpm tauri build
 
 产物：`src-tauri/target/release/bundle/msi/*.msi`、`nsis/*.exe`
 
+> **中文应用名**：`productName` 含中文时，MSI 需使用 `bundle.windows.wix.language: "zh-CN"`（已配置），否则 WiX `light.exe` 会因代码页 1252 报错。
+
 ### 云端多平台打包（GitHub Actions）
 
 工作流：[`.github/workflows/build-release.yml`](.github/workflows/build-release.yml)

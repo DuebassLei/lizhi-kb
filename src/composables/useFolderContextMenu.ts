@@ -5,12 +5,16 @@ import { useFoldersStore } from "../stores/folders";
 import { useFolderActions } from "./useFolderActions";
 import { exportDocument } from "../utils/exportFile";
 import { canDeleteFolder } from "../utils/folderHelpers";
+import { useDocumentDelete } from "./useDocumentDelete";
+import { useFolderNameDialog } from "./useFolderNameDialog";
 
 export function useFolderContextMenu() {
   const menu = useContextMenuStore();
   const documents = useDocumentsStore();
   const folders = useFoldersStore();
   const { createSubfolder, renameFolder } = useFolderActions();
+  const { requestDelete } = useDocumentDelete();
+  const folderDialog = useFolderNameDialog();
 
   function moveTargetsForDoc(docId: string) {
     const doc = documents.tree.find((d) => d.id === docId);
@@ -32,8 +36,9 @@ export function useFolderContextMenu() {
       {
         id: "new-sub",
         label: "新建子目录…",
-        run: () => {
-          const name = window.prompt("子目录名称");
+        run: async () => {
+          const parent = folders.folders.find((f) => f.id === folderId);
+          const name = await folderDialog.promptCreateSubfolder(parent?.label);
           if (name) createSubfolder(folderId, name);
         },
       },
@@ -46,7 +51,7 @@ export function useFolderContextMenu() {
           label: "重命名…",
           run: async () => {
             const current = folders.folders.find((f) => f.id === folderId)?.label ?? "";
-            const name = window.prompt("目录名称", current);
+            const name = await folderDialog.promptRename(current);
             if (name) await renameFolder(folderId, name);
           },
         },
@@ -129,7 +134,7 @@ export function useFolderContextMenu() {
         id: "delete",
         label: "删除文档",
         danger: true,
-        run: async () => documents.remove(docId),
+        run: () => requestDelete(docId),
       },
     ]);
   }

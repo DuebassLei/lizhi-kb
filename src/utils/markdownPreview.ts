@@ -69,6 +69,29 @@ function highlightCode(code: string, lang: string): string {
   }
 }
 
+function isTableRow(line: string): boolean {
+  const t = line.trim();
+  return t.startsWith("|") && t.endsWith("|") && t.length > 2;
+}
+
+function isTableSeparator(line: string): boolean {
+  return /^\|?[\s|:-]+\|[\s|:-|]+\|?$/.test(line.trim());
+}
+
+function parseTableCells(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function renderTableRow(cells: string[], tag: "th" | "td"): string {
+  const inner = cells.map((cell) => `<${tag}>${inlineMarkdown(cell)}</${tag}>`).join("");
+  return `<tr>${inner}</tr>`;
+}
+
 /** 将 Markdown 转为阅读预览 HTML（只读展示用） */
 export function markdownToPreviewHtml(content: string): string {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
@@ -78,6 +101,7 @@ export function markdownToPreviewHtml(content: string): string {
   let inCode = false;
   let codeLang = "";
   let codeLines: string[] = [];
+  let i = 0;
 
   const closeLists = () => {
     if (inUl) {
@@ -102,13 +126,16 @@ export function markdownToPreviewHtml(content: string): string {
     codeLines = [];
   };
 
-  for (const line of lines) {
+  while (i < lines.length) {
+    const line = lines[i];
+
     if (inCode) {
       if (/^```\s*$/.test(line.trim())) {
         flushCode();
       } else {
         codeLines.push(line);
       }
+      i += 1;
       continue;
     }
 
@@ -117,14 +144,35 @@ export function markdownToPreviewHtml(content: string): string {
       closeLists();
       inCode = true;
       codeLang = fence[1] ?? "";
+      i += 1;
       continue;
     }
 
     const trimmed = line.trimEnd();
 
+    if (
+      isTableRow(trimmed) &&
+      i + 1 < lines.length &&
+      isTableSeparator(lines[i + 1].trim())
+    ) {
+      closeLists();
+      const headerCells = parseTableCells(trimmed);
+      i += 2;
+      const bodyRows: string[] = [];
+      while (i < lines.length && isTableRow(lines[i].trim())) {
+        bodyRows.push(renderTableRow(parseTableCells(lines[i].trim()), "td"));
+        i += 1;
+      }
+      parts.push(
+        `<div class="preview-table-wrap"><table class="preview-table"><thead>${renderTableRow(headerCells, "th")}</thead><tbody>${bodyRows.join("")}</tbody></table></div>`,
+      );
+      continue;
+    }
+
     if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(trimmed)) {
       closeLists();
       parts.push("<hr class=\"preview-hr\" />");
+      i += 1;
       continue;
     }
 
@@ -133,12 +181,14 @@ export function markdownToPreviewHtml(content: string): string {
       const level = trimmed.match(/^(#+)/)![1].length;
       const text = trimmed.replace(/^#+\s*/, "");
       parts.push(`<h${level}>${inlineMarkdown(text)}</h${level}>`);
+      i += 1;
       continue;
     }
 
     if (/^>\s?/.test(trimmed)) {
       closeLists();
       parts.push(`<blockquote class="preview-blockquote"><p>${inlineMarkdown(trimmed.replace(/^>\s?/, ""))}</p></blockquote>`);
+      i += 1;
       continue;
     }
 
@@ -152,6 +202,7 @@ export function markdownToPreviewHtml(content: string): string {
         inUl = true;
       }
       parts.push(`<li>${inlineMarkdown(trimmed.replace(/^[-*+]\s/, ""))}</li>`);
+      i += 1;
       continue;
     }
 
@@ -165,16 +216,19 @@ export function markdownToPreviewHtml(content: string): string {
         inOl = true;
       }
       parts.push(`<li>${inlineMarkdown(trimmed.replace(/^\d+\.\s/, ""))}</li>`);
+      i += 1;
       continue;
     }
 
     if (trimmed === "") {
       closeLists();
+      i += 1;
       continue;
     }
 
     closeLists();
     parts.push(`<p>${inlineMarkdown(trimmed)}</p>`);
+    i += 1;
   }
 
   flushCode();

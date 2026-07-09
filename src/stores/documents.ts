@@ -230,7 +230,7 @@ export const useDocumentsStore = defineStore("documents", () => {
     patchMeta(activeId.value, { updatedAt: result.savedAt });
     const h1Title = extractH1Title(value);
     if (h1Title) patchMeta(activeId.value, { title: h1Title });
-    useLinksStore().patchDocument(tree.value, activeId.value, value);
+    await useLinksStore().updatePlainTextForDoc(activeId.value, value);
   }
 
   async function remove(id: string) {

@@ -57,6 +57,7 @@ export const useUiStore = defineStore("ui", () => {
   const previewTheme = ref<PreviewThemeId>(loadStoredPreviewTheme());
   const splitPreviewVisible = ref(loadStoredSplitPreview());
   const splitPreviewKind = ref<SplitPreviewKind>(loadStoredSplitPreviewKind());
+  const previewOnlyMode = ref(false);
   const toast = ref<{ type: "success" | "error"; message: string } | null>(null);
   const pendingHeadingScroll = ref<string | null>(null);
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -118,10 +119,27 @@ export const useUiStore = defineStore("ui", () => {
 
   function toggleSplitPreview() {
     splitPreviewVisible.value = !splitPreviewVisible.value;
+    if (!splitPreviewVisible.value) previewOnlyMode.value = false;
   }
 
   function setSplitPreview(visible: boolean) {
     splitPreviewVisible.value = visible;
+    if (!visible) previewOnlyMode.value = false;
+  }
+
+  function togglePreviewOnly() {
+    if (previewOnlyMode.value) {
+      previewOnlyMode.value = false;
+      splitPreviewVisible.value = false;
+      return;
+    }
+    previewOnlyMode.value = true;
+    splitPreviewVisible.value = true;
+  }
+
+  function setPreviewOnly(visible: boolean) {
+    previewOnlyMode.value = visible;
+    if (visible) splitPreviewVisible.value = true;
   }
 
   function setSplitPreviewKind(kind: SplitPreviewKind) {
@@ -185,6 +203,7 @@ export const useUiStore = defineStore("ui", () => {
     previewTheme,
     splitPreviewVisible,
     splitPreviewKind,
+    previewOnlyMode,
     watermarkOn,
     watermarkNickname,
     workspaceViewMode,
@@ -213,6 +232,8 @@ export const useUiStore = defineStore("ui", () => {
     toggleToc,
     toggleSplitPreview,
     setSplitPreview,
+    togglePreviewOnly,
+    setPreviewOnly,
     setSplitPreviewKind,
     setTheme,
     setPreviewTheme,

@@ -63,6 +63,15 @@ export function isIndexComplete(tree: DocumentMeta[], plainTextMap: Record<strin
   return tree.every((d) => d.id in plainTextMap);
 }
 
+/** 链接图索引是否已覆盖全库（Tauri 轻量模式用 outboundMap 判断） */
+export function isLinkGraphComplete(
+  tree: DocumentMeta[],
+  outboundMap: Record<string, string[]>,
+): boolean {
+  if (!tree.length) return true;
+  return tree.every((d) => d.id in outboundMap);
+}
+
 export function recomputeLinkStats(
   tree: DocumentMeta[],
   outboundMap: Record<string, string[]>,
