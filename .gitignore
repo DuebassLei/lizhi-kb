@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# 狸知知识库 · Git 忽略规则
+# Rust/Tauri 编译产物见 src-tauri/.gitignore
+# ---------------------------------------------------------------------------
+
+# --- 依赖与构建产物 ---
+node_modules/
+dist/
+dist-ssr/
+
+# --- 环境变量与密钥（vault / API Key 等勿入库）---
+.env
+.env.*
+!.env.example
+
+# --- 日志 ---
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Vite / TypeScript ---
+*.local
+*.tsbuildinfo
+.vite/
+
+# --- 测试 ---
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+coverage/
+
+# --- Rust / Tauri（Windows 本地 OpenSSL，从 config.toml.example 复制）---
+src-tauri/.cargo/config.toml
+
+# --- 编辑器与 IDE ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.code-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# --- 操作系统 ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Agent 本地任务工作区 ---
+.agent-tasks/
+
+# --- 证书与签名（本地调试/打包用，勿提交）---
+*.pem
+*.key
+*.p12
+*.pfx
