@@ -71,20 +71,24 @@ function highlightCode(code: string, lang: string): string {
 
 function isTableRow(line: string): boolean {
   const t = line.trim();
-  return t.startsWith("|") && t.endsWith("|") && t.length > 2;
+  if (!t.includes("|")) return false;
+  if (isTableSeparator(t)) return false;
+  return parseTableCells(t).length > 0;
 }
 
 function isTableSeparator(line: string): boolean {
-  return /^\|?[\s|:-]+\|[\s|:-|]+\|?$/.test(line.trim());
+  const t = line.trim();
+  if (!t.includes("|") || !t.includes("-")) return false;
+  const cells = parseTableCells(t);
+  if (cells.length === 0) return false;
+  return cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s/g, "")));
 }
 
 function parseTableCells(line: string): string[] {
-  return line
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|")
-    .map((cell) => cell.trim());
+  let t = line.trim();
+  if (t.startsWith("|")) t = t.slice(1);
+  if (t.endsWith("|")) t = t.slice(0, -1);
+  return t.split("|").map((cell) => cell.trim());
 }
 
 function renderTableRow(cells: string[], tag: "th" | "td"): string {

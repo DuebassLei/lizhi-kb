@@ -53,3 +53,18 @@ export function prefixLines(view: EditorView, prefix: string) {
   view.dispatch({ changes });
   view.focus();
 }
+
+const TABLE_TEMPLATE = `\n| 列1 | 列2 | 列3 |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n`;
+const TABLE_HEADER_PLACEHOLDER = "列1";
+
+/** 插入 GFM 表格模板，并选中首个表头占位文本 */
+export function insertTableAtCursor(view: EditorView) {
+  const { from, to } = view.state.selection.main;
+  const headerStart = from + TABLE_TEMPLATE.indexOf(TABLE_HEADER_PLACEHOLDER);
+  const headerEnd = headerStart + TABLE_HEADER_PLACEHOLDER.length;
+  view.dispatch({
+    changes: { from, to, insert: TABLE_TEMPLATE },
+    selection: { anchor: headerStart, head: headerEnd },
+  });
+  view.focus();
+}

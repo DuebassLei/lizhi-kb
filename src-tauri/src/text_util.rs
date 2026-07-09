@@ -133,20 +133,6 @@ pub fn markdown_to_plain_text(content: &str) -> String {
         .join(" ")
 }
 
-pub fn content_snippet(content: &str, max_len: usize) -> String {
-    let plain = content
-        .lines()
-        .filter(|line| !line.trim_start().starts_with('#'))
-        .collect::<Vec<_>>()
-        .join(" ");
-    let plain = strip_wiki_links(&plain);
-    let plain = plain.split_whitespace().collect::<Vec<_>>().join(" ");
-    if plain.is_empty() {
-        return "（空文档）".to_string();
-    }
-    truncate_chars(&plain, max_len)
-}
-
 pub fn search_snippet(text: &str, query: &str, max_len: usize) -> String {
     let plain = text.trim();
     if plain.is_empty() {

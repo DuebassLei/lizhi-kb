@@ -41,6 +41,9 @@
       <BtnIcon label="代码块" @click="insertAtCursor(view, '\n```\n\n```\n')">
         <Code2 class="h-3.5 w-3.5" aria-hidden="true" />
       </BtnIcon>
+      <BtnIcon label="表格" @click="insertTable">
+        <Table class="h-3.5 w-3.5" aria-hidden="true" />
+      </BtnIcon>
       <BtnIcon label="分隔线" @click="insertAtCursor(view, '\n---\n')">
         <Minus class="h-3.5 w-3.5" aria-hidden="true" />
       </BtnIcon>
@@ -114,11 +117,12 @@ import {
   Quote,
   Code2,
   Minus,
+  Table,
   Link,
   Image as ImageIcon,
 } from "@lucide/vue";
 import { insertImageFromFile } from "../../utils/editorImageInsert";
-import { insertAtCursor, prefixLines, wrapSelection } from "../../utils/markdownInsert";
+import { insertAtCursor, insertTableAtCursor, prefixLines, wrapSelection } from "../../utils/markdownInsert";
 import InputDialog from "../common/InputDialog.vue";
 import BtnIcon from "../ui/BtnIcon.vue";
 import EmojiPicker from "./EmojiPicker.vue";
@@ -140,6 +144,10 @@ function wrap(before: string, after: string) {
 
 function heading(level: number) {
   prefixLines(props.view, "#".repeat(level) + " ");
+}
+
+function insertTable() {
+  insertTableAtCursor(props.view);
 }
 
 function insertImage(event: MouseEvent) {
