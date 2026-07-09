@@ -1,0 +1,8 @@
+# Windows 本地开发：复制为 config.toml 后 cargo 会自动注入 OpenSSL 路径。
+#   copy config.toml.example config.toml
+# macOS/Linux 请勿启用此文件（macOS 使用 CommonCrypto，无需 OpenSSL）。
+# 若曾仅用 OPENSSL_DIR 编译失败，更新本文件后请：cargo clean -p libsqlite3-sys
+[env]
+OPENSSL_DIR = "C:\\Program Files\\OpenSSL-Win64"
+# OpenSSL 4（Shining Light Dev）将 .lib 放在 lib\VC\x64\MD\，而非 lib\ 根目录
+OPENSSL_LIB_DIR = "C:\\Program Files\\OpenSSL-Win64\\lib\\VC\\x64\\MD"
