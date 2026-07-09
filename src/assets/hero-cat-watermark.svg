@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 140" fill="none" aria-hidden="true">
+  <!-- Minimal sitting cat silhouette + paw motif (?? brand) -->
+  <path fill="#d4a574" d="M48 34 38 10 58 28z" />
+  <path fill="#d4a574" d="M72 28 82 10 92 34z" />
+  <path
+    fill="#d4a574"
+    d="M42 42c-10 8-14 24-12 42 2 22 18 36 42 38 24 2 42-12 44-34 2-20-8-36-24-44-16-8-36-8-50 0z"
+  />
+  <path
+    fill="#d4a574"
+    d="M114 82c12-4 22-18 20-36-2-16-14-26-28-22-6 2-10 8-8 16 2 10 10 18 16 42z"
+  />
+  <ellipse cx="118" cy="118" rx="11" ry="7.5" fill="#d4a574" />
+  <circle cx="109" cy="107" r="4.5" fill="#d4a574" />
+  <circle cx="118" cy="105" r="4.5" fill="#d4a574" />
+  <circle cx="127" cy="107" r="4.5" fill="#d4a574" />
+</svg>
