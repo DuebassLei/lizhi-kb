@@ -402,7 +402,7 @@ onMounted(() => {
               <code class="text-link">Authorization: Bearer API_KEY</code>。
               Base URL 填到
               <code class="text-link">/v1</code>
-              即可（如浩鲸：
+              即可（如小鲸鱼：
               <code class="text-link">https://lab.iwhalecloud.com/gpt-proxy/v1</code>）。
             </p>
           </div>

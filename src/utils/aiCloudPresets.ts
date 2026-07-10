@@ -17,9 +17,9 @@ export interface AiCloudPreset {
   description: string;
 }
 
-export const IWHALECLOUD_GPT_PROXY_PRESET: AiCloudPreset = {
-  id: "iwhalecloud-gpt-proxy",
-  name: "浩鲸 GPT Proxy",
+export const LITTLE_WHALE_GPT_PROXY_PRESET: AiCloudPreset = {
+  id: "little-whale-gpt-proxy",
+  name: "小鲸鱼",
   baseUrl: "https://lab.iwhalecloud.com/gpt-proxy/v1",
   model: "LOCAL/MiniMax-M2.7",
   models: [
@@ -30,7 +30,7 @@ export const IWHALECLOUD_GPT_PROXY_PRESET: AiCloudPreset = {
     },
   ],
   docsUrl: "https://lab.iwhalecloud.com/gpt-proxy/v1/chat/completions",
-  docsLabel: "GPT Proxy 接口",
+  docsLabel: "小鲸鱼 GPT 接口",
   description: "OpenAI 兼容 API · Authorization: Bearer API_KEY",
 };
 
@@ -58,7 +58,7 @@ export const AGNES_AI_PRESET: AiCloudPreset = {
 };
 
 export const AI_CLOUD_PRESETS: AiCloudPreset[] = [
-  IWHALECLOUD_GPT_PROXY_PRESET,
+  LITTLE_WHALE_GPT_PROXY_PRESET,
   AGNES_AI_PRESET,
 ];
 
