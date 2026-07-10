@@ -305,8 +305,13 @@ pub fn apply_update(
                 .clone()
                 .filter(|s| !s.trim().is_empty())
                 .unwrap_or_else(|| Uuid::new_v4().to_string());
-            if let Some(key) = item.api_key.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty()) {
-                secrets.cloud_api_keys.insert(id.clone(), key.to_string());
+            if let Some(key) = item
+                .api_key
+                .as_ref()
+                .map(|s| super::secrets::normalize_api_key(s))
+                .filter(|s| !s.is_empty())
+            {
+                secrets.cloud_api_keys.insert(id.clone(), key);
             }
             next.push(CloudProvider {
                 id,

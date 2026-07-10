@@ -4,9 +4,13 @@ import { computed, ref, watch } from "vue";
 import {
   buildLlmOptions,
   getAiConfig,
+  getCloudFallbackTargets,
+  isAutoTarget,
   isRetrievalTarget,
+  llmTriggerLabel,
   loadStoredLlmTarget,
   pickDefaultLlmTarget,
+  resolveLlmTarget,
   saveLlmTarget,
   streamAiAgent,
   streamAiChat,
@@ -124,9 +128,13 @@ export const useChatStore = defineStore("chat", () => {
     aiConfig.value ? buildLlmOptions(aiConfig.value) : [],
   );
 
-  const selectedLlmLabel = computed(() => {
-    const hit = llmOptions.value.find((o) => o.id === llmTarget.value);
-    return hit?.label ?? "本地模型";
+  const selectedLlmLabel = computed(() =>
+    llmTriggerLabel(llmTarget.value, llmOptions.value, aiConfig.value),
+  );
+
+  const resolvedLlmTarget = computed(() => {
+    if (!aiConfig.value) return llmTarget.value;
+    return resolveLlmTarget(llmTarget.value, aiConfig.value);
   });
 
   const canSend = computed(
@@ -442,9 +450,85 @@ export const useChatStore = defineStore("chat", () => {
     }
   }
 
+  function resetAssistantForRetry(messageId: string) {
+    patchMessage(messageId, {
+      content: "",
+      error: undefined,
+      streaming: true,
+      citations: undefined,
+      toolCalls: undefined,
+    });
+  }
+
+  function assistantHasFailure(messageId: string): boolean {
+    const assistant = messages.value.find((m) => m.id === messageId);
+    if (!assistant) return true;
+    return Boolean(assistant.error) || (!assistant.content && !assistant.toolCalls?.length);
+  }
+
+  async function runStreamForTarget(
+    target: LlmTarget,
+    text: string,
+    assistantId: string,
+    history: ApiChatMessage[],
+  ) {
+    const onEvent = (event: StreamEvent) => handleStreamEvent(assistantId, event);
+
+    if (isRetrievalTarget(target) && mode.value !== "rag") {
+      patchMessage(assistantId, {
+        error: "「仅检索」模式仅适用于「知识库」问答，请切换模式或选择大模型",
+        streaming: false,
+      });
+      return;
+    }
+
+    if (mode.value === "rag") {
+      const activeDoc = documents.tree.find((d) => d.id === documents.activeId);
+      const inWorkspace = ragSurface.value === "workspace";
+      let scope = inWorkspace ? ragScope.value : "all";
+      let documentId = inWorkspace ? documents.activeId : null;
+      let folder = inWorkspace ? (activeDoc?.folder ?? null) : null;
+
+      if (inWorkspace && scope === "currentDocument" && !documentId) {
+        scope = "all";
+        documentId = null;
+      }
+      if (inWorkspace && scope === "currentFolder" && !folder) {
+        scope = "all";
+        folder = null;
+      }
+
+      await streamAiRag(
+        {
+          question: text,
+          scope,
+          documentId,
+          folder,
+          llmTarget: target,
+        },
+        onEvent,
+      );
+      return;
+    }
+
+    if (mode.value === "agent") {
+      await streamAiAgent(text, target, onEvent, [
+        ...history,
+        { role: "user", content: text },
+      ]);
+      return;
+    }
+
+    await streamAiChat(
+      [...history, { role: "user", content: text }],
+      target,
+      onEvent,
+    );
+  }
+
   async function send() {
     const text = input.value.trim();
-    if (!text || isStreaming.value || !aiEnabled.value) return;
+    if (!text || isStreaming.value || !aiEnabled.value || !aiConfig.value) return;
 
     if (!activeSessionId.value) {
       ensureActiveSession(ragSurface.value);
@@ -462,56 +546,26 @@ export const useChatStore = defineStore("chat", () => {
       .slice(0, -1)
       .map((m) => ({ role: m.role, content: m.content }));
 
-    const target = llmTarget.value;
+    const selectedTarget = llmTarget.value;
+    const config = aiConfig.value;
+    const primaryTarget = resolveLlmTarget(selectedTarget, config);
+    const autoMode = isAutoTarget(selectedTarget);
 
     try {
-      const onEvent = (event: StreamEvent) => handleStreamEvent(assistantId, event);
+      await runStreamForTarget(primaryTarget, text, assistantId, history);
 
-      if (isRetrievalTarget(target) && mode.value !== "rag") {
-        patchMessage(assistantId, {
-          error: "「仅检索」模式仅适用于「知识库」问答，请切换模式或选择大模型",
-          streaming: false,
-        });
-        return;
-      }
-
-      if (mode.value === "rag") {
-        const activeDoc = documents.tree.find((d) => d.id === documents.activeId);
-        const inWorkspace = ragSurface.value === "workspace";
-        let scope = inWorkspace ? ragScope.value : "all";
-        let documentId = inWorkspace ? documents.activeId : null;
-        let folder = inWorkspace ? (activeDoc?.folder ?? null) : null;
-
-        if (inWorkspace && scope === "currentDocument" && !documentId) {
-          scope = "all";
-          documentId = null;
+      if (
+        autoMode &&
+        !abortFlag.value &&
+        primaryTarget === "local" &&
+        assistantHasFailure(assistantId)
+      ) {
+        for (const fallbackTarget of getCloudFallbackTargets(config)) {
+          resetAssistantForRetry(assistantId);
+          abortFlag.value = false;
+          await runStreamForTarget(fallbackTarget, text, assistantId, history);
+          if (!assistantHasFailure(assistantId) || abortFlag.value) break;
         }
-        if (inWorkspace && scope === "currentFolder" && !folder) {
-          scope = "all";
-          folder = null;
-        }
-
-        await streamAiRag(
-          {
-            question: text,
-            scope,
-            documentId,
-            folder,
-            llmTarget: target,
-          },
-          onEvent,
-        );
-      } else if (mode.value === "agent") {
-        await streamAiAgent(text, target, onEvent, [
-          ...history,
-          { role: "user", content: text },
-        ]);
-      } else {
-        await streamAiChat(
-          [...history, { role: "user", content: text }],
-          target,
-          onEvent,
-        );
       }
     } catch (e) {
       if (!abortFlag.value) {
@@ -585,6 +639,7 @@ export const useChatStore = defineStore("chat", () => {
     llmTarget,
     llmOptions,
     selectedLlmLabel,
+    resolvedLlmTarget,
     activeSessionId,
     messages,
     input,

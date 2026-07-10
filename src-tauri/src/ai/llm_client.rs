@@ -120,10 +120,41 @@ fn format_request_error(e: reqwest::Error, url: &str) -> String {
 
 fn chat_completions_url(base_url: &str) -> String {
     let trimmed = base_url.trim_end_matches('/');
-    if trimmed.ends_with("/v1") {
+    if trimmed.ends_with("/chat/completions") {
+        trimmed.to_string()
+    } else if trimmed.ends_with("/v1") {
         format!("{trimmed}/chat/completions")
     } else {
         format!("{trimmed}/v1/chat/completions")
+    }
+}
+
+#[cfg(test)]
+mod chat_url_tests {
+    use super::chat_completions_url;
+
+    #[test]
+    fn appends_chat_completions_after_v1() {
+        assert_eq!(
+            chat_completions_url("https://lab.iwhalecloud.com/gpt-proxy/v1"),
+            "https://lab.iwhalecloud.com/gpt-proxy/v1/chat/completions"
+        );
+    }
+
+    #[test]
+    fn keeps_full_chat_completions_path() {
+        assert_eq!(
+            chat_completions_url("https://lab.iwhalecloud.com/gpt-proxy/v1/chat/completions"),
+            "https://lab.iwhalecloud.com/gpt-proxy/v1/chat/completions"
+        );
+    }
+
+    #[test]
+    fn inserts_v1_segment_when_missing() {
+        assert_eq!(
+            chat_completions_url("https://api.deepseek.com"),
+            "https://api.deepseek.com/v1/chat/completions"
+        );
     }
 }
 

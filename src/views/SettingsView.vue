@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { Lock, Shield, WifiOff } from "@lucide/vue";
-import { useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import AppShell from "../components/layout/AppShell.vue";
 import BackupRestorePanel from "../components/settings/BackupRestorePanel.vue";
 import McpSettingsPanel from "../components/settings/McpSettingsPanel.vue";
@@ -35,6 +35,7 @@ const ui = useUiStore();
 const vault = useVaultStore();
 
 const router = useRouter();
+const route = useRoute();
 
 const fileInput = ref<HTMLInputElement | null>(null);
 
@@ -100,9 +101,11 @@ const trustBadges = [
 
 
 onMounted(() => {
-
   ui.setTheme(ui.theme);
-
+  const hash = route.hash.replace(/^#/, "");
+  if (hash && sectionIds.includes(hash)) {
+    window.setTimeout(() => scrollToSection(hash), 120);
+  }
 });
 
 

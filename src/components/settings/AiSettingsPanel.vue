@@ -396,17 +396,14 @@ onMounted(() => {
               </button>
             </div>
             <p class="mt-2 text-[10px] leading-relaxed text-muted">
-              Agnes AI 使用 OpenAI 兼容接口，Base URL 为
-              <code class="text-link">https://apihub.agnes-ai.com/v1</code>，认证方式为
+              预设使用 OpenAI 兼容
+              <code class="text-link">/v1/chat/completions</code>
+              接口，认证方式为
               <code class="text-link">Authorization: Bearer API_KEY</code>。
-              <a
-                :href="AI_CLOUD_PRESETS[0].docsUrl"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="text-link hover:underline"
-              >
-                {{ AI_CLOUD_PRESETS[0].docsLabel }}
-              </a>
+              Base URL 填到
+              <code class="text-link">/v1</code>
+              即可（如浩鲸：
+              <code class="text-link">https://lab.iwhalecloud.com/gpt-proxy/v1</code>）。
             </p>
           </div>
 
@@ -553,9 +550,14 @@ onMounted(() => {
                     v-model="providerDrafts[selectedIndex].apiKey"
                     type="password"
                     :disabled="saving"
-                    :placeholder="selectedProvider.apiKeyMasked || (selectedPreset ? '在 Agnes 开发者控制台生成' : 'sk-…')"
+                    :placeholder="selectedProvider.apiKeyMasked || (selectedPreset ? 'ailab_…（勿填 Bearer 前缀）' : 'sk-…')"
                     autocomplete="off"
                   />
+                  <p class="mt-1 text-[10px] text-muted">
+                    仅填写 Key 本身，无需加
+                    <code class="text-link">Bearer</code>
+                    前缀（保存时会自动处理）。
+                  </p>
                 </div>
               </div>
 
@@ -585,9 +587,10 @@ onMounted(() => {
 
               <div class="flex flex-wrap gap-2">
                 <Btn
-                  variant="ghost"
+                  variant="secondary"
                   size="sm"
                   :disabled="saving || isTestingProvider(selectedProvider)"
+                  data-testid="ai-test-cloud"
                   @click="testSelectedProvider"
                 >
                   {{
@@ -595,7 +598,7 @@ onMounted(() => {
                   }}
                 </Btn>
                 <Btn
-                  variant="secondary"
+                  variant="primary"
                   size="sm"
                   :disabled="saving"
                   @click="saveCloudProviders"

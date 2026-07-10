@@ -55,10 +55,44 @@ pub fn save_secrets(data_dir: &Path, secrets: &AiSecrets) -> Result<(), String> 
     fs::write(path, json).map_err(|e| e.to_string())
 }
 
+/// 规范化 API Key：去掉首尾空白，并移除用户误填的 `Bearer ` 前缀（请求时会自动添加）。
+pub fn normalize_api_key(raw: &str) -> String {
+    let trimmed = raw.trim();
+    trimmed
+        .strip_prefix("Bearer ")
+        .or_else(|| trimmed.strip_prefix("bearer "))
+        .or_else(|| trimmed.strip_prefix("BEARER "))
+        .unwrap_or(trimmed)
+        .trim()
+        .to_string()
+}
+
 pub fn get_cloud_api_key(secrets: &AiSecrets, provider_id: &str) -> Option<String> {
     secrets
         .cloud_api_keys
         .get(provider_id)
-        .cloned()
+        .map(|k| normalize_api_key(k))
         .filter(|k| !k.is_empty())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_strips_bearer_prefix() {
+        assert_eq!(
+            normalize_api_key("Bearer ailab_abc123"),
+            "ailab_abc123"
+        );
+        assert_eq!(
+            normalize_api_key("bearer ailab_abc123"),
+            "ailab_abc123"
+        );
+    }
+
+    #[test]
+    fn normalize_keeps_plain_key() {
+        assert_eq!(normalize_api_key("  ailab_abc123  "), "ailab_abc123");
+    }
 }

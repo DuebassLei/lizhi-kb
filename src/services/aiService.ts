@@ -5,9 +5,14 @@ import { tauriInvoke } from "../composables/useTauriCommand";
 export type AiChatMode = "chat" | "rag" | "agent";
 export type RagScope = "all" | "currentDocument" | "currentFolder";
 
-/** `local` = Ollama；`retrieval` = 仅全文检索；否则为云端提供商 id */
+/** `local` = Ollama；`retrieval` = 仅全文检索；`auto` = 本地优先；否则为云端提供商 id */
 export const LLM_RETRIEVAL_TARGET = "retrieval" as const;
-export type LlmTarget = typeof LLM_RETRIEVAL_TARGET | "local" | string;
+export const LLM_AUTO_TARGET = "auto" as const;
+export type LlmTarget =
+  | typeof LLM_RETRIEVAL_TARGET
+  | typeof LLM_AUTO_TARGET
+  | "local"
+  | string;
 
 export interface CloudProviderPublic {
   id: string;
@@ -95,12 +100,47 @@ function createStreamChannel(onEvent: (event: StreamEvent) => void): Channel<Str
 }
 
 function cloudProviderIdFromTarget(target: LlmTarget): string | null {
-  if (target === "local" || target === LLM_RETRIEVAL_TARGET) return null;
+  if (
+    target === "local" ||
+    target === LLM_RETRIEVAL_TARGET ||
+    target === LLM_AUTO_TARGET
+  ) {
+    return null;
+  }
   return target;
+}
+
+export function isAutoTarget(target: LlmTarget): boolean {
+  return target === LLM_AUTO_TARGET;
 }
 
 export function isRetrievalTarget(target: LlmTarget): boolean {
   return target === LLM_RETRIEVAL_TARGET;
+}
+
+/** 自动模式：优先本地 Ollama */
+export function resolveAutoTarget(_config: AiConfigPublic): LlmTarget {
+  return "local";
+}
+
+/** 将 UI 选择的目标解析为实际调用目标 */
+export function resolveLlmTarget(
+  target: LlmTarget,
+  config: AiConfigPublic,
+): LlmTarget {
+  if (isAutoTarget(target)) return resolveAutoTarget(config);
+  return target;
+}
+
+/** 自动模式失败时的云端兜底顺序 */
+export function getCloudFallbackTargets(config: AiConfigPublic): LlmTarget[] {
+  if (!config.cloudEnabled || config.cloudProviders.length === 0) return [];
+  const ids = config.cloudProviders.map((p) => p.id);
+  const active = config.activeCloudProviderId;
+  if (active && ids.includes(active)) {
+    return [active, ...ids.filter((id) => id !== active)];
+  }
+  return ids;
 }
 
 export async function getAiConfig(revealKey = false): Promise<AiConfigPublic> {
@@ -129,6 +169,9 @@ export async function setAiConfig(update: AiConfigUpdate): Promise<AiConfigPubli
 export async function testAiConnection(target: LlmTarget): Promise<ConnectionResult> {
   if (isRetrievalTarget(target)) {
     return { ok: true, message: "仅检索模式无需连接大模型", model: null };
+  }
+  if (isAutoTarget(target)) {
+    return testAiConnection("local");
   }
   if (!isTauriRuntime()) {
     return { ok: false, message: "浏览器预览模式不支持连接测试", model: null };
@@ -223,55 +266,138 @@ export async function streamAiAgent(
   });
 }
 
+export type LlmOptionGroup = "smart" | "local" | "cloud";
+
 export interface LlmOption {
   id: LlmTarget;
   label: string;
+  shortLabel: string;
   description: string;
+  group: LlmOptionGroup;
+  badge?: string;
+  keywords: string;
+}
+
+const GROUP_LABELS: Record<LlmOptionGroup, string> = {
+  smart: "智能选择",
+  local: "本地模型",
+  cloud: "云端模型",
+};
+
+export function llmOptionGroupLabel(group: LlmOptionGroup): string {
+  return GROUP_LABELS[group];
 }
 
 export function buildLlmOptions(config: AiConfigPublic): LlmOption[] {
   const options: LlmOption[] = [
     {
+      id: LLM_AUTO_TARGET,
+      label: "自动",
+      shortLabel: "自动",
+      description: "优先本地 Ollama，失败时尝试云端模型",
+      group: "smart",
+      badge: "推荐",
+      keywords: "auto automatic 自动 本地优先",
+    },
+    {
       id: LLM_RETRIEVAL_TARGET,
-      label: "仅检索 · 无模型",
+      label: "仅检索",
+      shortLabel: "仅检索",
       description: "全文检索笔记摘录，不调用大模型",
+      group: "smart",
+      badge: "零外联",
+      keywords: "retrieval search 检索 无模型",
     },
     {
       id: "local",
-      label: `本地 · ${config.localModel}`,
+      label: config.localModel,
+      shortLabel: config.localModel,
       description: config.localBaseUrl,
+      group: "local",
+      badge: "本地",
+      keywords: `local ollama ${config.localModel} ${config.localBaseUrl}`,
     },
   ];
   if (config.cloudEnabled) {
     for (const p of config.cloudProviders) {
       options.push({
         id: p.id,
-        label: `${p.name} · ${p.model}`,
+        label: p.model,
+        shortLabel: p.name,
         description: p.baseUrl,
+        group: "cloud",
+        badge: "云端",
+        keywords: `cloud ${p.name} ${p.model} ${p.baseUrl}`,
       });
     }
   }
   return options;
 }
 
+export function findLlmOption(
+  options: LlmOption[],
+  target: LlmTarget,
+): LlmOption | undefined {
+  return options.find((o) => o.id === target);
+}
+
+export function llmTriggerLabel(
+  target: LlmTarget,
+  options: LlmOption[],
+  config: AiConfigPublic | null,
+): string {
+  return llmTriggerParts(target, options, config).primary;
+}
+
+export function llmTriggerTitle(
+  target: LlmTarget,
+  options: LlmOption[],
+  config: AiConfigPublic | null,
+): string {
+  const parts = llmTriggerParts(target, options, config);
+  if (parts.secondary) return `${parts.primary} · ${parts.secondary}`;
+  const hit = findLlmOption(options, target);
+  return hit?.description ?? parts.primary;
+}
+
+/** 触发器文案：primary 单行展示，secondary 仅 tooltip */
+export function llmTriggerParts(
+  target: LlmTarget,
+  options: LlmOption[],
+  config: AiConfigPublic | null,
+): { primary: string; secondary?: string } {
+  if (isAutoTarget(target)) {
+    const resolved = config ? resolveLlmTarget(target, config) : "local";
+    const resolvedOpt = findLlmOption(options, resolved);
+    if (!resolvedOpt) return { primary: "自动" };
+    return {
+      primary: "自动",
+      secondary:
+        resolvedOpt.group === "cloud"
+          ? `${resolvedOpt.shortLabel} · ${resolvedOpt.label}`
+          : resolvedOpt.label,
+    };
+  }
+  const hit = findLlmOption(options, target);
+  if (!hit) return { primary: "本地模型" };
+  if (hit.group === "cloud") {
+    return { primary: hit.label, secondary: hit.shortLabel };
+  }
+  return { primary: hit.shortLabel || hit.label };
+}
+
 export function pickDefaultLlmTarget(config: AiConfigPublic): LlmTarget {
   const stored = loadStoredLlmTarget();
   const options = buildLlmOptions(config);
   if (options.some((o) => o.id === stored)) return stored;
-  if (
-    config.activeCloudProviderId &&
-    options.some((o) => o.id === config.activeCloudProviderId)
-  ) {
-    return config.activeCloudProviderId;
-  }
-  return "local";
+  return LLM_AUTO_TARGET;
 }
 
 const LLM_TARGET_KEY = "lizhi-kb-ai-llm-target";
 
 export function loadStoredLlmTarget(): LlmTarget {
-  if (typeof localStorage === "undefined") return "local";
-  return localStorage.getItem(LLM_TARGET_KEY) ?? "local";
+  if (typeof localStorage === "undefined") return LLM_AUTO_TARGET;
+  return localStorage.getItem(LLM_TARGET_KEY) ?? LLM_AUTO_TARGET;
 }
 
 export function saveLlmTarget(target: LlmTarget) {

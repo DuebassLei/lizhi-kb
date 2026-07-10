@@ -1,39 +1,119 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
-import { Check, ChevronDown, Cloud, Cpu, Search } from "@lucide/vue";
-import type { LlmOption, LlmTarget } from "../../services/aiService";
-import { LLM_RETRIEVAL_TARGET } from "../../services/aiService";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import {
+  Check,
+  ChevronDown,
+  Cloud,
+  Cpu,
+  Plus,
+  Search,
+  Sparkles,
+  Zap,
+} from "@lucide/vue";
+import type { LlmOption, LlmOptionGroup, LlmTarget } from "../../services/aiService";
+import {
+  LLM_AUTO_TARGET,
+  LLM_RETRIEVAL_TARGET,
+  llmOptionGroupLabel,
+  llmTriggerParts,
+  llmTriggerTitle,
+} from "../../services/aiService";
+import type { AiConfigPublic } from "../../services/aiService";
 
-const props = defineProps<{
-  options: LlmOption[];
-  disabled?: boolean;
-  testId?: string;
-}>();
+const PANEL_WIDTH = 288;
+const PANEL_GAP = 8;
+
+const props = withDefaults(
+  defineProps<{
+    options: LlmOption[];
+    config?: AiConfigPublic | null;
+    disabled?: boolean;
+    testId?: string;
+    placement?: "top" | "bottom";
+  }>(),
+  {
+    placement: "top",
+  },
+);
 
 const model = defineModel<LlmTarget>({ required: true });
 
+const router = useRouter();
 const open = ref(false);
+const query = ref("");
 const rootRef = ref<HTMLElement | null>(null);
-
-const current = computed(
-  () => props.options.find((o) => o.id === model.value) ?? props.options[0],
-);
+const triggerRef = ref<HTMLButtonElement | null>(null);
+const searchRef = ref<HTMLInputElement | null>(null);
+const panelStyle = ref<Record<string, string>>({});
 
 const canSwitch = computed(() => props.options.length > 1 && !props.disabled);
 
-function parseLabel(label: string): { title: string; subtitle: string } {
-  const sep = label.indexOf(" · ");
-  if (sep === -1) return { title: label, subtitle: "" };
-  return { title: label.slice(0, sep), subtitle: label.slice(sep + 3) };
-}
+const triggerParts = computed(() =>
+  llmTriggerParts(model.value, props.options, props.config ?? null),
+);
 
-const isLocal = computed(() => model.value === "local");
-const isRetrieval = computed(() => model.value === LLM_RETRIEVAL_TARGET);
+const triggerTooltip = computed(() =>
+  llmTriggerTitle(model.value, props.options, props.config ?? null),
+);
+
+const filteredOptions = computed(() => {
+  const q = query.value.trim().toLowerCase();
+  if (!q) return props.options;
+  return props.options.filter((opt) => {
+    const haystack = [
+      opt.label,
+      opt.shortLabel,
+      opt.description,
+      opt.badge ?? "",
+      opt.keywords,
+    ]
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(q);
+  });
+});
+
+const groupedOptions = computed(() => {
+  const groups: LlmOptionGroup[] = ["smart", "local", "cloud"];
+  return groups
+    .map((group) => ({
+      group,
+      label: llmOptionGroupLabel(group),
+      items: filteredOptions.value.filter((o) => o.group === group),
+    }))
+    .filter((section) => section.items.length > 0);
+});
 
 function optionIconClass(id: LlmTarget): string {
-  if (id === LLM_RETRIEVAL_TARGET) return "bg-emerald-500/15 text-emerald-400";
-  if (id === "local") return "bg-link/15 text-link";
-  return "bg-amber-500/15 text-amber-400";
+  if (id === LLM_RETRIEVAL_TARGET) return "llm-option-icon llm-option-icon--retrieval";
+  if (id === LLM_AUTO_TARGET) return "llm-option-icon llm-option-icon--auto";
+  if (id === "local") return "llm-option-icon llm-option-icon--local";
+  return "llm-option-icon llm-option-icon--cloud";
+}
+
+function updatePanelPosition() {
+  const trigger = triggerRef.value;
+  if (!trigger) return;
+
+  const rect = trigger.getBoundingClientRect();
+  const maxLeft = window.innerWidth - PANEL_WIDTH - PANEL_GAP;
+  const left = Math.max(PANEL_GAP, Math.min(rect.left, maxLeft));
+
+  if (props.placement === "top") {
+    panelStyle.value = {
+      left: `${left}px`,
+      bottom: `${window.innerHeight - rect.top + PANEL_GAP}px`,
+      width: `${PANEL_WIDTH}px`,
+    };
+    return;
+  }
+
+  panelStyle.value = {
+    left: `${left}px`,
+    top: `${rect.bottom + PANEL_GAP}px`,
+    width: `${PANEL_WIDTH}px`,
+  };
 }
 
 function toggle() {
@@ -44,11 +124,17 @@ function toggle() {
 function close() {
   if (!open.value) return;
   open.value = false;
+  query.value = "";
 }
 
 function selectOption(id: LlmTarget) {
   model.value = id;
   close();
+}
+
+function openSettings() {
+  close();
+  void router.push({ path: "/settings", hash: "#settings-ai" });
 }
 
 function onDocumentClick(e: MouseEvent) {
@@ -64,6 +150,27 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
+function bindRepositionListeners() {
+  window.addEventListener("resize", updatePanelPosition);
+  window.addEventListener("scroll", updatePanelPosition, true);
+}
+
+function unbindRepositionListeners() {
+  window.removeEventListener("resize", updatePanelPosition);
+  window.removeEventListener("scroll", updatePanelPosition, true);
+}
+
+watch(open, async (isOpen) => {
+  if (isOpen) {
+    await nextTick();
+    updatePanelPosition();
+    bindRepositionListeners();
+    requestAnimationFrame(() => searchRef.value?.focus());
+    return;
+  }
+  unbindRepositionListeners();
+});
+
 onMounted(() => {
   document.addEventListener("click", onDocumentClick);
   document.addEventListener("keydown", onKeydown);
@@ -72,109 +179,439 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener("click", onDocumentClick);
   document.removeEventListener("keydown", onKeydown);
+  unbindRepositionListeners();
 });
 </script>
 
 <template>
   <div
     ref="rootRef"
-    class="flex items-center gap-2"
+    class="llm-model-select"
     :data-testid="testId ?? 'chat-llm-select'"
   >
-    <span class="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted">
-      模型
-    </span>
+    <button
+      ref="triggerRef"
+      type="button"
+      class="llm-model-select__trigger focus-ring"
+      :class="{
+        'llm-model-select__trigger--open': open,
+        'llm-model-select__trigger--disabled': disabled && !canSwitch,
+      }"
+      :aria-expanded="open"
+      :aria-haspopup="canSwitch ? 'listbox' : undefined"
+      :disabled="disabled && !canSwitch"
+      :title="triggerTooltip"
+      data-testid="chat-llm-select-trigger"
+      @click.stop="toggle"
+    >
+      <span class="llm-model-select__trigger-icon" aria-hidden="true">
+        <Sparkles v-if="model === LLM_AUTO_TARGET" class="h-3.5 w-3.5 text-violet-400" />
+        <Search v-else-if="model === LLM_RETRIEVAL_TARGET" class="h-3.5 w-3.5 text-emerald-400" />
+        <Cpu v-else-if="model === 'local'" class="h-3.5 w-3.5 text-link" />
+        <Cloud v-else class="h-3.5 w-3.5 text-amber-400" />
+      </span>
 
-    <div class="relative min-w-0 flex-1">
-      <button
-        type="button"
-        class="focus-ring flex h-8 w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-surface-1 px-2.5 text-left transition-colors"
-        :class="
-          canSwitch
-            ? 'cursor-pointer hover:border-link/30 hover:bg-surface-2'
-            : 'cursor-default'
-        "
-        :aria-expanded="open"
-        :aria-haspopup="canSwitch ? 'listbox' : undefined"
-        :disabled="disabled && !canSwitch"
-        :title="current?.description"
-        @click.stop="toggle"
-      >
-        <span
-          class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
-          :class="optionIconClass(model)"
-          aria-hidden="true"
-        >
-          <Search v-if="isRetrieval" class="h-3 w-3" />
-          <Cpu v-else-if="isLocal" class="h-3 w-3" />
-          <Cloud v-else class="h-3 w-3" />
-        </span>
+      <span class="llm-model-select__trigger-text">
+        {{ triggerParts.primary }}
+      </span>
 
-        <span class="min-w-0 flex-1 truncate text-xs font-medium text-[var(--color-text)]">
-          {{ current?.label ?? "本地模型" }}
-        </span>
+      <ChevronDown
+        v-if="canSwitch"
+        class="llm-model-select__chevron"
+        :class="{ 'llm-model-select__chevron--open': open }"
+        aria-hidden="true"
+      />
+    </button>
 
-        <ChevronDown
-          v-if="canSwitch"
-          class="h-3.5 w-3.5 shrink-0 text-muted transition-transform duration-150"
-          :class="open ? 'rotate-180' : ''"
-          aria-hidden="true"
-        />
-      </button>
-
+    <Teleport to="body">
       <div
         v-if="open && canSwitch"
-        class="scrollbar-thin absolute left-0 top-full z-50 mt-1 w-full overflow-hidden rounded-lg border border-border bg-surface-1 p-1"
-        :style="{ boxShadow: 'var(--shadow-float)' }"
+        class="llm-model-select__panel"
+        :style="panelStyle"
         role="listbox"
         aria-label="选择模型"
         data-testid="chat-llm-select-panel"
         @click.stop
       >
-        <button
-          v-for="opt in options"
-          :key="opt.id"
-          type="button"
-          role="option"
-          class="focus-ring flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-surface-2"
-          :class="opt.id === model ? 'bg-link/10' : ''"
-          :aria-selected="opt.id === model"
-          :title="opt.description"
-          :data-testid="`chat-llm-option-${opt.id}`"
-          @click="selectOption(opt.id)"
-        >
-          <span
-            class="flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
-            :class="optionIconClass(opt.id)"
-            aria-hidden="true"
-          >
-            <Search v-if="opt.id === LLM_RETRIEVAL_TARGET" class="h-3 w-3" />
-            <Cpu v-else-if="opt.id === 'local'" class="h-3 w-3" />
-            <Cloud v-else class="h-3 w-3" />
-          </span>
-
-          <span class="min-w-0 flex-1 leading-tight">
-            <span
-              class="block truncate text-xs"
-              :class="opt.id === model ? 'font-medium text-[var(--color-text)]' : 'text-muted'"
-            >
-              {{ parseLabel(opt.label).title }}
-            </span>
-            <span
-              v-if="parseLabel(opt.label).subtitle"
-              class="block truncate text-[10px] text-muted"
-            >
-              {{ parseLabel(opt.label).subtitle }}
-            </span>
-          </span>
-
-          <Check
-            v-if="opt.id === model"
-            class="h-3.5 w-3.5 shrink-0 text-link"
-            aria-hidden="true"
+        <div class="llm-model-select__search-wrap">
+          <Search class="llm-model-select__search-icon" aria-hidden="true" />
+          <input
+            ref="searchRef"
+            v-model="query"
+            type="search"
+            placeholder="搜索模型…"
+            class="llm-model-select__search focus-ring"
+            data-testid="chat-llm-select-search"
           />
-        </button>
+        </div>
+
+        <div class="llm-model-select__list scrollbar-thin">
+          <template v-if="groupedOptions.length">
+            <section
+              v-for="section in groupedOptions"
+              :key="section.group"
+              class="llm-model-select__section"
+            >
+              <p class="llm-model-select__section-label">
+                {{ section.label }}
+              </p>
+
+              <button
+                v-for="opt in section.items"
+                :key="opt.id"
+                type="button"
+                role="option"
+                class="llm-model-select__option focus-ring"
+                :class="{ 'llm-model-select__option--active': opt.id === model }"
+                :aria-selected="opt.id === model"
+                :title="opt.description"
+                :data-testid="`chat-llm-option-${opt.id}`"
+                @click="selectOption(opt.id)"
+              >
+                <span :class="optionIconClass(opt.id)" aria-hidden="true">
+                  <Zap v-if="opt.id === LLM_AUTO_TARGET" class="h-3.5 w-3.5" />
+                  <Search v-else-if="opt.id === LLM_RETRIEVAL_TARGET" class="h-3.5 w-3.5" />
+                  <Cpu v-else-if="opt.id === 'local'" class="h-3.5 w-3.5" />
+                  <Cloud v-else class="h-3.5 w-3.5" />
+                </span>
+
+                <span class="llm-model-select__option-body">
+                  <span class="llm-model-select__option-row">
+                    <span class="llm-model-select__option-title">
+                      {{ opt.group === "cloud" ? opt.shortLabel : opt.label }}
+                    </span>
+                    <span
+                      v-if="opt.badge"
+                      class="llm-model-select__badge"
+                      :class="`llm-model-select__badge--${opt.group === 'smart' ? (opt.id === LLM_RETRIEVAL_TARGET ? 'retrieval' : 'auto') : opt.group}`"
+                    >
+                      {{ opt.badge }}
+                    </span>
+                  </span>
+                  <span
+                    v-if="opt.group === 'cloud' || opt.description"
+                    class="llm-model-select__option-sub"
+                  >
+                    {{ opt.group === "cloud" ? opt.label : opt.description }}
+                  </span>
+                </span>
+
+                <Check
+                  v-if="opt.id === model"
+                  class="llm-model-select__check"
+                  aria-hidden="true"
+                />
+              </button>
+            </section>
+          </template>
+
+          <p
+            v-else
+            class="llm-model-select__empty"
+            data-testid="chat-llm-select-empty"
+          >
+            没有匹配的模型
+          </p>
+        </div>
+
+        <div class="llm-model-select__footer">
+          <button
+            type="button"
+            class="llm-model-select__add focus-ring"
+            data-testid="chat-llm-add-models"
+            @click="openSettings"
+          >
+            <Plus class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            添加模型
+          </button>
+        </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
+
+<style scoped>
+.llm-model-select {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(100%, 14rem);
+}
+
+.llm-model-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 100%;
+  height: 1.75rem;
+  padding: 0 0.625rem;
+  border: 0;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-surface-2) 72%, transparent);
+  color: var(--color-text);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    box-shadow 150ms ease,
+    color 150ms ease;
+}
+
+.llm-model-select__trigger:hover:not(:disabled) {
+  background: var(--color-surface-2);
+}
+
+.llm-model-select__trigger--open {
+  background: color-mix(in srgb, var(--color-link) 12%, var(--color-surface-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-link) 28%, transparent);
+}
+
+.llm-model-select__trigger--disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.llm-model-select__trigger-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.llm-model-select__trigger-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.llm-model-select__chevron {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  color: var(--color-muted);
+  transition: transform 150ms ease;
+}
+
+.llm-model-select__chevron--open {
+  transform: rotate(180deg);
+}
+
+.llm-model-select__panel {
+  position: fixed;
+  z-index: 400;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, white 4%);
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--color-surface-1) 96%, var(--color-surface-0));
+  box-shadow:
+    var(--shadow-float),
+    0 0 0 1px color-mix(in srgb, var(--color-link) 6%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.llm-model-select__search-wrap {
+  position: relative;
+  border-bottom: 1px solid var(--color-divider);
+  padding: 0.625rem;
+}
+
+.llm-model-select__search-icon {
+  pointer-events: none;
+  position: absolute;
+  left: 1.125rem;
+  top: 50%;
+  width: 0.875rem;
+  height: 0.875rem;
+  transform: translateY(-50%);
+  color: var(--color-muted);
+}
+
+.llm-model-select__search {
+  width: 100%;
+  height: 2rem;
+  padding: 0 0.75rem 0 2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.625rem;
+  background: var(--color-surface-0);
+  font-size: 0.75rem;
+  color: var(--color-text);
+}
+
+.llm-model-select__search::placeholder {
+  color: var(--color-muted);
+}
+
+.llm-model-select__list {
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: 0.375rem;
+}
+
+.llm-model-select__section + .llm-model-select__section {
+  margin-top: 0.25rem;
+}
+
+.llm-model-select__section-label {
+  padding: 0.375rem 0.5rem 0.25rem;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.llm-model-select__option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem;
+  border: 0;
+  border-radius: 0.625rem;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 120ms ease;
+}
+
+.llm-model-select__option:hover {
+  background: var(--color-surface-2);
+}
+
+.llm-model-select__option--active {
+  background: color-mix(in srgb, var(--color-link) 10%, transparent);
+}
+
+.llm-option-icon {
+  display: inline-flex;
+  width: 1.625rem;
+  height: 1.625rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+}
+
+.llm-option-icon--auto {
+  background: rgb(139 92 246 / 0.14);
+  color: rgb(167 139 250);
+}
+
+.llm-option-icon--retrieval {
+  background: rgb(16 185 129 / 0.14);
+  color: rgb(52 211 153);
+}
+
+.llm-option-icon--local {
+  background: color-mix(in srgb, var(--color-link) 14%, transparent);
+  color: var(--color-link);
+}
+
+.llm-option-icon--cloud {
+  background: rgb(245 158 11 / 0.14);
+  color: rgb(251 191 36);
+}
+
+.llm-model-select__option-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.llm-model-select__option-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.llm-model-select__option-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.llm-model-select__option-sub {
+  display: block;
+  margin-top: 0.125rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.625rem;
+  color: var(--color-muted);
+}
+
+.llm-model-select__badge {
+  flex-shrink: 0;
+  padding: 0.125rem 0.375rem;
+  border-radius: 9999px;
+  font-size: 0.625rem;
+  line-height: 1.2;
+}
+
+.llm-model-select__badge--auto {
+  background: rgb(139 92 246 / 0.12);
+  color: rgb(196 181 253);
+}
+
+.llm-model-select__badge--retrieval {
+  background: rgb(16 185 129 / 0.12);
+  color: rgb(110 231 183);
+}
+
+.llm-model-select__badge--local {
+  background: color-mix(in srgb, var(--color-link) 12%, transparent);
+  color: var(--color-link);
+}
+
+.llm-model-select__badge--cloud {
+  background: rgb(245 158 11 / 0.12);
+  color: rgb(252 211 77);
+}
+
+.llm-model-select__check {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  color: var(--color-link);
+}
+
+.llm-model-select__empty {
+  padding: 1.5rem 0.75rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.llm-model-select__footer {
+  border-top: 1px solid var(--color-divider);
+  padding: 0.375rem;
+}
+
+.llm-model-select__add {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-radius: 0.625rem;
+  background: transparent;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.llm-model-select__add:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+</style>

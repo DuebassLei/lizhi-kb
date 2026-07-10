@@ -8,7 +8,6 @@ import { isRetrievalTarget } from "../../services/aiService";
 import { useDocumentsStore } from "../../stores/documents";
 import { useUiStore } from "../../stores/ui";
 import type { AiChatMode } from "../../services/aiService";
-import Btn from "../ui/Btn.vue";
 import ChatMessage from "./ChatMessage.vue";
 import LlmModelSelect from "./LlmModelSelect.vue";
 import RagPromptChips from "./RagPromptChips.vue";
@@ -240,44 +239,14 @@ watch(() => props.variant, syncRagSurface);
         知识库检索
       </p>
       <RagScopeBar surface="standalone" />
-      <div
-        v-if="chat.aiEnabled && chat.llmOptions.length"
-        class="mt-3 border-t border-divider/80 pt-3"
-      >
-        <LlmModelSelect
-          v-model="chat.llmTarget"
-          :options="chat.llmOptions"
-          :disabled="chat.isStreaming"
-          @update:model-value="chat.setLlmTarget"
-        />
-      </div>
     </div>
 
     <div
       v-else-if="chat.mode === 'rag'"
-      class="shrink-0 space-y-2 border-b border-border px-2 py-2"
+      class="shrink-0 border-b border-border px-2 py-2"
       data-testid="rag-toolbar-panel"
     >
       <RagScopeBar compact surface="workspace" />
-      <LlmModelSelect
-        v-if="chat.aiEnabled && chat.llmOptions.length"
-        v-model="chat.llmTarget"
-        :options="chat.llmOptions"
-        :disabled="chat.isStreaming"
-        @update:model-value="chat.setLlmTarget"
-      />
-    </div>
-
-    <div
-      v-else-if="chat.aiEnabled && chat.llmOptions.length"
-      class="shrink-0 border-b border-border px-3 py-2"
-    >
-      <LlmModelSelect
-        v-model="chat.llmTarget"
-        :options="chat.llmOptions"
-        :disabled="chat.isStreaming"
-        @update:model-value="chat.setLlmTarget"
-      />
     </div>
 
     <div
@@ -310,45 +279,64 @@ watch(() => props.variant, syncRagSurface);
     </div>
 
     <footer
-      class="shrink-0 border-t border-border p-3"
+      class="chat-composer-footer shrink-0 border-t border-border p-3"
       :class="isPage ? 'bg-surface-0/80 backdrop-blur-sm' : ''"
     >
       <div
-        class="flex items-end gap-2"
+        class="chat-composer"
         :class="isPage ? 'mx-auto max-w-3xl' : ''"
+        data-testid="chat-composer"
       >
         <textarea
           ref="inputEl"
           v-model="chat.input"
           :rows="isPage ? 3 : 2"
-          class="focus-ring min-h-[2.5rem] flex-1 resize-none rounded-lg border border-border bg-surface-1 px-3 py-2 text-sm"
+          class="chat-composer__input focus-ring"
           :placeholder="inputPlaceholder"
           :disabled="!chat.aiEnabled || chat.isStreaming"
           data-testid="chat-input"
           @keydown="onKeydown"
         />
-        <Btn
-          v-if="chat.isStreaming"
-          variant="ghost"
-          size="sm"
-          aria-label="停止生成"
-          data-testid="chat-stop"
-          @click="chat.stop()"
-        >
-          <Square class="h-4 w-4" />
-        </Btn>
-        <Btn
-          v-else
-          variant="primary"
-          size="sm"
-          :disabled="!chat.canSend"
-          aria-label="发送"
-          data-testid="chat-send"
-          @click="chat.send()"
-        >
-          <Send class="h-4 w-4" />
-        </Btn>
+
+        <div class="chat-composer__toolbar">
+          <LlmModelSelect
+            v-if="chat.aiEnabled && chat.llmOptions.length"
+            v-model="chat.llmTarget"
+            :options="chat.llmOptions"
+            :config="chat.aiConfig"
+            :disabled="chat.isStreaming"
+            placement="top"
+            @update:model-value="chat.setLlmTarget"
+          />
+          <span v-else class="chat-composer__hint">AI 未启用</span>
+
+          <div class="chat-composer__actions">
+            <button
+              v-if="chat.isStreaming"
+              type="button"
+              class="chat-composer__send chat-composer__send--stop focus-ring"
+              aria-label="停止生成"
+              data-testid="chat-stop"
+              @click="chat.stop()"
+            >
+              <Square class="h-3.5 w-3.5" />
+            </button>
+            <button
+              v-else
+              type="button"
+              class="chat-composer__send focus-ring"
+              :class="{ 'chat-composer__send--disabled': !chat.canSend }"
+              :disabled="!chat.canSend"
+              aria-label="发送"
+              data-testid="chat-send"
+              @click="chat.send()"
+            >
+              <Send class="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
       </div>
+
       <p
         v-if="!chat.aiEnabled"
         class="mt-1.5 text-center text-[10px] text-muted"

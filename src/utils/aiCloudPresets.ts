@@ -17,6 +17,23 @@ export interface AiCloudPreset {
   description: string;
 }
 
+export const IWHALECLOUD_GPT_PROXY_PRESET: AiCloudPreset = {
+  id: "iwhalecloud-gpt-proxy",
+  name: "浩鲸 GPT Proxy",
+  baseUrl: "https://lab.iwhalecloud.com/gpt-proxy/v1",
+  model: "LOCAL/MiniMax-M2.7",
+  models: [
+    {
+      id: "LOCAL/MiniMax-M2.7",
+      label: "MiniMax M2.7（对话，推荐）",
+      kind: "chat",
+    },
+  ],
+  docsUrl: "https://lab.iwhalecloud.com/gpt-proxy/v1/chat/completions",
+  docsLabel: "GPT Proxy 接口",
+  description: "OpenAI 兼容 API · Authorization: Bearer API_KEY",
+};
+
 export const AGNES_AI_PRESET: AiCloudPreset = {
   id: "agnes-ai",
   name: "Agnes AI",
@@ -40,7 +57,10 @@ export const AGNES_AI_PRESET: AiCloudPreset = {
   description: "OpenAI 兼容 API · 在开发者控制台生成 API Key",
 };
 
-export const AI_CLOUD_PRESETS: AiCloudPreset[] = [AGNES_AI_PRESET];
+export const AI_CLOUD_PRESETS: AiCloudPreset[] = [
+  IWHALECLOUD_GPT_PROXY_PRESET,
+  AGNES_AI_PRESET,
+];
 
 export function findPresetByBaseUrl(baseUrl: string): AiCloudPreset | undefined {
   const normalized = baseUrl.trim().replace(/\/+$/, "");
