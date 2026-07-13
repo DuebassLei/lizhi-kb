@@ -5,6 +5,7 @@ import CommandPalette from "./components/common/CommandPalette.vue";
 import ConfirmDialog from "./components/common/ConfirmDialog.vue";
 import InputDialog from "./components/common/InputDialog.vue";
 import ContextMenu from "./components/common/ContextMenu.vue";
+import AppToast from "./components/common/AppToast.vue";
 import LockOverlay from "./components/vault/LockOverlay.vue";
 import WatermarkOverlay from "./components/common/WatermarkOverlay.vue";
 import { useCommandPalette } from "./composables/useCommandPalette";
@@ -26,6 +27,7 @@ const folderDialogState = computed(() => folderDialog.state.value);
 <template>
   <div class="h-full">
     <RouterView />
+    <AppToast />
     <CommandPalette />
     <ContextMenu />
     <WatermarkOverlay />

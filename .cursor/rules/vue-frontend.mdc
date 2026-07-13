@@ -30,5 +30,6 @@ alwaysApply: false
 
 ```bash
 pnpm dev
+pnpm verify
 pnpm build
 ```

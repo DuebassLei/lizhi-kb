@@ -23,7 +23,7 @@ import { docHasWikiLinkTo, isIndexComplete } from "../utils/linkIndexOps";
 import { replaceWikiLinkTitle } from "../utils/wikiLinkQuery";
 import { normalizeTitle } from "../utils/wikiLinks";
 import { useEditorStore } from "./editor";
-import { useLinksStore } from "./links";
+import { getLinksStore } from "./linksStoreLazy";
 import { useFoldersStore } from "./folders";
 import { useUiStore } from "./ui";
 import { useVaultStore } from "./vault";
@@ -145,7 +145,7 @@ export const useDocumentsStore = defineStore("documents", () => {
       const meta = await createDocument(title, targetFolder);
       tree.value = [meta, ...tree.value];
       folders.onDocumentMoved(meta.id, "", targetFolder);
-      useLinksStore().patchDocument(tree.value, meta.id, "");
+      (await getLinksStore()).patchDocument(tree.value, meta.id, "");
       await openDocument(meta.id);
       return meta;
     } catch (e) {
@@ -185,7 +185,7 @@ export const useDocumentsStore = defineStore("documents", () => {
         };
         tree.value = [finalMeta, ...tree.value];
         folders.onDocumentMoved(finalMeta.id, "", targetFolder);
-        useLinksStore().patchDocument(tree.value, finalMeta.id, content);
+        (await getLinksStore()).patchDocument(tree.value, finalMeta.id, content);
         imported.push(finalMeta);
       }
 
@@ -230,11 +230,11 @@ export const useDocumentsStore = defineStore("documents", () => {
     patchMeta(activeId.value, { updatedAt: result.savedAt });
     const h1Title = extractH1Title(value);
     if (h1Title) patchMeta(activeId.value, { title: h1Title });
-    await useLinksStore().updatePlainTextForDoc(activeId.value, value);
+    await (await getLinksStore()).updatePlainTextForDoc(activeId.value, value);
   }
 
   async function remove(id: string) {
-    useLinksStore().removeDocument(tree.value, id);
+    (await getLinksStore()).removeDocument(tree.value, id);
     await deleteDocument(id);
     tree.value = tree.value.filter((d) => d.id !== id);
     navStack.value = navStack.value.filter((nid) => nid !== id);
@@ -340,7 +340,7 @@ export const useDocumentsStore = defineStore("documents", () => {
         content.value = updated;
         await saveContent(updated);
       } else if (oldTitle !== title) {
-        useLinksStore().patchDocument(tree.value, id, content.value);
+        (await getLinksStore()).patchDocument(tree.value, id, content.value);
       }
       useEditorStore().isDirty = false;
       return;
@@ -348,7 +348,7 @@ export const useDocumentsStore = defineStore("documents", () => {
 
     try {
       const body = await resolveDocumentContent(id);
-      useLinksStore().patchDocument(tree.value, id, body);
+      (await getLinksStore()).patchDocument(tree.value, id, body);
     } catch {
       // ignore unreadable docs
     }
@@ -360,7 +360,7 @@ export const useDocumentsStore = defineStore("documents", () => {
   }
 
   async function propagateWikiLinkRename(oldTitle: string, newTitle: string) {
-    const links = useLinksStore();
+    const links = await getLinksStore();
     const canSkipByIndex = isIndexComplete(tree.value, links.plainTextMap);
 
     for (const doc of tree.value) {

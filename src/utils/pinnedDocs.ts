@@ -1,20 +1,15 @@
 import { schedulePersistVaultUiState } from "../services/vaultUiStateService";
-
-const PINNED_KEY = "lizhi-kb-pinned";
+import {
+  readPinnedDocIdsFromStorage,
+  writePinnedDocIdsToStorage,
+} from "./vaultUiStateLocalStorage";
 
 export function loadPinnedIds(): string[] {
-  try {
-    const raw = localStorage.getItem(PINNED_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
+  return readPinnedDocIdsFromStorage();
 }
 
 export function savePinnedIds(ids: string[]): void {
-  localStorage.setItem(PINNED_KEY, JSON.stringify(ids));
+  writePinnedDocIdsToStorage(ids);
   schedulePersistVaultUiState();
 }
 

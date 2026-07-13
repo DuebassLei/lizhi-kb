@@ -5,8 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build && pnpm run build:mcp",
+    "build": "pnpm run verify:fe && pnpm run build:mcp",
     "build:mcp": "pnpm --filter @lizhi/mcp build",
+    "verify": "node scripts/verify-build.mjs",
+    "verify:fe": "vue-tsc --noEmit && vite build",
+    "verify:rust": "cargo clippy --manifest-path src-tauri/Cargo.toml --no-default-features --features sqlcipher -- -D warnings && cargo test --manifest-path src-tauri/Cargo.toml --no-default-features --features sqlcipher --quiet",
     "preview": "vite preview",
     "tauri": "tauri",
     "test:unit": "vitest run",

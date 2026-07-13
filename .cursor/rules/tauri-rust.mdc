@@ -29,5 +29,6 @@ alwaysApply: false
 
 ```bash
 pnpm tauri dev
-cargo check --manifest-path src-tauri/Cargo.toml
+pnpm verify:rust
+pnpm verify
 ```

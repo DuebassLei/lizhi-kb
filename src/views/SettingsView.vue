@@ -6,6 +6,7 @@ import AppShell from "../components/layout/AppShell.vue";
 import BackupRestorePanel from "../components/settings/BackupRestorePanel.vue";
 import McpSettingsPanel from "../components/settings/McpSettingsPanel.vue";
 import AiSettingsPanel from "../components/settings/AiSettingsPanel.vue";
+import CcWorkbenchSettingsPanel from "../components/settings/CcWorkbenchSettingsPanel.vue";
 import QuickNavSettingsPanel from "../components/settings/QuickNavSettingsPanel.vue";
 import SettingsAnchorNav from "../components/settings/SettingsAnchorNav.vue";
 import Btn from "../components/ui/Btn.vue";
@@ -529,6 +530,8 @@ function resetHeroBackground() {
 
       <McpSettingsPanel />
 
+      <CcWorkbenchSettingsPanel />
+
       <AiSettingsPanel />
 
       <section id="settings-security" class="settings-section mb-8 max-w-lg scroll-mt-6">
@@ -775,15 +778,6 @@ function resetHeroBackground() {
 
     </div>
 
-    <p
-      v-if="ui.toast"
-      role="status"
-      data-testid="settings-toast"
-      class="fixed bottom-4 left-1/2 z-[120] -translate-x-1/2 rounded-md border border-border bg-surface-1 px-4 py-2 text-sm shadow-lg"
-      :class="ui.toast.type === 'success' ? 'text-success' : 'text-danger'"
-    >
-      {{ ui.toast.message }}
-    </p>
   </AppShell>
 
 </template>

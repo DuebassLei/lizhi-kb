@@ -24,7 +24,6 @@ import { canDeleteFolder } from "../../utils/folderHelpers";
 import { isExternalFileDrag } from "../../utils/importMarkdown";
 import { useUiStore } from "../../stores/ui";
 import { useDocumentDelete } from "../../composables/useDocumentDelete";
-import FolderTreeNode from "./FolderTreeNode.vue";
 
 const props = defineProps<{
   node: FolderNode;

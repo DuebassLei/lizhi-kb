@@ -15,6 +15,12 @@ pub struct CloudProvider {
     pub name: String,
     pub base_url: String,
     pub model: String,
+    #[serde(default = "default_enabled")]
+    pub enabled: bool,
+}
+
+fn default_enabled() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +33,8 @@ pub struct AiConfig {
     pub local_base_url: String,
     #[serde(default = "default_local_model")]
     pub local_model: String,
+    #[serde(default = "default_enabled")]
+    pub local_enabled: bool,
     #[serde(default)]
     pub cloud_enabled: bool,
     #[serde(default)]
@@ -72,6 +80,7 @@ impl Default for AiConfig {
             provider: default_provider(),
             local_base_url: default_local_base_url(),
             local_model: default_local_model(),
+            local_enabled: true,
             cloud_enabled: false,
             cloud_providers: Vec::new(),
             active_cloud_provider_id: None,
@@ -89,6 +98,7 @@ pub struct CloudProviderPublic {
     pub name: String,
     pub base_url: String,
     pub model: String,
+    pub enabled: bool,
     pub api_key_masked: String,
     pub api_key: Option<String>,
 }
@@ -100,6 +110,7 @@ pub struct AiConfigPublic {
     pub provider: String,
     pub local_base_url: String,
     pub local_model: String,
+    pub local_enabled: bool,
     pub cloud_enabled: bool,
     pub cloud_providers: Vec<CloudProviderPublic>,
     pub active_cloud_provider_id: Option<String>,
@@ -115,6 +126,7 @@ pub struct CloudProviderUpdate {
     pub name: String,
     pub base_url: String,
     pub model: String,
+    pub enabled: Option<bool>,
     pub api_key: Option<String>,
 }
 
@@ -125,6 +137,7 @@ pub struct AiConfigUpdate {
     pub provider: Option<String>,
     pub local_base_url: Option<String>,
     pub local_model: Option<String>,
+    pub local_enabled: Option<bool>,
     pub cloud_enabled: Option<bool>,
     pub cloud_providers: Option<Vec<CloudProviderUpdate>>,
     pub active_cloud_provider_id: Option<Option<String>>,
@@ -248,6 +261,7 @@ pub fn provider_public(
         } else {
             None
         },
+        enabled: provider.enabled,
     }
 }
 
@@ -257,6 +271,7 @@ pub fn to_public(config: &AiConfig, secrets: &super::secrets::AiSecrets, reveal_
         provider: config.provider.clone(),
         local_base_url: config.local_base_url.clone(),
         local_model: config.local_model.clone(),
+        local_enabled: config.local_enabled,
         cloud_enabled: config.cloud_enabled,
         cloud_providers: config
             .cloud_providers
@@ -294,6 +309,9 @@ pub fn apply_update(
     if let Some(model) = &update.local_model {
         config.local_model = model.trim().to_string();
     }
+    if let Some(local_enabled) = update.local_enabled {
+        config.local_enabled = local_enabled;
+    }
     if let Some(cloud_enabled) = update.cloud_enabled {
         config.cloud_enabled = cloud_enabled;
     }
@@ -318,6 +336,7 @@ pub fn apply_update(
                 name: item.name.trim().to_string(),
                 base_url: item.base_url.trim().to_string(),
                 model: item.model.trim().to_string(),
+                enabled: item.enabled.unwrap_or(true),
             });
         }
         let valid_ids: std::collections::HashSet<String> =
@@ -345,8 +364,16 @@ pub fn apply_update(
     }
 
     if let Some(active_id) = &config.active_cloud_provider_id {
-        if !config.cloud_providers.iter().any(|p| &p.id == active_id) {
-            config.active_cloud_provider_id = config.cloud_providers.first().map(|p| p.id.clone());
+        let valid = config
+            .cloud_providers
+            .iter()
+            .any(|p| &p.id == active_id && p.enabled);
+        if !valid {
+            config.active_cloud_provider_id = config
+                .cloud_providers
+                .iter()
+                .find(|p| p.enabled)
+                .map(|p| p.id.clone());
         }
     }
 }

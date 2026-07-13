@@ -22,7 +22,7 @@
 
 - [ ] AC-1：…
 - [ ] AC-2：…
-- [ ] AC-3：`pnpm build` 通过
+- [ ] AC-3：`pnpm verify` 通过（零警告编译）
 - [ ] AC-4：相关 E2E 通过（如适用）
 
 ## 垂直切片（ tracer bullet ）
@@ -59,13 +59,13 @@
 Planner（本模板 + spec）→ 用户确认
   → Implementer（按切片）
   → Reviewer
-  → Verify（build + e2e）
+  → Verify（verify + e2e）
 ```
 
 ## 验证
 
 ```bash
 pnpm dev
-pnpm build
+pnpm verify
 pnpm test:e2e   # 新增/变更流程时
 ```

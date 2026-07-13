@@ -21,6 +21,7 @@ model: inherit
 - [ ] 与 spec / 计划验收标准一致
 - [ ] 无 scope creep
 - [ ] TypeScript / Rust 类型一致
+- [ ] `pnpm verify` 通过（零 warning）
 
 ### 可维护性
 

@@ -59,12 +59,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
-        run: pnpm exec vue-tsc --noEmit
+      - name: Verify (zero warnings)
+        run: pnpm verify
 
       - name: Unit tests
         run: pnpm test:unit
 
       - name: Rust tests
         working-directory: src-tauri
-        run: cargo test --no-default-features --features sqlcipher
+        run: cargo test --no-default-features --features sqlcipher --quiet

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { BookOpen, ExternalLink, History, MessageSquarePlus, Send, Square, Sparkles, X } from "@lucide/vue";
+import { ExternalLink, History, MessageSquarePlus, Send, Settings2, Square, Sparkles, X } from "@lucide/vue";
 
 import { useChatStore } from "../../stores/chat";
 import { isRetrievalTarget } from "../../services/aiService";
@@ -13,6 +13,8 @@ import LlmModelSelect from "./LlmModelSelect.vue";
 import RagPromptChips from "./RagPromptChips.vue";
 import RagScopeBar from "./RagScopeBar.vue";
 import ChatSessionPanel from "./ChatSessionPanel.vue";
+import AiSettingsDrawer from "./AiSettingsDrawer.vue";
+import type { AiSettingsTabInput } from "../../composables/useAiSettings";
 
 const props = withDefaults(
   defineProps<{
@@ -29,6 +31,8 @@ const router = useRouter();
 const listEl = ref<HTMLElement | null>(null);
 const inputEl = ref<HTMLTextAreaElement | null>(null);
 const historyOpen = ref(false);
+const configOpen = ref(false);
+const configInitialTab = ref<AiSettingsTabInput | undefined>(undefined);
 
 const isPage = computed(() => props.variant === "page");
 const ragSurface = computed((): "workspace" | "standalone" => (isPage.value ? "standalone" : "workspace"));
@@ -41,6 +45,12 @@ const modes: { id: AiChatMode; label: string; desc: string }[] = [
 
 const activeModeMeta = computed(() => modes.find((m) => m.id === chat.mode) ?? modes[0]);
 const isRetrievalMode = computed(() => isRetrievalTarget(chat.llmTarget));
+
+const isThinking = computed(() => {
+  if (!chat.isStreaming) return false;
+  const last = chat.messages[chat.messages.length - 1];
+  return last?.role === "assistant" && Boolean(last.streaming) && !last.content?.trim();
+});
 
 const inputPlaceholder = computed(() => {
   if (chat.mode === "rag" && isRetrievalMode.value) {
@@ -122,6 +132,21 @@ function useRagPrompt(text: string) {
   inputEl.value?.focus();
 }
 
+function openConfig(tab?: AiSettingsTabInput) {
+  configInitialTab.value = tab;
+  configOpen.value = true;
+}
+
+function closeConfig() {
+  configOpen.value = false;
+  configInitialTab.value = undefined;
+  void chat.loadAiEnabled();
+}
+
+function onConfigSaved() {
+  void chat.loadAiEnabled();
+}
+
 function syncRagSurface() {
   chat.setRagSurface(ragSurface.value);
 }
@@ -138,13 +163,13 @@ watch(() => props.variant, syncRagSurface);
 <template>
   <component
     :is="isPage ? 'div' : 'aside'"
-    class="flex min-h-0 flex-col bg-surface-0"
-    :class="isPage ? 'h-full' : 'h-full w-full'"
+    class="ai-chat-root relative flex min-h-0 flex-col bg-surface-0"
+    :class="isPage ? 'h-full w-full' : 'h-full w-full'"
     data-testid="ai-chat-shell"
   >
     <header
       class="flex shrink-0 items-center gap-2 border-b border-border px-3 py-2.5"
-      :class="isPage ? 'bg-surface-0/80 backdrop-blur-sm' : ''"
+      :class="isPage ? 'ai-chat-page-pad bg-surface-0/80 backdrop-blur-sm' : ''"
     >
       <Sparkles class="h-4 w-4 shrink-0 text-link" aria-hidden="true" />
       <div class="min-w-0 flex-1">
@@ -184,6 +209,16 @@ watch(() => props.variant, syncRagSurface);
         <MessageSquarePlus class="h-4 w-4" />
       </button>
       <button
+        type="button"
+        class="focus-ring rounded p-1 text-muted hover:bg-surface-1 hover:text-text"
+        title="模型配置"
+        aria-label="模型配置"
+        data-testid="chat-config"
+        @click="openConfig()"
+      >
+        <Settings2 class="h-4 w-4" />
+      </button>
+      <button
         v-if="!isPage"
         type="button"
         class="focus-ring rounded p-1 text-muted hover:bg-surface-1 hover:text-text"
@@ -196,7 +231,7 @@ watch(() => props.variant, syncRagSurface);
 
     <div
       class="flex shrink-0 flex-wrap gap-1 border-b border-border px-2 py-2"
-      :class="isPage ? 'px-4 py-2.5' : ''"
+      :class="isPage ? 'ai-chat-page-pad py-2.5' : ''"
       role="tablist"
       aria-label="对话模式"
     >
@@ -221,8 +256,9 @@ watch(() => props.variant, syncRagSurface);
     </div>
 
     <div
+      v-if="!(chat.mode === 'rag' && isPage)"
       class="shrink-0 border-b border-border bg-surface-1/40 px-3 py-2 text-xs text-muted"
-      :class="isPage ? 'px-4' : ''"
+      :class="isPage ? 'ai-chat-page-pad' : ''"
       data-testid="chat-mode-hint"
     >
       <span class="font-medium text-[var(--color-text)]">{{ activeModeMeta.label }}：</span>
@@ -231,13 +267,9 @@ watch(() => props.variant, syncRagSurface);
 
     <div
       v-if="chat.mode === 'rag' && isPage"
-      class="shrink-0 border-b border-border bg-surface-1/40 px-4 py-3"
+      class="shrink-0 border-b border-border bg-surface-1/40 ai-chat-page-pad py-2"
       data-testid="rag-toolbar-page"
     >
-      <p class="mb-2.5 flex items-center gap-1.5 text-xs font-medium text-muted">
-        <BookOpen class="h-3.5 w-3.5 text-link" aria-hidden="true" />
-        知识库检索
-      </p>
       <RagScopeBar surface="standalone" />
     </div>
 
@@ -252,7 +284,7 @@ watch(() => props.variant, syncRagSurface);
     <div
       ref="listEl"
       class="min-h-0 flex-1 space-y-5 overflow-y-auto px-3 py-4"
-      :class="isPage ? 'max-w-3xl mx-auto w-full' : ''"
+      :class="isPage ? 'ai-chat-page-pad ai-chat-thread' : ''"
       data-testid="chat-message-list"
     >
       <div
@@ -266,32 +298,38 @@ watch(() => props.variant, syncRagSurface);
           :surface="ragSurface"
           @select="useRagPrompt"
         />
-        <p v-if="!chat.aiEnabled" class="text-xs text-danger">
-          请先在「设置 → AI 助手」中启用
+        <p v-if="!chat.aiEnabled" class="text-xs text-muted">
+          尚未启用 AI 助手 ·
+          <button
+            type="button"
+            class="text-link underline-offset-2 hover:underline"
+            data-testid="chat-open-config-empty"
+            @click="openConfig()"
+          >
+            立即配置
+          </button>
         </p>
       </div>
       <ChatMessage
-        v-for="msg in chat.messages"
+        v-for="(msg, index) in chat.messages"
         :key="msg.id"
         :message="msg"
+        :is-last="index === chat.messages.length - 1"
+        :is-thinking="isThinking"
         @open-citation="openCitation"
       />
     </div>
 
     <footer
       class="chat-composer-footer shrink-0 border-t border-border p-3"
-      :class="isPage ? 'bg-surface-0/80 backdrop-blur-sm' : ''"
+      :class="isPage ? 'ai-chat-page-pad bg-surface-0/80 backdrop-blur-sm' : ''"
     >
-      <div
-        class="chat-composer"
-        :class="isPage ? 'mx-auto max-w-3xl' : ''"
-        data-testid="chat-composer"
-      >
+      <div class="chat-composer" :class="isPage ? 'ai-chat-composer-page' : ''" data-testid="chat-composer">
         <textarea
           ref="inputEl"
           v-model="chat.input"
           :rows="isPage ? 3 : 2"
-          class="chat-composer__input focus-ring"
+          class="chat-composer__input"
           :placeholder="inputPlaceholder"
           :disabled="!chat.aiEnabled || chat.isStreaming"
           data-testid="chat-input"
@@ -307,8 +345,17 @@ watch(() => props.variant, syncRagSurface);
             :disabled="chat.isStreaming"
             placement="top"
             @update:model-value="chat.setLlmTarget"
+            @configure="openConfig('models')"
           />
-          <span v-else class="chat-composer__hint">AI 未启用</span>
+          <button
+            v-else
+            type="button"
+            class="chat-composer__hint text-link underline-offset-2 hover:underline"
+            data-testid="chat-open-config-composer"
+            @click="openConfig()"
+          >
+            配置 AI 模型
+          </button>
 
           <div class="chat-composer__actions">
             <button
@@ -340,9 +387,16 @@ watch(() => props.variant, syncRagSurface);
       <p
         v-if="!chat.aiEnabled"
         class="mt-1.5 text-center text-[10px] text-muted"
-        :class="isPage ? 'mx-auto max-w-3xl' : ''"
+        :class="isPage ? 'ai-chat-composer-page' : ''"
       >
-        请先在设置中启用 AI 助手
+        <button
+          type="button"
+          class="text-link underline-offset-2 hover:underline"
+          @click="openConfig()"
+        >
+          打开模型配置
+        </button>
+        以启用 AI 助手
       </p>
     </footer>
 
@@ -352,5 +406,30 @@ watch(() => props.variant, syncRagSurface);
       :compact="!isPage"
       @close="historyOpen = false"
     />
+
+    <AiSettingsDrawer
+      :open="configOpen"
+      :initial-tab="configInitialTab"
+      @close="closeConfig"
+      @saved="onConfigSaved"
+    />
   </component>
 </template>
+
+<style scoped>
+.ai-chat-page-pad {
+  padding-left: clamp(1rem, 2.5vw, 2rem);
+  padding-right: clamp(1rem, 2.5vw, 2rem);
+}
+
+.ai-chat-thread {
+  width: 100%;
+  max-width: none;
+}
+
+.ai-chat-composer-page {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+}
+</style>

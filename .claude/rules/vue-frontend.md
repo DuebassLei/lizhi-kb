@@ -20,4 +20,4 @@ paths:
 
 ## 验证
 
-`pnpm dev` · `pnpm build`
+`pnpm dev` · `pnpm verify` · `pnpm build`（零警告 Vite 配置）

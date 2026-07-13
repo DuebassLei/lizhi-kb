@@ -201,14 +201,5 @@ async function onImport() {
       @delete="onDelete"
     />
 
-    <p
-      v-if="ui.toast"
-      role="status"
-      data-testid="requirements-toast"
-      class="fixed bottom-4 left-1/2 z-[120] -translate-x-1/2 rounded-md border border-border bg-surface-1 px-4 py-2 text-sm shadow-lg"
-      :class="ui.toast.type === 'success' ? 'text-secure' : 'text-danger'"
-    >
-      {{ ui.toast.message }}
-    </p>
   </div>
 </template>

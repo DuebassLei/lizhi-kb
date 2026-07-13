@@ -18,4 +18,4 @@ paths:
 
 ## 验证
 
-`pnpm tauri dev` · `cargo check --manifest-path src-tauri/Cargo.toml`
+`pnpm tauri dev` · `pnpm verify:rust` · `pnpm verify`（Rust `-Dwarnings`）

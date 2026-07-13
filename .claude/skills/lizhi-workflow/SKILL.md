@@ -10,6 +10,7 @@ description: 狸知知识库多 Agent 工作流、任务模板与交接协议。
 | 主题 | 路径 |
 |------|------|
 | 工作流总览 | `docs/agent-workflow/multi-agent-workflow.md` |
+| 验证门禁 | `docs/agent-workflow/verification.md` |
 | 交接模板 | `docs/agent-workflow/handoff-template.md` |
 | 同步策略 | `docs/agent-workflow/sync-strategy.md` |
 | 功能 | `docs/agent-workflow/templates/feature.md` |
@@ -31,6 +32,7 @@ description: 狸知知识库多 Agent 工作流、任务模板与交接协议。
 
 ```bash
 pnpm dev
+pnpm verify       # 零警告编译门禁（合并前必跑）
 pnpm build
 pnpm tauri dev
 pnpm test:e2e
@@ -41,3 +43,4 @@ pnpm test:e2e
 - 垂直切片，单切片可演示
 - 最小 diff，中文 UI
 - 不主动 commit
+- Verify 阶段：`pnpm verify` 零警告

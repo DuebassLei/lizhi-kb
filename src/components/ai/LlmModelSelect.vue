@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { useRouter } from "vue-router";
 import {
   Check,
   ChevronDown,
@@ -39,7 +38,9 @@ const props = withDefaults(
 
 const model = defineModel<LlmTarget>({ required: true });
 
-const router = useRouter();
+const emit = defineEmits<{
+  configure: [];
+}>();
 const open = ref(false);
 const query = ref("");
 const rootRef = ref<HTMLElement | null>(null);
@@ -132,9 +133,9 @@ function selectOption(id: LlmTarget) {
   close();
 }
 
-function openSettings() {
+function openConfigure() {
   close();
-  void router.push({ path: "/settings", hash: "#settings-ai" });
+  emit("configure");
 }
 
 function onDocumentClick(e: MouseEvent) {
@@ -319,7 +320,7 @@ onUnmounted(() => {
             type="button"
             class="llm-model-select__add focus-ring"
             data-testid="chat-llm-add-models"
-            @click="openSettings"
+            @click="openConfigure"
           >
             <Plus class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
             添加模型

@@ -97,7 +97,8 @@
 
 body.sidebar-resizing,
 body.chat-panel-resizing,
-body.split-preview-resizing {
+body.split-preview-resizing,
+body.cc-workbench-drawer-resizing {
   user-select: none;
   cursor: col-resize !important;
 }

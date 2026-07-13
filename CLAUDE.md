@@ -6,6 +6,8 @@
 ## 快速参考
 
 - **工作目录**：本目录（项目根）
+- **产品 spec**：`docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md`
+- **Agent 工作台 spec**：`docs/superpowers/specs/2026-07-10-cc-workbench-design.md`
 - **Plan 优先**：复杂任务先 Plan 模式，用户确认后再实现
 - **上下文**：约 40% 时考虑 `/compact`；新任务新会话
 
@@ -54,10 +56,13 @@
 ## 验证
 
 ```bash
-pnpm build
-pnpm test:e2e    # 流程变更时
-pnpm tauri dev   # Tauri/IPC 变更时
+pnpm verify        # 零警告编译门禁（合并前必跑）
+pnpm build         # 前端 + MCP 构建
+pnpm test:e2e      # 流程变更时
+pnpm tauri dev     # Tauri/IPC 变更时
 ```
+
+详见 [verification.md](./docs/agent-workflow/verification.md)。
 
 ## 配置同步
 

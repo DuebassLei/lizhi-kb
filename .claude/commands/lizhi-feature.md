@@ -34,7 +34,7 @@ Spawn `planner`：
 
 用户确认后 spawn `implementer`：
 
-> 按已批准计划实现。垂直切片、最小 diff。每切片后 pnpm build。preload lizhi-workflow skill。
+> 按已批准计划实现。垂直切片、最小 diff。每切片后 pnpm verify（零警告）。preload lizhi-workflow skill。
 
 ## Phase 3 · Review
 

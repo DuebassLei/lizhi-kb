@@ -1,12 +1,12 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "狸知知识库",
+  "productName": "LizhiKnowledge",
   "version": "0.1.0",
   "identifier": "com.lizhi.knowledge",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "pnpm build",
+    "beforeBuildCommand": "node scripts/sync-ai-bridge-resources.mjs && pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -42,6 +42,11 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "resources": {
+      "resources/ai-bridge/": "ai-bridge/",
+      "resources/cc-skill-market.json": "cc-skill-market.json",
+      "resources/cc-agent-market.json": "cc-agent-market.json"
+    },
     "windows": {
       "wix": {
         "language": "zh-CN"

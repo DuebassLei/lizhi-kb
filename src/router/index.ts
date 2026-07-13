@@ -73,6 +73,12 @@ const router = createRouter({
       meta: { title: "AI 助手", requiresUnlock: true, layer: "app" },
     },
     {
+      path: "/cc-workbench",
+      name: "cc-workbench",
+      component: () => import("../views/CcWorkbenchView.vue"),
+      meta: { title: "Agent 工作台", requiresUnlock: true, layer: "app" },
+    },
+    {
       path: "/settings",
       name: "settings",
       component: () => import("../views/SettingsView.vue"),

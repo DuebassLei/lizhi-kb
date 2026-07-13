@@ -38,7 +38,7 @@ await invoke('command_name', { ... })
 - [ ] Command 注册于 `lib.rs` / 模块
 - [ ] TypeScript 类型与 Rust 一致
 - [ ] 前端错误处理用户可读（中文）
-- [ ] `cargo check` / `pnpm tauri build` 通过
+- [ ] `pnpm verify:rust` / `pnpm verify` 通过（零警告）
 
 ## Agent 编排
 
@@ -50,5 +50,5 @@ Planner（IPC 契约）→ Implementer Rust + TS 胶水 → Reviewer（安全审
 
 ```bash
 pnpm tauri dev
-cargo check --manifest-path src-tauri/Cargo.toml
+pnpm verify:rust
 ```

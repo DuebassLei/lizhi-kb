@@ -6,9 +6,14 @@ export interface StoredChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  thinking?: string;
   citations?: { id: string; title: string }[];
   toolCalls?: { name: string; input: string; output?: string }[];
   error?: string;
+  durationMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  modelLabel?: string;
 }
 
 export interface ChatSession {
@@ -34,6 +39,13 @@ export interface ChatSessionStore {
 
 const STORAGE_KEY = "lizhi-kb-chat-sessions-v1";
 const MAX_SESSIONS_PER_SURFACE = 50;
+
+let persistAfterSave: (() => void) | null = null;
+
+/** 由 main.ts 注册，避免 chatSessionStorage ↔ vaultUiState 循环依赖 */
+export function setChatSessionPersistHook(fn: () => void): void {
+  persistAfterSave = fn;
+}
 
 function emptyBundle(): SurfaceSessionBundle {
   return { activeId: null, sessions: [] };
@@ -64,9 +76,14 @@ function normalizeMessage(raw: unknown): StoredChatMessage | null {
     id: m.id,
     role: m.role,
     content: m.content,
+    thinking: typeof m.thinking === "string" ? m.thinking : undefined,
     citations: Array.isArray(m.citations) ? (m.citations as StoredChatMessage["citations"]) : undefined,
     toolCalls: Array.isArray(m.toolCalls) ? (m.toolCalls as StoredChatMessage["toolCalls"]) : undefined,
     error: typeof m.error === "string" ? m.error : undefined,
+    durationMs: typeof m.durationMs === "number" ? m.durationMs : undefined,
+    inputTokens: typeof m.inputTokens === "number" ? m.inputTokens : undefined,
+    outputTokens: typeof m.outputTokens === "number" ? m.outputTokens : undefined,
+    modelLabel: typeof m.modelLabel === "string" ? m.modelLabel : undefined,
   };
 }
 
@@ -127,7 +144,7 @@ export function saveChatSessionStore(store: ChatSessionStore): void {
   if (typeof localStorage === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-    void import("../services/vaultUiStateService").then((m) => m.schedulePersistVaultUiState());
+    persistAfterSave?.();
   } catch {
     /* ignore quota */
   }

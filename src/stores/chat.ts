@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 
 import {
   buildLlmOptions,
+  findLlmOption,
   getAiConfig,
   getCloudFallbackTargets,
   isAutoTarget,
@@ -35,6 +36,7 @@ import {
   type RagSurface,
   type StoredChatMessage,
 } from "../utils/chatSessionStorage";
+import { splitEmbeddedThinking } from "../utils/ccMessageBlocks";
 import { useDocumentsStore } from "./documents";
 import { useVaultStore } from "./vault";
 
@@ -49,10 +51,17 @@ export interface UiChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  thinking?: string;
   citations?: Citation[];
+  contextFiles?: string[];
+  agentName?: string;
   toolCalls?: { name: string; input: string; output?: string }[];
   streaming?: boolean;
   error?: string;
+  durationMs?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  modelLabel?: string;
 }
 
 let msgCounter = 0;
@@ -82,9 +91,14 @@ function toStoredMessage(message: UiChatMessage): StoredChatMessage {
     id: message.id,
     role: message.role,
     content: message.content,
+    thinking: message.thinking,
     citations: message.citations,
     toolCalls: message.toolCalls,
     error: message.error,
+    durationMs: message.durationMs,
+    inputTokens: message.inputTokens,
+    outputTokens: message.outputTokens,
+    modelLabel: message.modelLabel,
   };
 }
 
@@ -120,6 +134,7 @@ export const useChatStore = defineStore("chat", () => {
   const input = ref("");
   const isStreaming = ref(false);
   const abortFlag = ref(false);
+  const activeStreamStartedAt = ref<number | null>(null);
 
   const documents = useDocumentsStore();
   const vault = useVaultStore();
@@ -379,13 +394,35 @@ export const useChatStore = defineStore("chat", () => {
     newSession();
   }
 
+  function resolveAssistantModelLabel(target: LlmTarget): string | undefined {
+    if (isRetrievalTarget(target)) return "仅检索";
+    const hit = findLlmOption(llmOptions.value, target);
+    if (!hit) return undefined;
+    if (hit.group === "cloud") return hit.label;
+    return hit.shortLabel || hit.label;
+  }
+
+  function finalizeAssistantMeta(messageId: string, startedAt: number) {
+    const current = messages.value.find((m) => m.id === messageId);
+    if (!current) return;
+    patchMessage(messageId, {
+      streaming: false,
+      durationMs: current.durationMs ?? Date.now() - startedAt,
+    });
+  }
+
   function stop() {
     abortFlag.value = true;
     isStreaming.value = false;
     const last = messages.value[messages.value.length - 1];
     if (last?.role === "assistant" && last.streaming) {
-      patchMessage(last.id, { streaming: false });
+      if (activeStreamStartedAt.value !== null) {
+        finalizeAssistantMeta(last.id, activeStreamStartedAt.value);
+      } else {
+        patchMessage(last.id, { streaming: false });
+      }
     }
+    activeStreamStartedAt.value = null;
     syncSessionToStore();
   }
 
@@ -395,7 +432,7 @@ export const useChatStore = defineStore("chat", () => {
     messages.value[index] = { ...messages.value[index], ...patch };
   }
 
-  function appendAssistantShell(): string {
+  function appendAssistantShell(modelLabel?: string): string {
     const id = nextMsgId();
     messages.value.push({
       id,
@@ -404,19 +441,36 @@ export const useChatStore = defineStore("chat", () => {
       citations: [],
       toolCalls: [],
       streaming: true,
+      modelLabel,
     });
     return id;
   }
 
-  function handleStreamEvent(messageId: string, event: StreamEvent) {
+  function handleStreamEvent(messageId: string, event: StreamEvent, startedAt: number) {
     if (abortFlag.value) return;
 
     const current = messages.value.find((m) => m.id === messageId);
     if (!current) return;
 
     switch (event.type) {
-      case "token":
-        patchMessage(messageId, { content: current.content + event.content });
+      case "token": {
+        const split = splitEmbeddedThinking(event.content);
+        const patch: Partial<UiChatMessage> = {};
+        if (split.thinking) {
+          patch.thinking = (current.thinking ?? "") + split.thinking;
+        }
+        if (split.text) {
+          patch.content = current.content + split.text;
+        }
+        if (Object.keys(patch).length > 0) {
+          patchMessage(messageId, patch);
+        }
+        break;
+      }
+      case "thinking":
+        patchMessage(messageId, {
+          thinking: (current.thinking ?? "") + event.content,
+        });
         break;
       case "citation": {
         const citations = [...(current.citations ?? [])];
@@ -439,31 +493,45 @@ export const useChatStore = defineStore("chat", () => {
         patchMessage(messageId, { toolCalls });
         break;
       }
+      case "usage":
+        patchMessage(messageId, {
+          inputTokens: Math.max(current.inputTokens ?? 0, event.inputTokens),
+          outputTokens: Math.max(current.outputTokens ?? 0, event.outputTokens),
+        });
+        break;
       case "error":
         patchMessage(messageId, { error: event.message, streaming: false });
         break;
       case "done":
-        patchMessage(messageId, { streaming: false });
+        finalizeAssistantMeta(messageId, startedAt);
         break;
       default:
         break;
     }
   }
 
-  function resetAssistantForRetry(messageId: string) {
+  function resetAssistantForRetry(messageId: string, modelLabel?: string) {
     patchMessage(messageId, {
       content: "",
+      thinking: undefined,
       error: undefined,
       streaming: true,
       citations: undefined,
       toolCalls: undefined,
+      durationMs: undefined,
+      inputTokens: undefined,
+      outputTokens: undefined,
+      modelLabel,
     });
   }
 
   function assistantHasFailure(messageId: string): boolean {
     const assistant = messages.value.find((m) => m.id === messageId);
     if (!assistant) return true;
-    return Boolean(assistant.error) || (!assistant.content && !assistant.toolCalls?.length);
+    return (
+      Boolean(assistant.error) ||
+      (!assistant.content && !assistant.thinking?.trim() && !assistant.toolCalls?.length)
+    );
   }
 
   async function runStreamForTarget(
@@ -471,8 +539,10 @@ export const useChatStore = defineStore("chat", () => {
     text: string,
     assistantId: string,
     history: ApiChatMessage[],
+    startedAt: number,
   ) {
-    const onEvent = (event: StreamEvent) => handleStreamEvent(assistantId, event);
+    patchMessage(assistantId, { modelLabel: resolveAssistantModelLabel(target) });
+    const onEvent = (event: StreamEvent) => handleStreamEvent(assistantId, event, startedAt);
 
     if (isRetrievalTarget(target) && mode.value !== "rag") {
       patchMessage(assistantId, {
@@ -540,19 +610,23 @@ export const useChatStore = defineStore("chat", () => {
     abortFlag.value = false;
     syncSessionToStore();
 
-    const assistantId = appendAssistantShell();
-    const history: ApiChatMessage[] = messages.value
-      .filter((m) => m.role === "user" || (m.role === "assistant" && m.content))
-      .slice(0, -1)
-      .map((m) => ({ role: m.role, content: m.content }));
-
     const selectedTarget = llmTarget.value;
     const config = aiConfig.value;
     const primaryTarget = resolveLlmTarget(selectedTarget, config);
     const autoMode = isAutoTarget(selectedTarget);
 
+    const assistantId = appendAssistantShell(
+      resolveAssistantModelLabel(primaryTarget),
+    );
+    const startedAt = Date.now();
+    activeStreamStartedAt.value = startedAt;
+    const history: ApiChatMessage[] = messages.value
+      .filter((m) => m.role === "user" || (m.role === "assistant" && m.content))
+      .slice(0, -1)
+      .map((m) => ({ role: m.role, content: m.content }));
+
     try {
-      await runStreamForTarget(primaryTarget, text, assistantId, history);
+      await runStreamForTarget(primaryTarget, text, assistantId, history, startedAt);
 
       if (
         autoMode &&
@@ -561,9 +635,9 @@ export const useChatStore = defineStore("chat", () => {
         assistantHasFailure(assistantId)
       ) {
         for (const fallbackTarget of getCloudFallbackTargets(config)) {
-          resetAssistantForRetry(assistantId);
+          resetAssistantForRetry(assistantId, resolveAssistantModelLabel(fallbackTarget));
           abortFlag.value = false;
-          await runStreamForTarget(fallbackTarget, text, assistantId, history);
+          await runStreamForTarget(fallbackTarget, text, assistantId, history, startedAt);
           if (!assistantHasFailure(assistantId) || abortFlag.value) break;
         }
       }
@@ -577,11 +651,13 @@ export const useChatStore = defineStore("chat", () => {
       isStreaming.value = false;
       const assistant = messages.value.find((m) => m.id === assistantId);
       if (assistant?.streaming) {
-        patchMessage(assistantId, { streaming: false });
+        finalizeAssistantMeta(assistantId, startedAt);
       }
+      activeStreamStartedAt.value = null;
       if (
         assistant &&
         !assistant.content &&
+        !assistant.thinking?.trim() &&
         !assistant.error &&
         !(assistant.toolCalls?.length)
       ) {

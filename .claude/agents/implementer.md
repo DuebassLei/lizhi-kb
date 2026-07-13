@@ -25,7 +25,7 @@ skills:
 
 ## 完成标准
 
-- `pnpm build` 通过
+- `pnpm verify` 通过（零警告编译）
 - 任务相关手动/E2E 验证通过
 - 准备 Reviewer 审查摘要
 

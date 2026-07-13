@@ -36,7 +36,7 @@ const docCount = computed(() => documents.tree.length);
 
 const scopeContext = computed(() => {
   if (isStandalone.value) {
-    return docCount.value > 0 ? `共 ${docCount.value} 篇笔记` : null;
+    return docCount.value > 0 ? `${docCount.value} 篇笔记` : null;
   }
   if (chat.ragScope === "currentDocument") {
     return activeDoc.value?.title ?? null;
@@ -61,81 +61,206 @@ const scopeWarning = computed(() => {
   return null;
 });
 
+const standaloneHint = "检索笔记后回答并附引用 · 独立页始终全库搜索";
+
 function selectScope(scope: RagScope) {
   chat.setRagScope(scope);
 }
 </script>
 
 <template>
-  <div :class="compact ? 'space-y-1.5' : 'space-y-2.5'">
-    <div v-if="isStandalone" class="space-y-1">
-      <div
-        class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-0 px-2.5 py-1.5 text-xs text-[var(--color-text)]"
-      >
-        <BookOpen class="h-3.5 w-3.5 text-link" aria-hidden="true" />
-        <span class="font-medium">全库检索</span>
-        <span v-if="docCount > 0" class="text-muted">· {{ docCount }} 篇笔记</span>
-      </div>
-      <p class="text-[10px] leading-relaxed text-muted">
-        独立对话页无编辑上下文，始终搜索全部笔记
-      </p>
-    </div>
+  <div
+    class="rag-scope-bar"
+    :class="compact ? 'rag-scope-bar--compact' : 'rag-scope-bar--regular'"
+    data-testid="rag-scope-bar"
+  >
+    <template v-if="isStandalone">
+      <span class="rag-scope-bar__badge">
+        <BookOpen class="rag-scope-bar__badge-icon" aria-hidden="true" />
+        <span class="rag-scope-bar__badge-label">全库检索</span>
+        <span v-if="docCount > 0" class="rag-scope-bar__badge-meta">· {{ docCount }} 篇</span>
+      </span>
+      <span class="rag-scope-bar__hint" :title="standaloneHint">
+        {{ standaloneHint }}
+      </span>
+    </template>
 
     <template v-else>
-      <div class="flex flex-wrap items-center gap-2">
-        <span
-          v-if="!compact"
-          class="shrink-0 text-xs font-medium text-muted"
-        >
-          检索范围
-        </span>
-        <div
-          class="inline-flex rounded-lg border border-border bg-surface-0 p-0.5"
-          role="group"
-          aria-label="检索范围"
-        >
-          <button
-            v-for="s in scopes"
-            :key="s.id"
-            type="button"
-            class="focus-ring inline-flex items-center gap-1 rounded-md transition-colors"
-            :class="[
-              compact ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs',
-              chat.ragScope === s.id
-                ? 'bg-link/15 font-medium text-link shadow-sm'
-                : 'text-muted hover:bg-surface-2 hover:text-[var(--color-text)]',
-            ]"
-            :aria-pressed="chat.ragScope === s.id"
-            :data-testid="`rag-scope-${s.id}`"
-            @click="selectScope(s.id)"
-          >
-            <component :is="s.icon" class="h-3 w-3 shrink-0" aria-hidden="true" />
-            {{ compact ? s.shortLabel : s.label }}
-          </button>
-        </div>
-      </div>
-
       <div
-        v-if="scopeContext || scopeWarning"
-        class="flex flex-wrap items-start gap-2 rounded-md border border-divider bg-surface-0 px-2.5 py-2"
-        :class="compact ? 'text-[10px]' : 'text-xs'"
+        class="rag-scope-bar__group"
+        role="group"
+        aria-label="检索范围"
       >
-        <p
-          v-if="scopeContext && !scopeWarning"
-          class="min-w-0 flex-1 leading-relaxed text-muted"
+        <button
+          v-for="s in scopes"
+          :key="s.id"
+          type="button"
+          class="rag-scope-bar__scope focus-ring"
+          :class="{ 'rag-scope-bar__scope--active': chat.ragScope === s.id }"
+          :aria-pressed="chat.ragScope === s.id"
+          :data-testid="`rag-scope-${s.id}`"
+          @click="selectScope(s.id)"
         >
-          <span class="text-[var(--color-text)]/70">上下文 · </span>
-          <span class="text-[var(--color-text)]">{{ scopeContext }}</span>
-        </p>
-
-        <p
-          v-if="scopeWarning"
-          class="flex min-w-0 flex-1 items-center gap-1.5 text-amber-400"
-        >
-          <AlertCircle class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span>{{ scopeWarning }}</span>
-        </p>
+          <component :is="s.icon" class="rag-scope-bar__scope-icon" aria-hidden="true" />
+          {{ compact ? s.shortLabel : s.label }}
+        </button>
       </div>
+
+      <p
+        v-if="scopeWarning"
+        class="rag-scope-bar__status rag-scope-bar__status--warn"
+      >
+        <AlertCircle class="rag-scope-bar__status-icon" aria-hidden="true" />
+        <span class="rag-scope-bar__status-text">{{ scopeWarning }}</span>
+      </p>
+      <p
+        v-else-if="scopeContext"
+        class="rag-scope-bar__status"
+        :title="`上下文 · ${scopeContext}`"
+      >
+        <span class="rag-scope-bar__status-label">上下文</span>
+        <span class="rag-scope-bar__status-text">{{ scopeContext }}</span>
+      </p>
     </template>
   </div>
 </template>
+
+<style scoped>
+.rag-scope-bar {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.rag-scope-bar--compact {
+  font-size: 0.625rem;
+}
+
+.rag-scope-bar--regular {
+  font-size: 0.75rem;
+}
+
+.rag-scope-bar__badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--color-link) 22%, var(--color-border));
+  background: color-mix(in srgb, var(--color-link) 8%, var(--color-surface-0));
+  padding: 0.25rem 0.625rem;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.rag-scope-bar__badge-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--color-link);
+}
+
+.rag-scope-bar__badge-label {
+  font-weight: 600;
+}
+
+.rag-scope-bar__badge-meta {
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+.rag-scope-bar__hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-muted);
+  line-height: 1.35;
+}
+
+.rag-scope-bar__group {
+  display: inline-flex;
+  flex-shrink: 0;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+  padding: 0.125rem;
+}
+
+.rag-scope-bar__scope {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  padding: 0.25rem 0.5rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.rag-scope-bar--regular .rag-scope-bar__scope {
+  padding: 0.3125rem 0.625rem;
+}
+
+.rag-scope-bar__scope:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.rag-scope-bar__scope--active {
+  background: color-mix(in srgb, var(--color-link) 15%, transparent);
+  color: var(--color-link);
+  font-weight: 600;
+}
+
+.rag-scope-bar__scope-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+}
+
+.rag-scope-bar__status {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  color: var(--color-muted);
+  line-height: 1.35;
+}
+
+.rag-scope-bar__status--warn {
+  color: var(--color-warning);
+}
+
+.rag-scope-bar__status-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
+.rag-scope-bar__status-label {
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--color-text) 55%, var(--color-muted));
+}
+
+.rag-scope-bar__status-label::after {
+  content: " · ";
+}
+
+.rag-scope-bar__status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text);
+}
+
+.rag-scope-bar__status--warn .rag-scope-bar__status-text {
+  color: inherit;
+}
+</style>

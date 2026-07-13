@@ -1,7 +1,7 @@
 # 狸知知识库 完整产品设计与定位包装方案
 
-**文档版本**：v2.1.0  
-**更新日期**：2026-07-06  
+**文档版本**：v2.2.0  
+**更新日期**：2026-07-13  
 **品牌短名**：狸知 · **Lizhi Knowledge**  
 **产品全称**：狸知知识库 — 个人加密知识库  
 **基于文档**：`docs/design/初版设计.md` v1.5.0  
@@ -33,6 +33,8 @@
 |--------|------|------|----------|
 | **Must** | v1.0 | **Vault** | 加密库、主密码解锁、Markdown 编辑器、目录树、热力图、MD/PDF 导出 |
 | **Must** | v1.5 | **Network** | 双链、反向链接、局部图谱、App Lock 完善、界面/导出水印 |
+| **Could** | v1.6+ | **灵狸 AI** | 应用内 AI 助手（闲聊/RAG/笔记助手），见 [AI Chat spec](./2026-07-08-lizhi-ai-chat-design.md) |
+| **Could** | v1.7+ | **Agent 工作台** | Claude Agent SDK 独立工作台，见 [CC Workbench spec](./2026-07-10-cc-workbench-design.md) |
 | **Could** | v2.0 | **Shadow** | 诱饵库、盲水印、防截屏 API、红蓝对抗审计包 |
 | **Won't (v1.x)** | — | — | 云同步、多人协作、插件市场、移动端 |
 
@@ -567,7 +569,19 @@ Home
 4. 排期 **12 周** 可发布 v1.5
 5. **前端栈 Vue 3 + Pinia + TipTap Vue**
 6. **品牌定为狸知知识库 / Lizhi Knowledge**（替代 SecureNote，2026-07-06）
+7. **v1.6+ 增补 AI 助手**（Rust 直连 LLM，与 MCP 并列）
+8. **v1.7+ 增补 Agent 工作台**（Node ai-bridge + Claude SDK，与 AI 助手并列不合并）
+
+### 10.3 扩展模块 spec 索引
+
+| 模块 | 文档 | 边界 |
+|------|------|------|
+| AI 助手 | [2026-07-08-lizhi-ai-chat-design.md](./2026-07-08-lizhi-ai-chat-design.md) | Rust `ai/*`；Ollama + 多云；工作区右栏 |
+| Agent 工作台 | [2026-07-10-cc-workbench-design.md](./2026-07-10-cc-workbench-design.md) | ai-bridge + SDK；Anthropic 生态；独立路由 `/cc-workbench` |
+| CC 输入栏模型 | [2026-07-10-cc-input-model-provider-design.md](./2026-07-10-cc-input-model-provider-design.md) | 工作台内供应商/模型/1M 切换 |
+| MCP 服务 | [2026-07-08-lizhi-mcp-design.md](./2026-07-08-lizhi-mcp-design.md) | 外部 AI 工具 HTTP Bridge |
+| 备份扩展 | [../design/2026-07-08-backup-extension.md](../design/2026-07-08-backup-extension.md) | `.lizhi` v2 包 |
 
 ---
 
-**下一步**：执行 M0 Vue 脚手架（`lizhi-kb`）→ 通过后进入 M1 Vault 实现。
+**下一步**：持续迭代 v1.5 Network + v1.6/v1.7 AI 与 Agent 工作台；Shadow 功能留 v2.0。

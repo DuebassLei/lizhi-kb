@@ -96,7 +96,7 @@ Planner 产出任务列表
 **并行条件**：
 - 各任务修改路径无重叠
 - 共享类型/接口由 Planner 先定义
-- 合并前运行 `pnpm build` 与 `pnpm test:e2e`
+- 合并前运行 `pnpm verify` 与 `pnpm test:e2e`
 
 ### 3.3 快速通道（Hotfix）
 
@@ -116,7 +116,7 @@ Debugger（根因）→ Implementer（最小修复）→ Reviewer（安全扫一
 3. 阻塞项 / 待决问题
 4. 下一步 Agent 与具体指令
 5. 需读取的文件列表
-6. 验证命令（如 `pnpm dev`、`pnpm test:e2e`）
+6. 验证命令（如 `pnpm verify`、`pnpm tauri dev`）
 
 ## 5. 上下文管理
 

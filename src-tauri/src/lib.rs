@@ -34,6 +34,8 @@ mod vault_lock;
 
 mod ai;
 
+mod cc_workbench;
+
 mod prefs;
 
 
@@ -295,6 +297,13 @@ pub fn run() {
 
         .manage(mcp_bridge)
 
+        .setup(|app| {
+            cc_workbench::paths::init_bridge_script(app.handle());
+            cc_workbench::skill_market::init_skill_market(app.handle());
+            cc_workbench::agent_market::init_agent_market(app.handle());
+            Ok(())
+        })
+
         .invoke_handler(tauri::generate_handler![
 
             commands::list_documents,
@@ -420,6 +429,82 @@ pub fn run() {
             commands::ai_rag_query,
 
             commands::ai_agent_run,
+
+            commands::get_cc_workbench_status,
+
+            commands::get_cc_workbench_config,
+
+            commands::set_cc_workbench_config,
+
+            commands::upsert_cc_provider,
+
+            commands::delete_cc_provider,
+
+            commands::switch_cc_provider,
+
+            commands::list_cc_skills,
+
+            commands::list_cc_skill_market,
+
+            commands::preview_cc_switch_import,
+
+            commands::save_cc_switch_import,
+
+            commands::sort_cc_providers,
+
+            commands::preview_claude_local_settings,
+
+            commands::toggle_cc_skill,
+
+            commands::import_cc_skills,
+
+            commands::delete_cc_skill,
+
+            commands::open_cc_skill,
+
+            commands::list_cc_mcp_servers,
+
+            commands::upsert_cc_mcp_server,
+
+            commands::delete_cc_mcp_server,
+
+            commands::toggle_cc_mcp_server,
+
+            commands::get_cc_mcp_server_status,
+
+            commands::copy_cc_mcp_server_config,
+
+            commands::install_cc_sdk,
+
+            commands::list_cc_agents,
+            commands::save_cc_agent,
+            commands::delete_cc_agent,
+            commands::import_cc_agents,
+            commands::export_cc_agents,
+            commands::list_cc_agent_market,
+
+            commands::get_cc_claude_md,
+            commands::save_cc_claude_md,
+            commands::get_cc_hooks,
+            commands::save_cc_hooks,
+
+            commands::list_cc_prompts,
+            commands::save_cc_prompt,
+            commands::delete_cc_prompt,
+            commands::import_cc_prompts,
+            commands::export_cc_prompts,
+
+            commands::list_cc_slash_commands,
+
+            commands::list_cc_context_files,
+
+            commands::cc_workbench_enhance_prompt,
+
+            commands::cc_workbench_test_model,
+
+            commands::cc_workbench_send,
+            commands::cc_workbench_abort,
+            commands::cc_workbench_tool_permission_response,
 
             commands::get_vault_ui_state,
 

@@ -12,6 +12,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "settings-backup", label: "备份与恢复" },
   { id: "settings-migration", label: "迁移导出" },
   { id: "settings-mcp", label: "AI 集成 / MCP" },
+  { id: "settings-cc-workbench", label: "Agent 工作台" },
   { id: "settings-ai", label: "AI 助手" },
   { id: "settings-security", label: "安全与隐私" },
   { id: "settings-shortcuts", label: "快捷键" },

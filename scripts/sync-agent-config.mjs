@@ -26,6 +26,7 @@ const REQUIRED = [
   'docs/agent-workflow/multi-agent-workflow.md',
   'docs/agent-workflow/sync-strategy.md',
   'docs/agent-workflow/handoff-template.md',
+  'docs/agent-workflow/verification.md',
   '.cursor/rules/lizhi-kb-core.mdc',
   '.claude/agents/planner.md',
   '.claude/agents/implementer.md',

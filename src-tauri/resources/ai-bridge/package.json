@@ -1,0 +1,10 @@
+{
+  "name": "@lizhi/ai-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "狸知 Claude Agent 工作台 Node 桥接（SDK 按需安装到 ~/.lizhi-kb/dependencies/）",
+  "scripts": {
+    "send": "node channel-manager.js claude send"
+  }
+}

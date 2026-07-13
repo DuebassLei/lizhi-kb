@@ -1,5 +1,9 @@
 import { onMounted, onUnmounted, ref, type Ref } from "vue";
 import { schedulePersistVaultUiState } from "../services/vaultUiStateService";
+import {
+  readGraphNodePositionsFromStorage,
+  writeGraphNodePositionsToStorage,
+} from "../utils/vaultUiStateLocalStorage";
 
 export interface PanZoomState {
   scale: Ref<number>;
@@ -97,21 +101,14 @@ export function useSvgPanZoom(_containerRef: Ref<HTMLElement | null>): PanZoomSt
   };
 }
 
-const GRAPH_NODE_POS_KEY = "lizhi-kb-graph-node-pos";
-
 export function loadGraphNodePositions(): Record<string, { x: number; y: number }> {
-  try {
-    const raw = localStorage.getItem(GRAPH_NODE_POS_KEY);
-    return raw ? (JSON.parse(raw) as Record<string, { x: number; y: number }>) : {};
-  } catch {
-    return {};
-  }
+  return readGraphNodePositionsFromStorage();
 }
 
 export function saveGraphNodePosition(id: string, x: number, y: number): void {
-  const all = loadGraphNodePositions();
+  const all = readGraphNodePositionsFromStorage();
   all[id] = { x, y };
-  localStorage.setItem(GRAPH_NODE_POS_KEY, JSON.stringify(all));
+  writeGraphNodePositionsToStorage(all);
   schedulePersistVaultUiState();
 }
 

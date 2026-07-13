@@ -3,19 +3,24 @@ import type { FolderUiState } from "../types/folder";
 import type { DocTagsMap } from "../utils/documentTags";
 import { loadFolderState } from "../utils/folderTree";
 import { loadChatSessionStore, type ChatSessionStore } from "../utils/chatSessionStorage";
-import { loadInsightsHeroBackground } from "../utils/insightsHeroBackground";
-import { loadGraphNodePositions } from "../composables/useSvgPanZoom";
-import { loadPinnedIds } from "../utils/pinnedDocs";
-import { loadRecentDocIds } from "../utils/recentDocs";
+import { readInsightsHeroBackgroundFromStorage, INSIGHTS_HERO_BG_KEY } from "../utils/insightsHeroBackgroundStorage";
+import {
+  readGraphNodePositionsFromStorage,
+  readPinnedDocIdsFromStorage,
+  readRecentDocIdsFromStorage,
+  VAULT_UI_GRAPH_POS_KEY,
+  VAULT_UI_PINNED_KEY,
+  VAULT_UI_RECENT_KEY,
+} from "../utils/vaultUiStateLocalStorage";
 import { isTauriRuntime } from "./vaultService";
 
 const FOLDERS_KEY = "lizhi-kb-folders";
 const TAGS_KEY = "lizhi-kb-doc-tags";
 const CHAT_KEY = "lizhi-kb-chat-sessions-v1";
-const HERO_BG_KEY = "lizhi-kb-insights-hero-bg";
-const GRAPH_POS_KEY = "lizhi-kb-graph-node-pos";
-const PINNED_KEY = "lizhi-kb-pinned";
-const RECENT_KEY = "lizhi-kb-recent-docs";
+const HERO_BG_KEY = INSIGHTS_HERO_BG_KEY;
+const PINNED_KEY = VAULT_UI_PINNED_KEY;
+const RECENT_KEY = VAULT_UI_RECENT_KEY;
+const GRAPH_POS_KEY = VAULT_UI_GRAPH_POS_KEY;
 
 /** 看板背景 data URL 超过此大小时不写入备份（避免 .lizhi 膨胀） */
 const HERO_BG_BACKUP_MAX_BYTES = 2 * 1024 * 1024;
@@ -34,7 +39,7 @@ export interface VaultUiState {
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
 function heroBgForBackup(): string | null {
-  const bg = loadInsightsHeroBackground();
+  const bg = readInsightsHeroBackgroundFromStorage();
   if (!bg) return null;
   if (bg.length > HERO_BG_BACKUP_MAX_BYTES) return null;
   return bg;
@@ -55,9 +60,9 @@ export function buildVaultUiStateFromLocal(): VaultUiState {
     documentTags,
     chatSessions: loadChatSessionStore(),
     insightsHeroBackground: heroBgForBackup(),
-    graphNodePositions: loadGraphNodePositions(),
-    pinnedDocIds: loadPinnedIds(),
-    recentDocIds: loadRecentDocIds(),
+    graphNodePositions: readGraphNodePositionsFromStorage(),
+    pinnedDocIds: readPinnedDocIdsFromStorage(),
+    recentDocIds: readRecentDocIdsFromStorage(),
   };
 }
 

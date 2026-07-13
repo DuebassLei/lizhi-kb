@@ -7,6 +7,9 @@
     "rootDir": "src",
     "strict": true,
     "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
     "types": ["node"],
     "declaration": true,
     "esModuleInterop": true

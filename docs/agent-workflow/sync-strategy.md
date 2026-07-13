@@ -38,6 +38,7 @@ lizhi-kb/（项目根）
 | Claude 专属 | `.claude/` | 仅 Claude Code |
 | Cursor 专属 | `.cursor/rules/` | 仅 Cursor |
 | 工作流、角色、模板 | `docs/agent-workflow/` | SSOT，两轨引用 |
+| 验证门禁 | `docs/agent-workflow/verification.md` | 零警告编译 SSOT |
 | 校验脚本 | `scripts/sync-agent-config.mjs` | 从 `lizhi-kb/` 运行 |
 | 产品 spec | `docs/superpowers/specs/` | 产品 SSOT |
 | 原始设计 | `docs/design/初版设计.md` | PRD/TDD |

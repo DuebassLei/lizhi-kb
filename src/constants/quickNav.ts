@@ -1,4 +1,12 @@
-export type QuickNavId = "insights" | "workspace" | "journal" | "credentials" | "requirements" | "launches" | "ai";
+export type QuickNavId =
+  | "insights"
+  | "workspace"
+  | "journal"
+  | "credentials"
+  | "requirements"
+  | "launches"
+  | "ai"
+  | "ccWorkbench";
 
 export interface QuickNavItem {
   id: QuickNavId;
@@ -16,6 +24,7 @@ export const QUICK_NAV_ITEMS: QuickNavItem[] = [
   { id: "requirements", to: "/requirements", label: "需求看板", desc: "需求与任务管理" },
   { id: "launches", to: "/launches", label: "上线记录", desc: "发布与交付上线审计" },
   { id: "ai", to: "/ai", label: "AI 助手", desc: "对话与笔记检索" },
+  { id: "ccWorkbench", to: "/cc-workbench", label: "Agent 工作台", desc: "Claude Agent · Skills · MCP" },
 ];
 
 export type QuickNavVisibility = Record<QuickNavId, boolean>;
@@ -28,4 +37,5 @@ export const DEFAULT_QUICK_NAV_VISIBILITY: QuickNavVisibility = {
   requirements: true,
   launches: true,
   ai: true,
+  ccWorkbench: true,
 };

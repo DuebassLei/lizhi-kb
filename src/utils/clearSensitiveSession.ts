@@ -1,12 +1,12 @@
-import { useCredentialsStore } from "../stores/credentials";
-import { useDocumentsStore } from "../stores/documents";
-import { useEditorStore } from "../stores/editor";
-import { useLinksStore } from "../stores/links";
+/** 锁定 vault 时清空的敏感态回调（由 main.ts 注册，避免 store 循环依赖） */
+const handlers: Array<() => void> = [];
 
-/** 锁定 vault 时清空前端敏感内存（正文、链接索引片段、凭据等） */
-export function clearSensitiveSessionData() {
-  useDocumentsStore().clearActive();
-  useLinksStore().clear();
-  useCredentialsStore().clear();
-  useEditorStore().clear();
+export function registerSensitiveSessionClear(handler: () => void): void {
+  handlers.push(handler);
+}
+
+export function clearSensitiveSessionData(): void {
+  for (const handler of handlers) {
+    handler();
+  }
 }

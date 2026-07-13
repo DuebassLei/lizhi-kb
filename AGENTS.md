@@ -12,6 +12,8 @@
 |----|-----|
 | 工作目录 | 本目录（`lizhi-kb/` 代码路径） |
 | 产品 spec | `docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md` |
+| Agent 工作台 spec | `docs/superpowers/specs/2026-07-10-cc-workbench-design.md` |
+| AI 助手 spec | `docs/superpowers/specs/2026-07-08-lizhi-ai-chat-design.md` |
 | 原始 PRD | `docs/design/初版设计.md` |
 | 备份设计 | `docs/design/2026-07-08-backup-extension.md` |
 | 数据目录 | `~/.lizhi-kb/`（加密库，勿提交） |
@@ -19,7 +21,8 @@
 ### 数据目录要点
 
 - **vault 核心**：`workspace/`、`assets/`、`vault.db`（或明文 `lizhi-kb.db`）、`vault.meta.json`、`keys.enc`
-- **配置**：`ai-config.json`、`ai-secrets.json`、`mcp-config.json`（敏感，纳入 `.lizhi` v2 备份）
+- **配置**：`ai-config.json`、`ai-secrets.json`、`mcp-config.json`、`cc-workbench.json`、`cc-secrets.json`（敏感，纳入 `.lizhi` v2 备份）
+- **Claude Code 生态**（Agent 工作台）：`~/.claude/`（agents、prompts、skills）、`~/.claude.json`（MCP）；项目级 `{project}/.claude/`
 - **UI 状态 SSOT**：`vault-ui-state.json`（文件夹树、标签、对话记录等；Tauri 下双写 localStorage）
 - **恢复模式**：`replace`（整库）| `merge`（仅设置）| `merge-documents`（文档+设置合并）
 
@@ -43,7 +46,10 @@
 pnpm install
 pnpm dev              # 浏览器预览（无需 Rust）
 pnpm tauri dev        # 完整桌面应用
-pnpm build            # vue-tsc + vite build
+pnpm build            # 前端构建（含类型检查，零警告 Vite）
+pnpm verify           # 完整门禁：前端 + MCP + Rust，零警告
+pnpm verify:fe        # 仅前端
+pnpm verify:rust      # 仅 Rust
 pnpm test:e2e         # Playwright
 pnpm playwright:install   # 国内镜像安装浏览器
 ```
@@ -52,18 +58,19 @@ pnpm playwright:install   # 国内镜像安装浏览器
 
 ```
 src/
-├── components/   vault | workspace | editor | graph | insights | common
-├── views/        Welcome | Unlock | Insights | Workspace | Settings
-├── stores/       vault, documents, editor, links, ui, folders
-├── composables/  useTauriCommand, useAutoSave, useWikiSuggest…
-├── services/     documentService 等
+├── components/   vault | workspace | editor | graph | insights | cc | common
+├── views/        Welcome | Unlock | Insights | Workspace | Settings | CcWorkbench
+├── stores/       vault, documents, editor, links, ui, folders, ccWorkbench
+├── composables/  useTauriCommand, useAutoSave, useWikiSuggest, cc/* …
+├── services/     documentService, ccWorkbenchService, aiService …
 ├── extensions/   WikiLink.ts
 └── router/       产品 IA（非 prototype 七屏 demo）
-src-tauri/src/    Rust commands、加密、文件 IO
+src-tauri/src/    Rust commands、加密、文件 IO、cc_workbench/*
+packages/ai-bridge/   Agent SDK 桥接（同步至 src-tauri/resources/ai-bridge）
 tests/e2e/        Playwright
 ```
 
-**路由 IA**：`/welcome` → `/unlock` → `/insights`（默认）→ `/workspace`（编辑/图谱为视图切换）→ `/settings`
+**路由 IA**：`/welcome` → `/unlock` → `/insights`（默认）→ `/workspace`（编辑/图谱为视图切换）→ `/settings`；并列 **`/cc-workbench`**（Agent 工作台，侧栏入口）
 
 ## 编码原则
 
@@ -86,6 +93,8 @@ tests/e2e/        Playwright
 | Debugger | 系统化排错 |
 
 **默认流程**：Research → Plan（用户确认）→ Implement → Review → Verify
+
+**Verify**：`pnpm verify` 必须通过（**项目源码**零 warning；`node_modules` 除外）— 见 [verification.md](./docs/agent-workflow/verification.md)
 
 **任务模板**：`docs/agent-workflow/templates/`（feature / bugfix / ui / export / tauri-backend）
 

@@ -19,6 +19,7 @@ export interface CloudProviderPublic {
   name: string;
   baseUrl: string;
   model: string;
+  enabled?: boolean;
   apiKeyMasked: string;
   apiKey?: string | null;
 }
@@ -28,6 +29,7 @@ export interface CloudProviderInput {
   name: string;
   baseUrl: string;
   model: string;
+  enabled?: boolean;
   apiKey?: string;
 }
 
@@ -36,6 +38,7 @@ export interface AiConfigPublic {
   provider: string;
   localBaseUrl: string;
   localModel: string;
+  localEnabled: boolean;
   cloudEnabled: boolean;
   cloudProviders: CloudProviderPublic[];
   activeCloudProviderId: string | null;
@@ -49,6 +52,7 @@ export interface AiConfigUpdate {
   provider?: string;
   localBaseUrl?: string;
   localModel?: string;
+  localEnabled?: boolean;
   cloudEnabled?: boolean;
   cloudProviders?: CloudProviderInput[];
   activeCloudProviderId?: string | null;
@@ -70,9 +74,20 @@ export interface ConnectionResult {
 
 export type StreamEvent =
   | { type: "token"; content: string }
+  | { type: "thinking"; content: string }
   | { type: "citation"; id: string; title: string }
-  | { type: "toolCall"; name: string; input: string }
-  | { type: "toolResult"; name: string; output: string }
+  | { type: "toolCall"; name: string; input: string; toolUseId?: string }
+  | { type: "toolResult"; name: string; output: string; toolUseId?: string }
+  | { type: "toolPermission"; requestId: string; toolName: string; input: string }
+  | { type: "session"; sessionId: string }
+  | {
+      type: "usage";
+      inputTokens: number;
+      outputTokens: number;
+      contextTotalTokens?: number;
+      contextMaxTokens?: number;
+      contextPercentage?: number;
+    }
   | { type: "done" }
   | { type: "error"; message: string };
 
@@ -85,6 +100,7 @@ const DEFAULT_CONFIG: AiConfigPublic = {
   provider: "ollama",
   localBaseUrl: "http://127.0.0.1:11434",
   localModel: "qwen2.5:7b",
+  localEnabled: true,
   cloudEnabled: false,
   cloudProviders: [],
   activeCloudProviderId: null,
@@ -135,7 +151,9 @@ export function resolveLlmTarget(
 /** 自动模式失败时的云端兜底顺序 */
 export function getCloudFallbackTargets(config: AiConfigPublic): LlmTarget[] {
   if (!config.cloudEnabled || config.cloudProviders.length === 0) return [];
-  const ids = config.cloudProviders.map((p) => p.id);
+  const ids = config.cloudProviders
+    .filter((p) => p.enabled !== false)
+    .map((p) => p.id);
   const active = config.activeCloudProviderId;
   if (active && ids.includes(active)) {
     return [active, ...ids.filter((id) => id !== active)];
@@ -308,7 +326,9 @@ export function buildLlmOptions(config: AiConfigPublic): LlmOption[] {
       badge: "零外联",
       keywords: "retrieval search 检索 无模型",
     },
-    {
+  ];
+  if (config.localEnabled !== false) {
+    options.push({
       id: "local",
       label: config.localModel,
       shortLabel: config.localModel,
@@ -316,10 +336,11 @@ export function buildLlmOptions(config: AiConfigPublic): LlmOption[] {
       group: "local",
       badge: "本地",
       keywords: `local ollama ${config.localModel} ${config.localBaseUrl}`,
-    },
-  ];
+    });
+  }
   if (config.cloudEnabled) {
     for (const p of config.cloudProviders) {
+      if (p.enabled === false) continue;
       options.push({
         id: p.id,
         label: p.model,

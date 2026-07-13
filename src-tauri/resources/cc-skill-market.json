@@ -1,0 +1,58 @@
+[
+  {
+    "id": "playwright-generate-test",
+    "name": "Playwright 测试生成",
+    "description": "根据场景描述自动生成 Playwright E2E 测试用例，适合前端回归测试。",
+    "repoUrl": "https://github.com/anthropics/skills/tree/main/skills/playwright-generate-test",
+    "installHint": "克隆仓库后，将 skills/playwright-generate-test 目录复制到 ~/.claude/skills/，或使用工作台「Skills → 导入」选择该目录。"
+  },
+  {
+    "id": "pdf",
+    "name": "PDF 处理",
+    "description": "读取、合并、拆分与提取 PDF 文本，适合文档整理与批处理。",
+    "repoUrl": "https://github.com/anthropics/skills/tree/main/skills/pdf",
+    "installHint": "下载 skills/pdf 文件夹到 ~/.claude/skills/pdf，确保内含 SKILL.md。"
+  },
+  {
+    "id": "frontend-design",
+    "name": "前端界面设计",
+    "description": "生成有辨识度的生产级前端界面，避免千篇一律的 AI 审美。",
+    "repoUrl": "https://github.com/anthropics/skills/tree/main/skills/frontend-design",
+    "installHint": "将 frontend-design 技能目录放入 ~/.claude/skills/，Agent 在 UI 任务时会自动参考。"
+  },
+  {
+    "id": "mcp-builder",
+    "name": "MCP 服务器构建",
+    "description": "指导创建 Model Context Protocol 服务器，连接外部工具与数据源。",
+    "repoUrl": "https://github.com/anthropics/skills/tree/main/skills/mcp-builder",
+    "installHint": "复制 mcp-builder 到全局 skills 目录；项目级可放到 .claude/skills/。"
+  },
+  {
+    "id": "skill-creator",
+    "name": "Skill 创作助手",
+    "description": "帮助编写、优化与评估 Claude Agent Skills 的结构与触发描述。",
+    "repoUrl": "https://github.com/anthropics/skills/tree/main/skills/skill-creator",
+    "installHint": "安装后可在对话中让 Agent 协助创建新技能；建议先阅读仓库 README。"
+  },
+  {
+    "id": "webapp-testing",
+    "name": "Web 应用测试",
+    "description": "使用 Playwright 对本地或远程 Web 应用做交互式测试与调试。",
+    "repoUrl": "https://github.com/anthropics/skills/tree/main/skills/webapp-testing",
+    "installHint": "需已安装 Playwright；将技能目录导入全局或项目 skills 即可。"
+  },
+  {
+    "id": "obsidian-markdown",
+    "name": "Obsidian Markdown",
+    "description": "按 Obsidian 风格处理维基链接、标签与知识库 Markdown 约定。",
+    "repoUrl": "https://github.com/anthropics/skills/tree/main/skills/obsidian-markdown",
+    "installHint": "适合从 Obsidian 迁移的用户；导入后与狸知知识库的 [[链接]] 习惯相近。"
+  },
+  {
+    "id": "humanizer-zh",
+    "name": "中文去 AI 味",
+    "description": "润色文本，减少机器生成痕迹，使中文读起来更自然。",
+    "repoUrl": "manual",
+    "installHint": "可从 find-skills 或社区获取 humanizer-zh；下载 SKILL.md 所在目录后通过「导入」安装到 ~/.claude/skills/humanizer-zh。"
+  }
+]

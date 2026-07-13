@@ -121,12 +121,14 @@ pub async fn agent_run_stream(
         let _ = on_event.send(StreamEvent::ToolCall {
             name: tool.to_string(),
             input: input.clone(),
+            tool_use_id: None,
         });
 
         let output = execute_tool(&state, &config, tool, &args, dek.as_ref()).await?;
         let _ = on_event.send(StreamEvent::ToolResult {
             name: tool.to_string(),
             output: output.clone(),
+            tool_use_id: None,
         });
 
         history.push(ChatMessage {

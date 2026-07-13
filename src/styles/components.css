@@ -375,10 +375,11 @@
 }
 
 .chat-composer:focus-within {
-  border-color: color-mix(in srgb, var(--color-link) 34%, var(--color-border));
+  border-color: color-mix(in srgb, var(--color-link) 32%, var(--color-border));
   box-shadow:
-    0 1px 0 color-mix(in srgb, white 4%, transparent) inset,
-    0 0 0 3px color-mix(in srgb, var(--color-link) 12%, transparent),
+    0 1px 0 color-mix(in srgb, white 5%, transparent) inset,
+    0 0 0 1px color-mix(in srgb, var(--color-link) 22%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--color-link) 8%, transparent),
     0 10px 28px rgb(0 0 0 / 0.16);
 }
 
@@ -393,6 +394,12 @@
   line-height: 1.5;
   color: var(--color-text);
   outline: none;
+}
+
+.chat-composer__input:focus,
+.chat-composer__input:focus-visible {
+  outline: none;
+  box-shadow: none;
 }
 
 .chat-composer__input::placeholder {

@@ -46,7 +46,7 @@
 
 ```bash
 pnpm dev          # 或 pnpm tauri dev
-pnpm build
+pnpm verify       # 零警告编译门禁（合并前必跑）
 pnpm test:e2e     # 如适用
 ```
 
@@ -62,6 +62,6 @@ pnpm test:e2e     # 如适用
 
 **下一步**：
 
-> 实现 WikiLink 自动补全：按 `docs/agent-workflow/templates/feature.md` 中 AC-1~AC-3，修改 `src/composables/useWikiSuggest.ts` 与 `src/components/editor/WikiLinkSuggest.vue`。不要改 Tauri 层。完成后运行 `pnpm build`。
+> 实现 WikiLink 自动补全：按 `docs/agent-workflow/templates/feature.md` 中 AC-1~AC-3，修改 `src/composables/useWikiSuggest.ts` 与 `src/components/editor/WikiLinkSuggest.vue`。不要改 Tauri 层。完成后运行 `pnpm verify`。
 
 **必读**：`src/extensions/WikiLink.ts`、`src/stores/links.ts`

@@ -1,0 +1,72 @@
+# 验证门禁 · 零警告编译
+
+> SSOT：合并前与 Agent **Verify** 阶段必须满足本页要求。
+
+## 原则
+
+1. **项目源码零警告** — `src/`、`packages/`、`src-tauri/` 不允许带着 `warning` 合并或交接
+2. **第三方依赖除外** — `node_modules` 内包的 warning 不纳入门禁，升级依赖时再评估
+3. **类型零错误** — TypeScript `vue-tsc`、Rust `clippy` 必须通过
+4. **先本地 `pnpm verify`，再 PR / 用户验收**
+
+## 命令
+
+| 命令 | 范围 | 何时运行 |
+|------|------|----------|
+| `pnpm verify` | 前端 + MCP + Rust（clippy + test） | **合并前必跑**；Implementer / Reviewer 完成标准 |
+| `pnpm build` | 前端类型检查 + Vite 构建 + MCP | 日常前端迭代；已含零警告 Vite 配置 |
+| `pnpm verify:fe` | 仅前端 | 只改 `src/` 时 |
+| `pnpm verify:rust` | 仅 Rust | 只改 `src-tauri/` 时 |
+
+```bash
+pnpm verify          # 完整门禁（推荐）
+pnpm verify:fe
+pnpm verify:rust
+pnpm test:unit       # 单元测试（CI 另跑）
+pnpm test:e2e        # 流程变更时
+pnpm tauri dev       # Tauri/IPC 手动验证
+```
+
+## 工具链约束
+
+### 前端（Vue / Vite / TS）
+
+- `tsconfig.json`：`strict`、`noUnusedLocals`、`noUnusedParameters`
+- `vite build`：Rollup `onwarn` 遇**项目源码**（`src/`、`packages/`）警告即失败；**`node_modules` 一律忽略**
+- 禁止用 `@ts-ignore` / 空 `eslint-disable` 等方式掩盖问题（无 ESLint 时靠 TS + 零警告构建）
+
+### Rust（Tauri）
+
+- `src-tauri/.cargo/config.toml`：`rustflags = ["-Dwarnings"]`（编译/测试/clippy 均视为错误）
+- 无用 `use`、未使用变量、deprecated 等必须在提交前清理
+- 仅本地 OpenSSL 路径配置使用 `config.toml.example` 复制为 `config.toml`（勿提交个人路径）
+
+### MCP 包
+
+- `packages/lizhi-mcp`：`tsc` strict + `noUnusedLocals` / `noUnusedParameters`
+
+## Agent 完成标准
+
+**Implementer** 交接 Reviewer 前：
+
+- [ ] `pnpm verify` 通过（项目源码无 warning）
+- [ ] 任务相关手动 / E2E 验证通过
+
+**Reviewer** 阻塞项：
+
+- 验证命令失败或 diff 可能引入新的编译警告
+
+## CI
+
+`.github/workflows/ci.yml` 在 PR / main 上运行 `pnpm verify` 与 `pnpm test:unit`。
+
+## 常见警告处理
+
+| 来源 | 处理方式 |
+|------|----------|
+| Rust `unused import` | 删除或 `cargo fix` |
+| TS 未使用变量 | 删除或重构；勿留 dead code |
+| Vite chunk 过大 | 优先 dynamic import；确需大包时评估并更新 `chunkSizeWarningLimit`（需 PR 说明） |
+| Rollup 循环依赖（`src/`、`packages/`） | 动态 import 或拆模块；Vue 递归组件勿 self-import |
+| 第三方包 warning（`node_modules`） | **不处理**；非项目维护范围 |
+| Vite `PLUGIN_WARNING`（chunk 拆分提示） | **不处理**；常为 dynamic import 解 cycle 的副作用 |

@@ -22,7 +22,7 @@ Spawn `debugger`：
 
 Spawn `implementer`：
 
-> 按 debugger 结论最小修复。pnpm build + 相关验证。
+> 按 debugger 结论最小修复。pnpm verify + 相关验证。
 
 ## Phase 3 · Review
 

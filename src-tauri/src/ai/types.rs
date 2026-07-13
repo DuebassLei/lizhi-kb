@@ -86,14 +86,47 @@ pub fn resolve_cloud_provider_id(
 pub enum StreamEvent {
     #[serde(rename = "token")]
     Token { content: String },
+    #[serde(rename = "thinking")]
+    Thinking { content: String },
     #[serde(rename = "citation")]
     Citation { id: String, title: String },
     #[serde(rename = "toolCall")]
-    ToolCall { name: String, input: String },
+    ToolCall {
+        name: String,
+        input: String,
+        #[serde(default, rename = "toolUseId")]
+        tool_use_id: Option<String>,
+    },
     #[serde(rename = "toolResult")]
-    ToolResult { name: String, output: String },
+    ToolResult {
+        name: String,
+        output: String,
+        #[serde(default, rename = "toolUseId")]
+        tool_use_id: Option<String>,
+    },
+    #[serde(rename = "toolPermission")]
+    ToolPermission {
+        #[serde(rename = "requestId")]
+        request_id: String,
+        #[serde(rename = "toolName")]
+        tool_name: String,
+        input: String,
+    },
     #[serde(rename = "done")]
     Done,
+    #[serde(rename = "session")]
+    Session { session_id: String },
+    #[serde(rename = "usage")]
+    Usage {
+        input_tokens: u64,
+        output_tokens: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        context_total_tokens: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        context_max_tokens: Option<u64>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        context_percentage: Option<f64>,
+    },
     #[serde(rename = "error")]
     Error { message: String },
 }

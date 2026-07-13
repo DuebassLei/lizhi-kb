@@ -1,23 +1,20 @@
 import { schedulePersistVaultUiState } from "../services/vaultUiStateService";
-
-const KEY = "lizhi-kb-insights-hero-bg";
+import {
+  readInsightsHeroBackgroundFromStorage,
+  removeInsightsHeroBackgroundFromStorage,
+  writeInsightsHeroBackgroundToStorage,
+} from "./insightsHeroBackgroundStorage";
 
 export function loadInsightsHeroBackground(): string | null {
-  try {
-    const v = localStorage.getItem(KEY);
-    if (!v || !v.startsWith("data:image/")) return null;
-    return v;
-  } catch {
-    return null;
-  }
+  return readInsightsHeroBackgroundFromStorage();
 }
 
 export function saveInsightsHeroBackground(dataUrl: string): void {
-  localStorage.setItem(KEY, dataUrl);
+  writeInsightsHeroBackgroundToStorage(dataUrl);
   schedulePersistVaultUiState();
 }
 
 export function clearInsightsHeroBackground(): void {
-  localStorage.removeItem(KEY);
+  removeInsightsHeroBackgroundFromStorage();
   schedulePersistVaultUiState();
 }

@@ -1645,6 +1645,584 @@ pub async fn ai_agent_run(
 }
 
 #[tauri::command]
+pub fn get_cc_workbench_status() -> Result<crate::cc_workbench::CcWorkbenchStatus, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    Ok(crate::cc_workbench::runtime::collect_status(&data_dir))
+}
+
+#[tauri::command]
+pub fn get_cc_workbench_config(
+    reveal_key: Option<bool>,
+    reveal_provider_id: Option<String>,
+) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    Ok(crate::cc_workbench::to_public_with_reveal(
+        &config,
+        &secrets,
+        reveal_key.unwrap_or(false),
+        reveal_provider_id.as_deref(),
+    ))
+}
+
+#[tauri::command]
+pub fn set_cc_workbench_config(
+    update: crate::cc_workbench::CcWorkbenchConfigUpdate,
+) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    crate::cc_workbench::apply_update(&mut config, &mut secrets, &update)?;
+    crate::cc_workbench::save_config(&data_dir, &config)?;
+    crate::cc_workbench::save_secrets(&data_dir, &secrets)?;
+    Ok(crate::cc_workbench::to_public(&config, &secrets, None))
+}
+
+#[tauri::command]
+pub fn upsert_cc_provider(
+    input: crate::cc_workbench::CcProviderInput,
+) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    crate::cc_workbench::providers::upsert_provider(&mut config, &mut secrets, &input)?;
+    crate::cc_workbench::save_config(&data_dir, &config)?;
+    crate::cc_workbench::save_secrets(&data_dir, &secrets)?;
+    Ok(crate::cc_workbench::to_public(&config, &secrets, None))
+}
+
+#[tauri::command]
+pub fn delete_cc_provider(id: String) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    crate::cc_workbench::providers::delete_provider(&mut config, &mut secrets, &id)?;
+    crate::cc_workbench::save_config(&data_dir, &config)?;
+    crate::cc_workbench::save_secrets(&data_dir, &secrets)?;
+    Ok(crate::cc_workbench::to_public(&config, &secrets, None))
+}
+
+#[tauri::command]
+pub fn switch_cc_provider(id: String) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    crate::cc_workbench::providers::switch_provider(&mut config, &mut secrets, &id)?;
+    crate::cc_workbench::save_config(&data_dir, &config)?;
+    Ok(crate::cc_workbench::to_public(&config, &secrets, None))
+}
+
+#[tauri::command]
+pub fn list_cc_skills() -> Result<Vec<crate::cc_workbench::CcSkillEntry>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::providers::list_skills(
+        &data_dir,
+        config.project_path.as_deref(),
+    ))
+}
+
+#[tauri::command]
+pub fn list_cc_skill_market() -> Result<Vec<crate::cc_workbench::CcSkillMarketEntry>, String> {
+    crate::cc_workbench::skill_market::list_skill_market()
+}
+
+#[tauri::command]
+pub fn preview_cc_switch_import(
+    db_path: Option<String>,
+) -> Result<crate::cc_workbench::CcSwitchImportPreview, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let existing: Vec<String> = config.providers.iter().map(|p| p.id.clone()).collect();
+    crate::cc_workbench::cc_switch::preview_import(db_path.as_deref(), &existing)
+}
+
+#[tauri::command]
+pub fn save_cc_switch_import(
+    request: crate::cc_workbench::CcSwitchSaveRequest,
+) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let imports = crate::cc_workbench::cc_switch::build_import_inputs(
+        request.db_path.as_deref(),
+        &request.provider_ids,
+    )?;
+    for (input, api_key) in imports {
+        let id = input.id.clone().unwrap_or_default();
+        crate::cc_workbench::providers::upsert_provider(&mut config, &mut secrets, &input)?;
+        if let Some(key) = api_key {
+            secrets.set_provider_key(&id, key);
+        }
+    }
+    crate::cc_workbench::save_config(&data_dir, &config)?;
+    crate::cc_workbench::save_secrets(&data_dir, &secrets)?;
+    Ok(crate::cc_workbench::to_public(&config, &secrets, None))
+}
+
+#[tauri::command]
+pub fn sort_cc_providers(
+    ordered_ids: Vec<String>,
+) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    crate::cc_workbench::providers::sort_providers(&mut config, ordered_ids);
+    crate::cc_workbench::save_config(&data_dir, &config)?;
+    Ok(crate::cc_workbench::to_public(&config, &secrets, None))
+}
+
+#[tauri::command]
+pub fn preview_claude_local_settings(
+) -> Result<crate::cc_workbench::ClaudeLocalSettingsPreview, String> {
+    Ok(crate::cc_workbench::claude_settings::preview_local_settings())
+}
+
+#[tauri::command]
+pub fn toggle_cc_skill(
+    request: crate::cc_workbench::CcSkillToggleRequest,
+) -> Result<(), String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::skills::toggle_skill(
+        &data_dir,
+        config.project_path.as_deref(),
+        &request.name,
+        &request.scope,
+        request.enabled,
+    )
+}
+
+#[tauri::command]
+pub fn import_cc_skills(
+    request: crate::cc_workbench::CcSkillImportRequest,
+) -> Result<crate::cc_workbench::CcSkillImportResult, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::skills::import_skills(
+        &data_dir,
+        config.project_path.as_deref(),
+        &request.scope,
+        &request.source_paths,
+    ))
+}
+
+#[tauri::command]
+pub fn delete_cc_skill(
+    request: crate::cc_workbench::CcSkillDeleteRequest,
+) -> Result<(), String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::skills::delete_skill(
+        &data_dir,
+        config.project_path.as_deref(),
+        &request.name,
+        &request.scope,
+        request.enabled,
+    )
+}
+
+#[tauri::command]
+pub fn open_cc_skill(path: String, app: tauri::AppHandle) -> Result<(), String> {
+    use std::path::PathBuf;
+    use tauri_plugin_opener::OpenerExt;
+
+    let skill_dir = PathBuf::from(path.trim());
+    if !skill_dir.exists() {
+        return Err(format!("路径不存在: {}", skill_dir.display()));
+    }
+    let target = skill_dir.join("SKILL.md");
+    let open_path = if target.is_file() {
+        target
+    } else {
+        skill_dir
+    };
+    app.opener()
+        .open_path(open_path.to_string_lossy().as_ref(), None::<&str>)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_cc_mcp_servers() -> Result<Vec<crate::cc_workbench::CcMcpServer>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::mcp_servers::list_cc_mcp_servers(config.project_path.as_deref())
+}
+
+#[tauri::command]
+pub fn upsert_cc_mcp_server(
+    input: crate::cc_workbench::CcMcpServerInput,
+) -> Result<crate::cc_workbench::CcMcpServer, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::mcp_servers::upsert_cc_mcp_server(&input, config.project_path.as_deref())
+}
+
+#[tauri::command]
+pub fn delete_cc_mcp_server(id: String) -> Result<(), String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::mcp_servers::delete_cc_mcp_server(&id, config.project_path.as_deref())
+}
+
+#[tauri::command]
+pub fn toggle_cc_mcp_server(
+    request: crate::cc_workbench::CcMcpServerToggleRequest,
+) -> Result<(), String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::mcp_servers::toggle_cc_mcp_server(&request, config.project_path.as_deref())
+}
+
+#[tauri::command]
+pub fn get_cc_mcp_server_status(
+) -> Result<Vec<crate::cc_workbench::CcMcpServerStatusInfo>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::mcp_servers::get_cc_mcp_server_status(config.project_path.as_deref())
+}
+
+#[tauri::command]
+pub fn copy_cc_mcp_server_config(id: String) -> Result<String, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let servers = crate::cc_workbench::mcp_servers::list_cc_mcp_servers(config.project_path.as_deref())?;
+    let server = servers
+        .into_iter()
+        .find(|s| s.id == id)
+        .ok_or_else(|| format!("未找到 MCP 服务器: {id}"))?;
+    Ok(crate::cc_workbench::mcp_servers::copy_config_snippet(&server))
+}
+
+#[tauri::command]
+pub async fn install_cc_sdk() -> Result<String, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || crate::cc_workbench::runtime::install_sdk(&data_dir))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn list_cc_agents() -> Result<Vec<crate::cc_workbench::CcAgentEntry>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::chat_input::list_agents(
+        config.project_path.as_deref(),
+    ))
+}
+
+#[tauri::command]
+pub fn save_cc_agent(
+    input: crate::cc_workbench::CcAgentInput,
+) -> Result<crate::cc_workbench::CcAgentEntry, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::chat_input::save_agent(config.project_path.as_deref(), &input)
+}
+
+#[tauri::command]
+pub fn delete_cc_agent(
+    request: crate::cc_workbench::CcAgentDeleteRequest,
+) -> Result<(), String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::chat_input::delete_agent(
+        config.project_path.as_deref(),
+        &request.id,
+        &request.scope,
+    )
+}
+
+#[tauri::command]
+pub fn import_cc_agents(
+    request: crate::cc_workbench::CcAgentImportRequest,
+) -> Result<crate::cc_workbench::CcAgentImportResult, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::chat_input::import_agents(
+        config.project_path.as_deref(),
+        &request.scope,
+        &request.source_paths,
+        &request.conflict_mode,
+    ))
+}
+
+#[tauri::command]
+pub fn export_cc_agents(
+    request: crate::cc_workbench::CcAgentExportRequest,
+) -> Result<crate::cc_workbench::CcAgentExportResult, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::chat_input::export_agents(
+        config.project_path.as_deref(),
+        &request.agents,
+        &request.dest_dir,
+        &request.format,
+    ))
+}
+
+#[tauri::command]
+pub fn list_cc_agent_market() -> Result<Vec<crate::cc_workbench::CcAgentMarketEntry>, String> {
+    crate::cc_workbench::agent_market::list_agent_market()
+}
+
+#[tauri::command]
+pub fn get_cc_claude_md(scope: String) -> Result<crate::cc_workbench::CcClaudeMdPreview, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::claude_md::get_claude_md(&scope, config.project_path.as_deref())
+}
+
+#[tauri::command]
+pub fn save_cc_claude_md(
+    scope: String,
+    content: String,
+) -> Result<crate::cc_workbench::CcClaudeMdPreview, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::claude_md::save_claude_md(&scope, &content, config.project_path.as_deref())
+}
+
+#[tauri::command]
+pub fn get_cc_hooks(scope: String) -> Result<crate::cc_workbench::CcHooksPreview, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::hooks::get_cc_hooks(&scope, config.project_path.as_deref())
+}
+
+#[tauri::command]
+pub fn save_cc_hooks(
+    scope: String,
+    hooks_json: String,
+) -> Result<crate::cc_workbench::CcHooksPreview, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::hooks::save_cc_hooks(&scope, &hooks_json, config.project_path.as_deref())
+}
+
+#[tauri::command]
+pub fn list_cc_prompts() -> Result<Vec<crate::cc_workbench::CcPromptEntry>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::chat_input::list_prompts(
+        config.project_path.as_deref(),
+    ))
+}
+
+#[tauri::command]
+pub fn save_cc_prompt(
+    input: crate::cc_workbench::CcPromptInput,
+) -> Result<crate::cc_workbench::CcPromptEntry, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::chat_input::save_prompt(config.project_path.as_deref(), &input)
+}
+
+#[tauri::command]
+pub fn delete_cc_prompt(
+    request: crate::cc_workbench::CcPromptDeleteRequest,
+) -> Result<(), String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::chat_input::delete_prompt(
+        config.project_path.as_deref(),
+        &request.id,
+        &request.scope,
+    )
+}
+
+#[tauri::command]
+pub fn import_cc_prompts(
+    request: crate::cc_workbench::CcPromptImportRequest,
+) -> Result<crate::cc_workbench::CcPromptImportResult, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::chat_input::import_prompts(
+        config.project_path.as_deref(),
+        &request.scope,
+        &request.source_paths,
+        &request.conflict_mode,
+    ))
+}
+
+#[tauri::command]
+pub fn export_cc_prompts(
+    request: crate::cc_workbench::CcPromptExportRequest,
+) -> Result<crate::cc_workbench::CcPromptExportResult, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::chat_input::export_prompts(
+        config.project_path.as_deref(),
+        &request.prompts,
+        &request.dest_dir,
+        &request.format,
+    ))
+}
+
+#[tauri::command]
+pub fn list_cc_slash_commands() -> Result<Vec<crate::cc_workbench::CcSlashCommandEntry>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::slash_commands::list_slash_commands(
+        config.project_path.as_deref(),
+    ))
+}
+
+#[tauri::command]
+pub fn list_cc_context_files(
+    state: State<'_, Arc<AppState>>,
+    request: crate::cc_workbench::CcListContextFilesRequest,
+) -> Result<Vec<crate::cc_workbench::CcContextFileEntry>, String> {
+    ensure_vault_unlocked(&state)?;
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let query = request.query.unwrap_or_default();
+    let mode = crate::cc_workbench::chat_input::cwd_mode_from_str(&request.cwd_mode);
+    match mode {
+        crate::cc_workbench::config::CwdMode::Project => {
+            let path = request
+                .project_path
+                .or(config.project_path.clone())
+                .filter(|p| !p.trim().is_empty())
+                .ok_or_else(|| "请先在设置中选择项目目录".to_string())?;
+            crate::cc_workbench::chat_input::list_context_files_project(&path, &query)
+        }
+        crate::cc_workbench::config::CwdMode::Vault => {
+            let paths: Vec<String> = state
+                .document_service
+                .lock()
+                .map_err(|_| "document service lock poisoned".to_string())?
+                .list_documents()
+                .map_err(|e| e.to_string())?
+                .into_iter()
+                .map(|d| d.path)
+                .collect();
+            let mut entries = crate::cc_workbench::chat_input::list_context_files_vault(
+                &paths, &query,
+            );
+            entries.extend(crate::cc_workbench::context::list_vault_folders(&paths));
+            entries.sort_by(|a, b| a.path.cmp(&b.path));
+            Ok(entries)
+        }
+    }
+}
+
+#[tauri::command]
+pub fn cc_workbench_enhance_prompt(
+    state: State<'_, Arc<AppState>>,
+    request: crate::cc_workbench::CcEnhancePromptRequest,
+) -> Result<crate::cc_workbench::CcEnhancePromptResult, String> {
+    ensure_vault_unlocked(&state)?;
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    if !config.enabled {
+        return Err("Claude Agent 工作台未启用".into());
+    }
+    let prompt = request.prompt.trim();
+    if prompt.is_empty() {
+        return Err("请输入要增强的提示词".into());
+    }
+    crate::cc_workbench::runtime::run_enhance_prompt(
+        &data_dir,
+        &config,
+        &secrets,
+        prompt,
+        request.selected_model.as_deref(),
+        request.selected_model_slot.as_deref(),
+    )
+}
+
+#[tauri::command]
+pub fn cc_workbench_test_model(
+    state: State<'_, Arc<AppState>>,
+    request: crate::cc_workbench::CcModelTestRequest,
+) -> Result<crate::cc_workbench::CcModelTestResult, String> {
+    ensure_vault_unlocked(&state)?;
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    if !config.enabled {
+        return Err("Claude Agent 工作台未启用".into());
+    }
+    let model = request.model.trim();
+    if model.is_empty() {
+        return Err("请选择要测试的模型".into());
+    }
+    crate::cc_workbench::runtime::run_test_model(
+        &data_dir,
+        &config,
+        &secrets,
+        model,
+        request.model_slot.as_deref(),
+    )
+}
+
+#[tauri::command]
+pub async fn cc_workbench_send(
+    state: State<'_, Arc<AppState>>,
+    request: crate::cc_workbench::CcWorkbenchRequest,
+    on_event: tauri::ipc::Channel<crate::ai::StreamEvent>,
+) -> Result<(), String> {
+    ensure_vault_unlocked(&state)?;
+
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+
+    if !config.enabled {
+        return Err("Claude Agent 工作台未启用，请在设置中开启".into());
+    }
+
+    let dek = session_dek(&state)?;
+    let opened_file_contents = {
+        let doc = state
+            .document_service
+            .lock()
+            .map_err(|_| "document service lock poisoned".to_string())?;
+        crate::cc_workbench::context::resolve_opened_files(
+            &config,
+            &doc,
+            dek.as_ref(),
+            &request.opened_files,
+        )?
+    };
+    let attachment_contents =
+        crate::cc_workbench::context::resolve_attachments(&request.attachments)?;
+
+    crate::cc_workbench::runtime::run_stream(
+        &data_dir,
+        &config,
+        &secrets,
+        request,
+        opened_file_contents,
+        attachment_contents,
+        on_event,
+    )
+}
+
+#[tauri::command]
+pub fn cc_workbench_abort() -> Result<(), String> {
+    crate::cc_workbench::runtime::abort_active_stream()
+}
+
+#[tauri::command]
+pub fn cc_workbench_tool_permission_response(
+    request: crate::cc_workbench::CcToolPermissionResponse,
+) -> Result<(), String> {
+    let request_id = request.request_id.trim();
+    if request_id.is_empty() {
+        return Err("requestId 不能为空".into());
+    }
+    crate::cc_workbench::runtime::respond_tool_permission(
+        request_id,
+        &request.behavior,
+        request.message.as_deref(),
+    )
+}
+
+#[tauri::command]
 pub fn get_vault_ui_state() -> Result<crate::prefs::VaultUiState, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
     crate::prefs::load_ui_state(&data_dir)
