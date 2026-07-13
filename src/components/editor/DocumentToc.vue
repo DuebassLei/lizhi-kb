@@ -33,7 +33,6 @@ watch(
   () => {
     activeKey.value = null;
   },
-  { deep: true },
 );
 </script>
 

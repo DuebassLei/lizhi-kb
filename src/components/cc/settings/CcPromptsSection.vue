@@ -22,7 +22,9 @@ import {
   pickPromptExportDirectory,
   pickPromptImportDirectories,
   pickPromptImportFiles,
+  previewCcPromptsImport,
   saveCcPrompt,
+  type CcImportPreviewItem,
   type CcPromptConflictMode,
   type CcPromptEntry,
   type CcPromptInput,
@@ -30,6 +32,7 @@ import {
 import Btn from "../../ui/Btn.vue";
 import CcPromptDialog from "./CcPromptDialog.vue";
 import CcSkillConfirmDialog from "./CcSkillConfirmDialog.vue";
+import CcImportConflictDialog from "./CcImportConflictDialog.vue";
 
 const ui = useUiStore();
 
@@ -48,6 +51,14 @@ const conflictMode = ref<CcPromptConflictMode>("skip");
 const importOpenScope = ref<"global" | "project" | null>(null);
 const exportOpenScope = ref<"global" | "project" | null>(null);
 const exportFormat = ref<"md" | "json">("md");
+const importDialogOpen = ref(false);
+const importPreviewItems = ref<CcImportPreviewItem[]>([]);
+const importPreviewLoading = ref(false);
+const importPreviewError = ref<string | null>(null);
+const pendingImport = ref<{
+  scope: "global" | "project";
+  paths: string[];
+} | null>(null);
 const importWrapRefs = ref<Record<string, HTMLElement | null>>({});
 const exportWrapRefs = ref<Record<string, HTMLElement | null>>({});
 
@@ -162,12 +173,32 @@ async function onImport(scope: "global" | "project", mode: "files" | "dirs") {
   const paths =
     mode === "files" ? await pickPromptImportFiles() : await pickPromptImportDirectories();
   if (!paths.length) return;
+  importPreviewLoading.value = true;
+  importPreviewError.value = null;
+  pendingImport.value = { scope, paths };
+  importDialogOpen.value = true;
+  try {
+    const preview = await previewCcPromptsImport({ scope, sourcePaths: paths });
+    importPreviewItems.value = preview.items;
+    if (preview.errors.length) importPreviewError.value = preview.errors.join("；");
+  } catch (e) {
+    importPreviewError.value = e instanceof Error ? e.message : "预览失败";
+    importPreviewItems.value = [];
+  } finally {
+    importPreviewLoading.value = false;
+  }
+}
+
+async function onImportConfirm(_selected: string[], mode: CcPromptConflictMode) {
+  const pending = pendingImport.value;
+  if (!pending) return;
+  importDialogOpen.value = false;
   importing.value = true;
   try {
     const result = await importCcPrompts({
-      scope,
-      sourcePaths: paths,
-      conflictMode: conflictMode.value,
+      scope: pending.scope,
+      sourcePaths: pending.paths,
+      conflictMode: mode,
     });
     const parts: string[] = [];
     if (result.imported.length) parts.push(`导入 ${result.imported.length} 个`);
@@ -183,6 +214,7 @@ async function onImport(scope: "global" | "project", mode: "files" | "dirs") {
     ui.showToast("error", e instanceof Error ? e.message : "导入失败");
   } finally {
     importing.value = false;
+    pendingImport.value = null;
   }
 }
 
@@ -372,6 +404,18 @@ onUnmounted(() => {
       cancel-text="取消"
       @confirm="onConfirmDelete"
       @cancel="onCancelDelete"
+    />
+
+    <CcImportConflictDialog
+      :open="importDialogOpen"
+      title="导入提示词预览"
+      :loading="importPreviewLoading"
+      :error="importPreviewError"
+      :items="importPreviewItems"
+      show-conflict-mode
+      :conflict-mode="conflictMode"
+      @close="importDialogOpen = false"
+      @confirm="onImportConfirm"
     />
   </section>
 </template>

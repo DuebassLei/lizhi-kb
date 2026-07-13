@@ -20,6 +20,7 @@ import {
   saveWatermarkOn,
 } from "../utils/watermarkSetting";
 import { loadStoredSplitPreview, saveSplitPreview } from "../utils/splitPreviewSetting";
+import { loadStoredSplitGraph, saveSplitGraph } from "../utils/splitGraphSetting";
 import {
   loadStoredSplitPreviewKind,
   saveSplitPreviewKind,
@@ -36,7 +37,7 @@ import {
 import type { QuickNavId, QuickNavVisibility } from "../constants/quickNav";
 
 export type EditorMode = "edit" | "preview";
-export type WorkspaceViewMode = "edit" | "graph" | "mindmap";
+export type WorkspaceViewMode = "edit" | "graph";
 export type ThemeId = "dark" | "light" | "warm" | "eye";
 export type { PreviewThemeId };
 
@@ -56,6 +57,7 @@ export const useUiStore = defineStore("ui", () => {
   const insightsHeroBackground = ref<string | null>(loadInsightsHeroBackground());
   const previewTheme = ref<PreviewThemeId>(loadStoredPreviewTheme());
   const splitPreviewVisible = ref(loadStoredSplitPreview());
+  const splitGraphVisible = ref(loadStoredSplitGraph());
   const splitPreviewKind = ref<SplitPreviewKind>(loadStoredSplitPreviewKind());
   const previewOnlyMode = ref(false);
   const toast = ref<{ type: "success" | "error"; message: string } | null>(null);
@@ -66,6 +68,7 @@ export const useUiStore = defineStore("ui", () => {
   watch(watermarkOn, (on) => saveWatermarkOn(on));
   watch(watermarkNickname, (nickname) => saveWatermarkNickname(nickname));
   watch(splitPreviewVisible, (visible) => saveSplitPreview(visible));
+  watch(splitGraphVisible, (visible) => saveSplitGraph(visible));
   watch(splitPreviewKind, (kind) => saveSplitPreviewKind(kind));
   watch(sidebarCollapsed, (collapsed) => saveSidebarCollapsed(collapsed));
   watch(quickNavVisibility, (visibility) => saveQuickNavVisibility(visibility), { deep: true });
@@ -142,6 +145,18 @@ export const useUiStore = defineStore("ui", () => {
     if (visible) splitPreviewVisible.value = true;
   }
 
+  function toggleSplitGraph() {
+    splitGraphVisible.value = !splitGraphVisible.value;
+    if (splitGraphVisible.value) {
+      workspaceViewMode.value = "edit";
+    }
+  }
+
+  function setSplitGraph(visible: boolean) {
+    splitGraphVisible.value = visible;
+    if (visible) workspaceViewMode.value = "edit";
+  }
+
   function setSplitPreviewKind(kind: SplitPreviewKind) {
     splitPreviewKind.value = kind;
   }
@@ -202,6 +217,7 @@ export const useUiStore = defineStore("ui", () => {
     theme,
     previewTheme,
     splitPreviewVisible,
+    splitGraphVisible,
     splitPreviewKind,
     previewOnlyMode,
     watermarkOn,
@@ -232,6 +248,8 @@ export const useUiStore = defineStore("ui", () => {
     toggleToc,
     toggleSplitPreview,
     setSplitPreview,
+    toggleSplitGraph,
+    setSplitGraph,
     togglePreviewOnly,
     setPreviewOnly,
     setSplitPreviewKind,

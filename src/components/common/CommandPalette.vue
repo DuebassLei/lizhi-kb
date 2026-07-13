@@ -240,7 +240,7 @@ const staticActions = computed((): Action[] => {
     {
       id: "new",
       label: "新建文档",
-      hint: "工作区",
+      hint: "知识库",
       run: async () => {
         await router.push("/workspace");
         await documents.create();
@@ -268,7 +268,7 @@ const staticActions = computed((): Action[] => {
     },
     {
       id: "workspace",
-      label: "工作区",
+      label: "个人知识库",
       hint: "导航",
       run: () => router.push("/workspace"),
     },
@@ -296,16 +296,6 @@ const staticActions = computed((): Action[] => {
       label: pinned ? "取消固定当前文档" : "固定当前文档",
       hint: activeTitle,
       run: () => documents.togglePin(documents.activeId!),
-    });
-    all.unshift({
-      id: "mindmap-view",
-      label: "思维导图",
-      hint: activeTitle,
-      run: async () => {
-        await router.push("/workspace");
-        ui.setWorkspaceView("mindmap");
-        documents.persistSession();
-      },
     });
     all.unshift({
       id: "delete",

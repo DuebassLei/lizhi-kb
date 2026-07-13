@@ -26,10 +26,13 @@ import {
   listCcSkills,
   openCcSkill,
   pickSkillDirectories,
+  previewCcSkillsImport,
   toggleCcSkill,
+  type CcImportPreviewItem,
   type CcSkillEntry,
 } from "../../../services/ccWorkbenchService";
 import CcSkillConfirmDialog from "./CcSkillConfirmDialog.vue";
+import CcImportConflictDialog from "./CcImportConflictDialog.vue";
 import CcSkillHelpDialog from "./CcSkillHelpDialog.vue";
 import CcSkillMarketPanel from "./CcSkillMarketPanel.vue";
 
@@ -54,6 +57,11 @@ const scopeFilter = ref<ScopeFilter>("all");
 const enabledFilter = ref<EnabledFilter>("all");
 const search = ref("");
 const importWrapRef = ref<HTMLElement | null>(null);
+const importDialogOpen = ref(false);
+const importPreviewItems = ref<CcImportPreviewItem[]>([]);
+const importPreviewLoading = ref(false);
+const importPreviewError = ref<string | null>(null);
+const pendingImport = ref<{ scope: "global" | "project"; paths: string[] } | null>(null);
 
 const filtered = computed(() => {
   let list = skills.value;
@@ -155,9 +163,29 @@ async function onImport(scope: "global" | "project") {
   importOpen.value = false;
   const paths = await pickSkillDirectories();
   if (!paths.length) return;
+  importPreviewLoading.value = true;
+  importPreviewError.value = null;
+  pendingImport.value = { scope, paths };
+  importDialogOpen.value = true;
+  try {
+    const preview = await previewCcSkillsImport({ scope, sourcePaths: paths });
+    importPreviewItems.value = preview.items;
+    if (preview.errors.length) importPreviewError.value = preview.errors.join("；");
+  } catch (e) {
+    importPreviewError.value = e instanceof Error ? e.message : "预览失败";
+    importPreviewItems.value = [];
+  } finally {
+    importPreviewLoading.value = false;
+  }
+}
+
+async function onImportConfirm() {
+  const pending = pendingImport.value;
+  if (!pending) return;
+  importDialogOpen.value = false;
   importing.value = true;
   try {
-    const result = await importCcSkills({ scope, sourcePaths: paths });
+    const result = await importCcSkills({ scope: pending.scope, sourcePaths: pending.paths });
     if (result.imported.length) {
       ui.showToast(
         "success",
@@ -176,6 +204,7 @@ async function onImport(scope: "global" | "project") {
     ui.showToast("error", e instanceof Error ? e.message : "导入失败");
   } finally {
     importing.value = false;
+    pendingImport.value = null;
   }
 }
 
@@ -468,6 +497,16 @@ onUnmounted(() => {
     </div>
 
     <CcSkillHelpDialog :open="helpOpen" @close="helpOpen = false" />
+
+    <CcImportConflictDialog
+      :open="importDialogOpen"
+      title="导入 Skill 预览"
+      :loading="importPreviewLoading"
+      :error="importPreviewError"
+      :items="importPreviewItems"
+      @close="importDialogOpen = false"
+      @confirm="onImportConfirm"
+    />
 
     <CcSkillConfirmDialog
       :open="confirmOpen"

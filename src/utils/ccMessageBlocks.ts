@@ -3,12 +3,22 @@ export interface CcToolCallItem {
   input: string;
   output?: string;
   id?: string;
+  startedAt?: number;
+  completedAt?: number;
 }
 
 export type CcMessageBlock =
   | { type: "thinking"; content: string }
   | { type: "text"; content: string }
-  | { type: "tool"; id?: string; name: string; input: string; output?: string };
+  | {
+      type: "tool";
+      id?: string;
+      name: string;
+      input: string;
+      output?: string;
+      startedAt?: number;
+      completedAt?: number;
+    };
 
 export type CcRenderSegment =
   | { type: "thinking"; content: string; key: string; isLastThinking: boolean }
@@ -24,6 +34,7 @@ export interface CcMessageLike {
 
 const EMBEDDED_THINKING_PATTERNS: RegExp[] = [
   new RegExp("<" + "think" + ">([\\s\\S]*?)<\\/" + "think" + ">", "gi"),
+  /<redacted_thinking>([\s\S]*?)<\/redacted_thinking>/gi,
   /<think>([\s\S]*?)<\/redacted_thinking>/gi,
 ];
 
@@ -95,6 +106,8 @@ export function syncLegacyFromBlocks(blocks: CcMessageBlock[]): {
         name: block.name,
         input: block.input,
         output: block.output,
+        startedAt: block.startedAt,
+        completedAt: block.completedAt,
       });
     }
   }
@@ -129,6 +142,8 @@ export function resolveMessageBlocks(message: CcMessageLike): CcMessageBlock[] {
       name: tool.name,
       input: tool.input,
       output: tool.output,
+      startedAt: tool.startedAt,
+      completedAt: tool.completedAt,
     });
   }
   return blocks;
@@ -287,8 +302,16 @@ export function applyToolCallToBlocks(
   tool: { id?: string; name: string; input: string },
 ): CcMessageBlock[] {
   const id = tool.id?.trim() || undefined;
-  if (id && blocks.some((b) => b.type === "tool" && b.id === id)) {
-    return blocks;
+  if (id) {
+    // 流式 input_json_delta 渐进更新 / 完整消息覆盖已有工具块的 input
+    const existingIdx = blocks.findIndex((b) => b.type === "tool" && b.id === id);
+    if (existingIdx >= 0) {
+      return blocks.map((block, idx) =>
+        idx === existingIdx && block.type === "tool"
+          ? { ...block, input: tool.input }
+          : block,
+      );
+    }
   }
   return [
     ...blocks,
@@ -297,6 +320,7 @@ export function applyToolCallToBlocks(
       id,
       name: tool.name,
       input: tool.input,
+      startedAt: Date.now(),
     },
   ];
 }
@@ -311,20 +335,63 @@ export function applyToolResultToBlocks(
 
   let target: Extract<CcMessageBlock, { type: "tool" }> | undefined;
   const toolUseId = match.toolUseId?.trim();
+
   if (toolUseId) {
     const found = next.find((b) => b.type === "tool" && b.id === toolUseId);
     if (found?.type === "tool") target = found;
   }
-  if (!target) {
-    for (let i = next.length - 1; i >= 0; i -= 1) {
+
+  if (!target && toolUseId) {
+    for (let i = 0; i < next.length; i += 1) {
       const block = next[i];
-      if (block.type === "tool" && block.name === match.name && !block.output) {
+      if (block.type === "tool" && block.output === undefined && !block.id) {
+        block.id = toolUseId;
         target = block;
         break;
       }
     }
   }
-  if (target) target.output = match.output;
+
+  if (!target && match.name) {
+    for (let i = next.length - 1; i >= 0; i -= 1) {
+      const block = next[i];
+      if (block.type === "tool" && block.name === match.name && block.output === undefined) {
+        if (toolUseId && !block.id) block.id = toolUseId;
+        target = block;
+        break;
+      }
+    }
+  }
+
+  if (!target && match.name && match.name !== "tool") {
+    const normalizedResult = match.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+    for (let i = next.length - 1; i >= 0; i -= 1) {
+      const block = next[i];
+      if (block.type !== "tool" || block.output !== undefined) continue;
+      const normalizedBlock = block.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+      if (normalizedBlock && normalizedBlock === normalizedResult) {
+        if (toolUseId && !block.id) block.id = toolUseId;
+        target = block;
+        break;
+      }
+    }
+  }
+
+  if (!target) {
+    for (let i = 0; i < next.length; i += 1) {
+      const block = next[i];
+      if (block.type === "tool" && block.output === undefined) {
+        if (toolUseId && !block.id) block.id = toolUseId;
+        target = block;
+        break;
+      }
+    }
+  }
+
+  if (target) {
+    target.output = match.output;
+    target.completedAt = Date.now();
+  }
   return next;
 }
 
@@ -350,6 +417,8 @@ export function blocksToRenderSegments(blocks: CcMessageBlock[]): CcRenderSegmen
         name: block.name,
         input: block.input,
         output: block.output,
+        startedAt: block.startedAt,
+        completedAt: block.completedAt,
       });
       continue;
     }

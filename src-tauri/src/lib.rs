@@ -38,6 +38,8 @@ mod cc_workbench;
 
 mod prefs;
 
+mod revisions;
+
 
 
 use std::sync::{Arc, Mutex};
@@ -262,7 +264,10 @@ pub fn init_app_state() -> Result<AppState, AppError> {
 
 pub fn run() {
 
-    let data_dir = data_dir().expect("failed to resolve lizhi-kb data directory");
+    let data_dir = data_dir().unwrap_or_else(|e| {
+        eprintln!("failed to resolve lizhi-kb data directory: {e}");
+        std::process::exit(1);
+    });
 
     let vault_lock = std::sync::Mutex::new(Some(
         VaultLockGuard::acquire(&data_dir, "app").unwrap_or_else(|_| {
@@ -271,9 +276,15 @@ pub fn run() {
         }),
     ));
 
-    let app_state = Arc::new(init_app_state().expect("failed to initialize lizhi-kb backend"));
+    let app_state = Arc::new(init_app_state().unwrap_or_else(|e| {
+        eprintln!("failed to initialize lizhi-kb backend: {e}");
+        std::process::exit(1);
+    }));
 
-    let mcp_bridge = McpBridge::new(app_state.clone()).expect("failed to initialize MCP bridge");
+    let mcp_bridge = McpBridge::new(app_state.clone()).unwrap_or_else(|e| {
+        eprintln!("failed to initialize MCP bridge: {e}");
+        std::process::exit(1);
+    });
 
     if let Err(e) = mcp_bridge.start_if_needed() {
 
@@ -330,9 +341,14 @@ pub fn run() {
 
             commands::save_asset,
 
+            commands::list_assets,
+            commands::delete_asset,
+
             commands::get_asset_path,
 
             commands::read_asset_bytes,
+
+            commands::rebuild_search_index,
 
             commands::search_documents,
 
@@ -367,6 +383,7 @@ pub fn run() {
             commands::import_vault,
 
             commands::export_markdown_folder,
+            commands::export_obsidian_vault,
             commands::write_export_file,
             commands::write_export_binary,
             commands::read_text_file,
@@ -458,6 +475,8 @@ pub fn run() {
 
             commands::import_cc_skills,
 
+            commands::preview_cc_skills_import,
+
             commands::delete_cc_skill,
 
             commands::open_cc_skill,
@@ -481,6 +500,7 @@ pub fn run() {
             commands::delete_cc_agent,
             commands::import_cc_agents,
             commands::export_cc_agents,
+            commands::preview_cc_agents_import,
             commands::list_cc_agent_market,
 
             commands::get_cc_claude_md,
@@ -488,11 +508,25 @@ pub fn run() {
             commands::get_cc_hooks,
             commands::save_cc_hooks,
 
+            commands::get_cc_claude_permissions,
+            commands::save_cc_claude_permissions,
+
+            commands::append_cc_usage_entry,
+            commands::get_cc_usage_stats,
+
+            commands::fetch_cc_market_catalog,
+
+            commands::cc_workbench_git_status,
+            commands::cc_workbench_git_file_diff,
+            commands::cc_workbench_git_diff,
+            commands::cc_workbench_git_undo_edits,
+
             commands::list_cc_prompts,
             commands::save_cc_prompt,
             commands::delete_cc_prompt,
             commands::import_cc_prompts,
             commands::export_cc_prompts,
+            commands::preview_cc_prompts_import,
 
             commands::list_cc_slash_commands,
 
@@ -510,11 +544,16 @@ pub fn run() {
 
             commands::save_vault_ui_state,
 
+            commands::list_document_revisions,
+            commands::read_document_revision,
+
         ])
 
         .run(tauri::generate_context!())
-
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            eprintln!("error while running tauri application: {e}");
+            std::process::exit(1);
+        });
 
 }
 

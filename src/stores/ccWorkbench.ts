@@ -4,7 +4,9 @@ import { computed, onScopeDispose, ref, watch } from "vue";
 import type { StreamEvent } from "../services/aiService";
 import {
   abortCcWorkbenchStream,
+  appendCcUsageEntry,
   cwdModeDisplay,
+  enhanceCcPrompt,
   getCcWorkbenchConfig,
   getCcWorkbenchStatus,
   pickProjectDirectory,
@@ -23,9 +25,19 @@ import { deriveCcStatusPanel, type CcStatusTab } from "../composables/cc/useCcSt
 import { getCcModelCatalogOps } from "../composables/cc/useCcModelCatalog";
 import { activateCcProvider } from "../composables/cc/useCcProviderSwitch";
 import {
+  runVaultClientPrefetchForWeakModel,
+  resolveAssistantPseudoVaultTools,
+} from "../services/ccVaultClientTools";
+import {
+  checkVaultKnowledgeReply,
+  isWeakVaultToolModel,
+  userMessageLooksLikeVaultQuery,
+  VAULT_QUERY_USER_PREFIX,
+} from "../utils/ccVaultQueryGuard";
+import {
   buildCcPromptWithHistory,
   findAgentById,
-  loadDefaultAgentId,
+  getEffectiveDefaultAgentId,
   mergeContextPaths,
   parseAtMentions,
   pushRecentAgentId,
@@ -47,6 +59,10 @@ import {
   defaultCatalogModelId,
 } from "../utils/ccModelCatalog";
 import {
+  effectiveLongContextForProvider,
+  is1mContextDisabled,
+} from "../utils/ccProviderEnv";
+import {
   applyThinkingToBlocks,
   applyTokenToBlocks,
   applyToolCallToBlocks,
@@ -66,11 +82,19 @@ export interface CcMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  createdAt?: number;
   thinking?: string;
   contextFiles?: string[];
   attachments?: CcChatAttachment[];
   agentName?: string;
-  toolCalls?: { id?: string; name: string; input: string; output?: string }[];
+  toolCalls?: {
+    id?: string;
+    name: string;
+    input: string;
+    output?: string;
+    startedAt?: number;
+    completedAt?: number;
+  }[];
   blocks?: CcMessageBlock[];
   streaming?: boolean;
   error?: string;
@@ -190,6 +214,8 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
   const input = ref("");
   const streaming = ref(false);
   const sessionId = ref<string | null>(null);
+  /** SDK session 绑定的工作目录模式；与当前 cwdMode 不一致时不 resume */
+  const sessionBoundCwdMode = ref<CwdMode | null>(null);
   const inputTokens = ref(0);
   const outputTokens = ref(0);
   const contextTotalFromStream = ref(0);
@@ -232,13 +258,16 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
     void catalogVersion.value;
     const provider = activeProvider.value;
     if (!provider) return [];
+    const use1m = effectiveLongContextForProvider(provider, longContextEnabled.value);
     return buildCcModelCatalog(
       provider,
       catalog.getCustomModels(provider.id),
       catalog.getRecentModelIds(provider.id),
-      longContextEnabled.value,
+      use1m,
     );
   });
+
+  const context1mDisabled = computed(() => is1mContextDisabled(activeProvider.value));
 
   const ready = computed(() => {
     const s = status.value;
@@ -281,6 +310,7 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
 
   const contextWindow = computed(() => {
     const id = selectedModelId.value;
+    if (context1mDisabled.value) return 200_000;
     return id && modelSupports1m(id) ? 1_000_000 : 200_000;
   });
 
@@ -335,11 +365,19 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
     return opt?.slot ?? "sonnet";
   });
 
-  const statusPanelData = computed(() => deriveCcStatusPanel(messages.value));
+  const statusPanelData = computed(() =>
+    deriveCcStatusPanel(messages.value, { streaming: streaming.value }),
+  );
 
   function syncModelStateFromProvider() {
     const provider = activeProvider.value;
     if (!provider) return;
+    if (is1mContextDisabled(provider)) {
+      const baseId = strip1mSuffix(selectedModelId.value);
+      if (baseId && modelSupports1m(selectedModelId.value)) {
+        selectedModelId.value = baseId;
+      }
+    }
     const options = modelOptions.value;
     const valid = options.some((o) => o.id === selectedModelId.value);
     if (!valid) {
@@ -347,7 +385,10 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
       if (saved && options.some((o) => o.id === saved)) {
         selectedModelId.value = saved;
       } else {
-        selectedModelId.value = defaultCatalogModelId(provider, longContextEnabled.value);
+        selectedModelId.value = defaultCatalogModelId(
+          provider,
+          longContextEnabled.value,
+        );
       }
     }
     if (!savedPrefs.reasoningEffort && provider) {
@@ -358,9 +399,16 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
   function setSelectedModelId(rawId: string) {
     const baseId = strip1mSuffix(rawId.trim());
     if (!baseId) return;
-    const id = apply1mSuffix(baseId, longContextEnabled.value);
-    selectedModelId.value = id;
     const provider = activeProvider.value;
+    const use1m = provider
+      ? catalog.getModel1mEnabled(
+          provider.id,
+          baseId,
+          effectiveLongContextForProvider(provider, longContextEnabled.value),
+        )
+      : longContextEnabled.value;
+    const id = apply1mSuffix(baseId, use1m);
+    selectedModelId.value = id;
     if (provider) {
       catalog.pushRecentModel(provider.id, id);
       catalog.setProviderSelectedModelId(provider.id, id);
@@ -368,22 +416,41 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
   }
 
   function setLongContextEnabled(enabled: boolean) {
+    const provider = activeProvider.value;
+    if (is1mContextDisabled(provider)) {
+      enabled = false;
+    }
     longContextEnabled.value = enabled;
     catalog.updateSessionPrefs({ ...catalog.prefs.value, longContextEnabled: enabled });
     const baseId = strip1mSuffix(selectedModelId.value);
+    if (provider && baseId) {
+      catalog.setModel1mEnabled(provider.id, baseId, enabled);
+    }
     if (baseId) {
       selectedModelId.value = apply1mSuffix(baseId, enabled);
-      const provider = activeProvider.value;
       if (provider) {
         catalog.setProviderSelectedModelId(provider.id, selectedModelId.value);
       }
     }
   }
 
-  function addCustomModel(baseId: string, label?: string): boolean {
+  const effectiveLongContextEnabled = computed(() => {
+    const baseId = strip1mSuffix(selectedModelId.value);
+    const provider = activeProvider.value;
+    if (is1mContextDisabled(provider)) return false;
+    if (!baseId) return longContextEnabled.value;
+    if (!provider) return longContextEnabled.value;
+    return catalog.getModel1mEnabled(provider.id, baseId, longContextEnabled.value);
+  });
+
+  function addCustomModel(
+    baseId: string,
+    label?: string,
+    pricing?: { inputPrice?: number; outputPrice?: number },
+  ): boolean {
     const provider = activeProvider.value;
     if (!provider) return false;
-    const ok = catalog.addCustomModel(provider.id, baseId, label);
+    const ok = catalog.addCustomModel(provider.id, baseId, label, pricing);
     if (ok) {
       catalogVersion.value += 1;
       setSelectedModelId(baseId);
@@ -452,7 +519,20 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
         customModels: catalog.prefs.value.customModels,
       });
     },
-    { deep: true },
+  );
+
+  function invalidateSessionForCwdChange() {
+    sessionId.value = null;
+    sessionBoundCwdMode.value = null;
+  }
+
+  watch(
+    () => config.value?.cwdMode,
+    (next, prev) => {
+      if (prev && next && prev !== next) {
+        invalidateSessionForCwdChange();
+      }
+    },
   );
 
   function setSelectedAgent(agent: CcAgentEntry | null) {
@@ -470,11 +550,7 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
   }
 
   async function applyDefaultAgentForNewSession() {
-    const defaultId = loadDefaultAgentId();
-    if (!defaultId) {
-      selectedAgent.value = null;
-      return;
-    }
+    const defaultId = getEffectiveDefaultAgentId();
     const agents = agentsCache.value.length ? agentsCache.value : await refreshAgentsCache();
     const agent = findAgentById(agents, defaultId);
     selectedAgent.value = agent ? { ...agent } : null;
@@ -643,12 +719,26 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
       finiteTokenCount(contextMaxFromStream.value) > 0
         ? finiteTokenCount(contextMaxFromStream.value)
         : current.contextMaxTokens ?? contextWindow.value;
+    const inputTok = Math.max(finiteTokenCount(current.inputTokens), finiteTokenCount(inputTokens.value));
+    const outputTok = Math.max(finiteTokenCount(current.outputTokens), finiteTokenCount(outputTokens.value));
+    const durationMs = current.durationMs ?? Date.now() - startedAt;
     patchMessage(messageId, {
       streaming: false,
-      durationMs: current.durationMs ?? Date.now() - startedAt,
-      inputTokens: Math.max(finiteTokenCount(current.inputTokens), finiteTokenCount(inputTokens.value)),
-      outputTokens: Math.max(finiteTokenCount(current.outputTokens), finiteTokenCount(outputTokens.value)),
+      durationMs,
+      inputTokens: inputTok,
+      outputTokens: outputTok,
       contextMaxTokens: contextMax,
+    });
+    const modelId = selectedModelId.value || config.value?.model || "unknown";
+    void appendCcUsageEntry({
+      timestamp: Date.now(),
+      model: modelId,
+      providerId: config.value?.activeProviderId ?? null,
+      inputTokens: inputTok,
+      outputTokens: outputTok,
+      durationMs,
+    }).catch(() => {
+      /* usage log is best-effort */
     });
   }
 
@@ -685,7 +775,10 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
         patchMessage(messageId, { error: event.message, streaming: false });
         break;
       case "session":
-        if (event.sessionId) sessionId.value = event.sessionId;
+        if (event.sessionId) {
+          sessionId.value = event.sessionId;
+          sessionBoundCwdMode.value = config.value?.cwdMode ?? "vault";
+        }
         break;
       case "usage": {
         const nextInput = usageEventNumber(event, "inputTokens", "input_tokens");
@@ -781,7 +874,7 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
 
     const agents = agentsCache.value.length ? agentsCache.value : await refreshAgentsCache();
     const { agent, cleanedText } = resolveAgentForSend(rawText, selectedAgent.value, agents);
-    const text = cleanedText.trim();
+    let text = cleanedText.trim();
     if (!text) {
       const ui = useUiStore();
       ui.showToast("error", "请输入消息内容");
@@ -791,15 +884,40 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
       setSelectedAgent(agent);
     }
 
+    const enhancer = c?.promptEnhancer;
+    if (enhancer?.enabled && enhancer.autoTrigger) {
+      try {
+        const result = await enhanceCcPrompt(
+          text,
+          selectedModelId.value || null,
+          selectedModelSlot.value,
+        );
+        if (result.success && result.enhancedPrompt.trim()) {
+          text = result.enhancedPrompt.trim();
+        } else if (!result.success) {
+          const ui = useUiStore();
+          ui.showToast("error", result.error ?? "自动增强失败，将使用原文发送");
+        }
+      } catch (e) {
+        const ui = useUiStore();
+        ui.showToast(
+          "error",
+          e instanceof Error ? e.message : "自动增强失败，将使用原文发送",
+        );
+      }
+    }
+
     const mentionPaths = parseAtMentions(text);
     const contextPaths = mergeContextPaths(openedFiles.value, mentionPaths);
     const attachmentPaths = attachments.value.map((item) => item.path);
     const agentName = agent?.name ?? selectedAgent.value?.name ?? null;
 
+    const now = Date.now();
     messages.value.push({
       id: nextMsgId(),
       role: "user",
       content: text,
+      createdAt: now,
       contextFiles: contextPaths.length ? contextPaths : undefined,
       attachments: attachments.value.length ? [...attachments.value] : undefined,
       agentName: agentName ?? undefined,
@@ -818,29 +936,53 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
       : selectedModelId.value.trim()
         ? formatModelLabel(selectedModelId.value.trim(), modelSupports1m(selectedModelId.value))
         : undefined;
+
+    const currentCwdMode = c?.cwdMode ?? "vault";
+    let vaultPrefetchBlocks: CcMessageBlock[] = [];
+
+    const effectiveSessionId =
+      sessionId.value && sessionBoundCwdMode.value === currentCwdMode
+        ? sessionId.value
+        : null;
+
+    streaming.value = true;
+    resetStreamingBlockSyncState();
+    const startedAt = Date.now();
+    const priorForHistory = messages.value.filter((m) => m.id !== assistantId);
+    let promptText = buildCcPromptWithHistory(text, priorForHistory, {
+      hasSessionId: Boolean(effectiveSessionId?.trim()),
+    });
+    if (currentCwdMode === "vault" && userMessageLooksLikeVaultQuery(text, { priorMessages: priorForHistory })) {
+      promptText = VAULT_QUERY_USER_PREFIX + promptText;
+      const prefetch = await runVaultClientPrefetchForWeakModel({
+        cwdMode: currentCwdMode,
+        modelId: selectedModelId.value,
+        userText: text,
+        priorMessages: priorForHistory,
+      });
+      if (prefetch) {
+        promptText = prefetch.promptPrefix + promptText;
+        vaultPrefetchBlocks = prefetch.blocks;
+      }
+    }
+
     messages.value.push({
       id: assistantId,
       role: "assistant",
       content: "",
-      blocks: [],
+      createdAt: now,
+      blocks: vaultPrefetchBlocks.length ? [...vaultPrefetchBlocks] : [],
       toolCalls: [],
       streaming: true,
       modelLabel,
       contextMaxTokens: contextWindow.value,
     });
 
-    streaming.value = true;
-    resetStreamingBlockSyncState();
-    const startedAt = Date.now();
-    const priorForHistory = messages.value.filter((m) => m.id !== assistantId);
-    const promptText = buildCcPromptWithHistory(text, priorForHistory, {
-      hasSessionId: Boolean(sessionId.value?.trim()),
-    });
     try {
       await streamCcWorkbench(
         promptText,
         (event) => handleStreamEvent(assistantId, event, startedAt),
-        sessionId.value,
+        effectiveSessionId,
         {
           selectedModel: selectedModelId.value || null,
           selectedModelSlot: selectedModelSlot.value,
@@ -865,12 +1007,51 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
         finalizeAssistantMeta(assistantId, startedAt);
       }
       const latest = messages.value.find((m) => m.id === assistantId);
+      let latestAfterClean = latest;
       if (
         latest &&
-        !latest.error &&
-        !latest.content.trim() &&
-        !(latest.toolCalls?.length) &&
-        !(latest.blocks?.length)
+        currentCwdMode === "vault" &&
+        isWeakVaultToolModel(selectedModelId.value) &&
+        latest.content
+      ) {
+        const resolved = await resolveAssistantPseudoVaultTools({
+          content: latest.content,
+          blocks: resolveMessageBlocks(latest),
+        });
+        if (
+          resolved.content !== latest.content ||
+          resolved.blocks.length !== (latest.blocks?.length ?? 0)
+        ) {
+          patchMessage(assistantId, {
+            ...resolved.legacy,
+            content: resolved.content,
+            blocks: resolved.blocks,
+          });
+        }
+        latestAfterClean = messages.value.find((m) => m.id === assistantId);
+      }
+      if (latestAfterClean && !latestAfterClean.error) {
+        const resolvedBlocks = resolveMessageBlocks(latestAfterClean);
+        const legacy = syncLegacyFromBlocks(resolvedBlocks);
+        const vaultGuard = checkVaultKnowledgeReply({
+          cwdMode: currentCwdMode,
+          userText: text,
+          assistantText: legacy.content,
+          toolCalls: legacy.toolCalls,
+          blocks: resolvedBlocks,
+          streaming: false,
+          turnComplete: !latestAfterClean.streaming,
+        });
+        if (vaultGuard.violation && vaultGuard.message) {
+          patchMessage(assistantId, { error: vaultGuard.message });
+        }
+      }
+      if (
+        latestAfterClean &&
+        !latestAfterClean.error &&
+        !latestAfterClean.content.trim() &&
+        !(latestAfterClean.toolCalls?.length) &&
+        !(latestAfterClean.blocks?.length)
       ) {
         patchMessage(assistantId, {
           error: "模型未返回内容，请检查供应商配置、API Key 与网络连接",
@@ -969,7 +1150,7 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
   function clearMessages() {
     persistCurrentSession();
     messages.value = [];
-    sessionId.value = null;
+    invalidateSessionForCwdChange();
     activeHistoryId.value = null;
     customSessionTitle.value = null;
     inputTokens.value = 0;
@@ -998,8 +1179,15 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
 
   async function setCwdMode(mode: CwdMode) {
     const ui = useUiStore();
+    const previousMode = config.value?.cwdMode ?? "vault";
     try {
+      if (streaming.value) {
+        await stop();
+      }
       config.value = await setCcWorkbenchConfig({ cwdMode: mode });
+      if (previousMode !== mode) {
+        invalidateSessionForCwdChange();
+      }
       if (mode === "project" && openedFiles.value.length) {
         openedFiles.value = [];
         ui.showToast("success", "已清除文件上下文，请在项目目录中重新选择");
@@ -1011,6 +1199,10 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
         } else {
           ui.showToast("success", "已切换为本地项目，请点击目录按钮选择项目路径");
         }
+      }
+      if (previousMode !== mode) {
+        const label = mode === "vault" ? "知识库" : "本地项目";
+        ui.showToast("success", `已切换为${label}，下一条消息生效`);
       }
       status.value = await getCcWorkbenchStatus();
       return true;
@@ -1042,6 +1234,7 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
     input,
     streaming,
     sessionId,
+    sessionBoundCwdMode,
     loadError,
     statusPanelExpanded,
     statusPanelTab,
@@ -1058,6 +1251,8 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
     permissionMode,
     reasoningEffort,
     longContextEnabled,
+    effectiveLongContextEnabled,
+    context1mDisabled,
     providers,
     switchingProvider,
     activeProvider,

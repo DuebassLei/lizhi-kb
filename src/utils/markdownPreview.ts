@@ -8,8 +8,33 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
+const FILE_REF_PATTERN =
+  /(?<![\w/.])([\w./\\-]*[\w/\\.-]\.[a-zA-Z][a-zA-Z0-9]*):(\d+)\b/g;
+
+function wrapFileRefs(text: string): string {
+  return text.replace(FILE_REF_PATTERN, (_m, path: string, line: string) => {
+    const full = `${path}:${line}`;
+    return (
+      `<button type="button" class="preview-file-ref" data-copy-text="${escapeHtml(full)}" ` +
+      `title="复制 ${escapeHtml(full)}">${escapeHtml(path)}:${line}</button>`
+    );
+  });
+}
+
 function inlineMarkdown(text: string): string {
   let html = escapeHtml(text);
+  html = html.replace(
+    /!\[\[([^\]|#]+)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]/g,
+    (_m, title: string, heading?: string, alias?: string) => {
+      const t = title.trim();
+      const label = escapeHtml((alias ?? (heading ? `${title} › ${heading}` : title)).trim());
+      const headingAttr = heading ? ` data-wiki-heading="${escapeHtml(heading.trim())}"` : "";
+      return (
+        `<span class="wiki-link wiki-block-ref" data-wiki-title="${escapeHtml(t)}"${headingAttr} ` +
+        `role="link" tabindex="0" title="块引用：${label}">📎 ${label}</span>`
+      );
+    },
+  );
   html = html.replace(
     /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
     (_m, title: string, alias?: string) => {
@@ -32,6 +57,10 @@ function inlineMarkdown(text: string): string {
   html = html.replace(/\*(.+?)\*/g, "<em>$1</em>");
   html = html.replace(/~~(.+?)~~/g, "<del>$1</del>");
   html = html.replace(/`([^`]+)`/g, "<code class=\"preview-inline-code\">$1</code>");
+  const segments = html.split(/(<code class="preview-inline-code">[\s\S]*?<\/code>)/g);
+  html = segments
+    .map((seg) => (seg.startsWith("<code") ? seg : wrapFileRefs(seg)))
+    .join("");
   return html;
 }
 
@@ -121,9 +150,28 @@ export function markdownToPreviewHtml(content: string): string {
   const flushCode = () => {
     if (!inCode) return;
     const code = codeLines.join("\n");
+    if (codeLang.toLowerCase() === "mermaid") {
+      parts.push(
+        `<div class="preview-mermaid">` +
+          `<div class="preview-mermaid-label">Mermaid 图表</div>` +
+          `<pre class="preview-mermaid-code">${escapeHtml(code)}</pre>` +
+          `</div>`,
+      );
+      inCode = false;
+      codeLang = "";
+      codeLines = [];
+      return;
+    }
     const highlighted = highlightCode(code, codeLang);
+    const langLabel = escapeHtml(codeLang || "text");
     parts.push(
-      `<pre class="preview-code-block"><code class="hljs language-${escapeHtml(codeLang || "plaintext")}">${highlighted}</code></pre>`,
+      `<div class="preview-code-wrap">` +
+        `<div class="preview-code-toolbar">` +
+        `<span class="preview-code-lang">${langLabel}</span>` +
+        `<button type="button" class="preview-code-copy" aria-label="复制代码">复制</button>` +
+        `</div>` +
+        `<pre class="preview-code-block"><code class="hljs language-${escapeHtml(codeLang || "plaintext")}">${highlighted}</code></pre>` +
+        `</div>`,
     );
     inCode = false;
     codeLang = "";
@@ -191,7 +239,27 @@ export function markdownToPreviewHtml(content: string): string {
 
     if (/^>\s?/.test(trimmed)) {
       closeLists();
-      parts.push(`<blockquote class="preview-blockquote"><p>${inlineMarkdown(trimmed.replace(/^>\s?/, ""))}</p></blockquote>`);
+      parts.push(`<blockquote class="preview-blockquote preview-wechat-callout"><p>${inlineMarkdown(trimmed.replace(/^>\s?/, ""))}</p></blockquote>`);
+      i += 1;
+      continue;
+    }
+
+    if (/^[-*+]\s+\[[ xX]\]\s/.test(trimmed)) {
+      if (inOl) {
+        parts.push("</ol>");
+        inOl = false;
+      }
+      if (!inUl) {
+        parts.push('<ul class="preview-task-list">');
+        inUl = true;
+      }
+      const checked = /^[-*+]\s+\[[xX]\]/.test(trimmed);
+      const text = trimmed.replace(/^[-*+]\s+\[[ xX]\]\s*/, "");
+      parts.push(
+        `<li class="preview-task-item${checked ? " preview-task-item--done" : ""}">` +
+          `<span class="preview-task-box" aria-hidden="true">${checked ? "☑" : "☐"}</span>` +
+          `<span>${inlineMarkdown(text)}</span></li>`,
+      );
       i += 1;
       continue;
     }

@@ -19,8 +19,6 @@ import EditorPane from "../components/editor/EditorPane.vue";
 
 import LocalGraphView from "../components/graph/LocalGraphView.vue";
 
-import MindMapCanvas from "../components/mindmap/MindMapCanvas.vue";
-
 import { useUiStore } from "../stores/ui";
 
 import { useEditorStore } from "../stores/editor";
@@ -48,10 +46,6 @@ const mainView = computed(() => {
     case "graph":
 
       return LocalGraphView;
-
-    case "mindmap":
-
-      return MindMapCanvas;
 
     default:
 
@@ -149,7 +143,7 @@ onUnmounted(() => {
 
 <template>
 
-  <AppShell v-if="!ui.focusMode">
+  <AppShell v-if="!ui.focusMode" sidebar-mode="tree">
 
     <template #sidebar>
 
@@ -170,6 +164,12 @@ onUnmounted(() => {
         <StatusBar />
 
       </div>
+
+      <LocalGraphView
+        v-if="ui.splitGraphVisible && ui.workspaceViewMode === 'edit'"
+        class="w-72 shrink-0 border-l border-border"
+        data-testid="split-graph-panel"
+      />
 
       <BacklinksPanel v-if="ui.workspaceViewMode === 'edit' && ui.backlinksVisible" />
 

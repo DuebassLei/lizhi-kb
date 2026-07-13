@@ -210,6 +210,7 @@ pub fn score_search_hit(title_match: bool, body_match: bool) -> i32 {
 
 const SEARCH_STOP_WORDS: &[&str] = &[
     "一下", "介绍", "关于", "查询", "搜索", "查找", "告诉", "请问", "帮我", "相关", "信息",
+    "详细", "详细信息", "详细内容", "具体", "具体内容",
     "什么", "如何", "怎么", "怎样", "是否", "能否", "可以", "有没有", "哪些", "哪个", "那些",
     "这个", "那个", "我们", "你们", "他们", "它们", "以及", "还有", "或者", "如果", "因为",
     "所以", "但是", "然后", "已经", "进行", "通过", "使用", "需要", "希望", "想要", "了解",
@@ -271,6 +272,7 @@ fn is_search_stop_word(term: &str) -> bool {
     SEARCH_STOP_WORDS.contains(&term)
 }
 
+#[allow(clippy::type_complexity)]
 fn segment_mixed_text(
     text: &str,
     terms: &mut Vec<String>,
@@ -324,6 +326,7 @@ fn is_cjk(ch: char) -> bool {
     )
 }
 
+#[allow(clippy::type_complexity)]
 fn flush_segment(
     segment: &str,
     kind: SegmentKind,

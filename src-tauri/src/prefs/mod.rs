@@ -9,11 +9,15 @@ pub const UI_STATE_FILENAME: &str = "vault-ui-state.json";
 pub const AI_CONFIG_FILENAME: &str = "ai-config.json";
 pub const AI_SECRETS_FILENAME: &str = "ai-secrets.json";
 pub const MCP_CONFIG_FILENAME: &str = "mcp-config.json";
+pub const CC_WORKBENCH_CONFIG_FILENAME: &str = "cc-workbench.json";
+pub const CC_SECRETS_FILENAME: &str = "cc-secrets.json";
 
 pub const OPTIONAL_BACKUP_FILES: &[&str] = &[
     AI_CONFIG_FILENAME,
     AI_SECRETS_FILENAME,
     MCP_CONFIG_FILENAME,
+    CC_WORKBENCH_CONFIG_FILENAME,
+    CC_SECRETS_FILENAME,
     UI_STATE_FILENAME,
 ];
 
@@ -36,6 +40,8 @@ pub struct VaultUiState {
     pub pinned_doc_ids: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recent_doc_ids: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub document_templates: Option<Value>,
 }
 
 fn default_schema_version() -> u32 {
@@ -113,6 +119,11 @@ pub fn merge_ui_state(existing: &VaultUiState, incoming: &VaultUiState) -> Vault
     } else if incoming.recent_doc_ids.is_some() {
         merged.recent_doc_ids = incoming.recent_doc_ids.clone();
     }
+
+    merged.document_templates = incoming
+        .document_templates
+        .clone()
+        .or(existing.document_templates.clone());
 
     merged
 }

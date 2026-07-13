@@ -60,6 +60,8 @@ pnpm tauri dev       # Tauri/IPC 手动验证
 
 `.github/workflows/ci.yml` 在 PR / main 上运行 `pnpm verify` 与 `pnpm test:unit`。
 
+**已知盲区**：CI **未**跑 Playwright E2E（`pnpm test:e2e`）；Agent 工作台等路由无专项 E2E（见 [CC Workbench §17.4](../superpowers/specs/2026-07-10-cc-workbench-design.md#174-差距追踪待对齐项)）。流程/UI 大改时请在本地补跑 E2E。
+
 ## 常见警告处理
 
 | 来源 | 处理方式 |

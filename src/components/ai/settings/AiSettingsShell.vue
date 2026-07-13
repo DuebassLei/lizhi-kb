@@ -121,7 +121,7 @@ defineExpose({
             />
             启用 AI 助手
           </label>
-          <p class="mt-2 text-xs text-muted">开启后工作区侧栏与 /ai 页面可用</p>
+          <p class="mt-2 text-xs text-muted">开启后知识库侧栏与 /ai 页面可用</p>
         </section>
 
         <section v-show="currentTab === 'models'" class="ai-settings-panel" data-testid="ai-panel-models">

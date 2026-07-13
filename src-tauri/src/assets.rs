@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
+
 use crate::crypto::{decrypt, encrypt, DEK_LEN, NONCE_LEN};
 use crate::vault::VaultError;
 use crate::AppError;
@@ -43,7 +45,7 @@ fn encrypted_asset_path(dir: &Path, id: &str) -> PathBuf {
 }
 
 fn write_encrypted_bytes(path: &Path, dek: &[u8; DEK_LEN], plaintext: &[u8]) -> Result<(), AppError> {
-    let (nonce, ciphertext) = encrypt(dek, plaintext).map_err(|e| AppError::Crypto(e))?;
+    let (nonce, ciphertext) = encrypt(dek, plaintext).map_err(AppError::Crypto)?;
     let mut payload = Vec::with_capacity(NONCE_LEN + ciphertext.len());
     payload.extend_from_slice(&nonce);
     payload.extend_from_slice(&ciphertext);
@@ -190,6 +192,82 @@ pub fn encrypt_all_assets(data_dir: &Path, dek: &[u8; DEK_LEN]) -> Result<(), Va
         let enc_path = encrypted_asset_path(&dir, name);
         write_encrypted_bytes(&enc_path, dek, &bytes).map_err(VaultError::from)?;
         fs::remove_file(path)?;
+    }
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetEntry {
+    pub id: String,
+    pub mime: String,
+    pub size_bytes: u64,
+    pub created_at: i64,
+}
+
+pub fn list_assets(data_dir: &Path, encryption_enabled: bool) -> Result<Vec<AssetEntry>, AppError> {
+    let dir = assets_dir(data_dir);
+    if !dir.is_dir() {
+        return Ok(Vec::new());
+    }
+    let mut items = Vec::new();
+    for entry in fs::read_dir(&dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default()
+            .to_string();
+        let id = if encryption_enabled && name.ends_with(".enc") {
+            name.strip_suffix(".enc").unwrap_or(&name).to_string()
+        } else if encryption_enabled {
+            continue;
+        } else {
+            name.clone()
+        };
+        if validate_asset_id(&id).is_err() {
+            continue;
+        }
+        let meta = fs::metadata(&path)?;
+        items.push(AssetEntry {
+            id: id.clone(),
+            mime: mime_for_asset_id(&id).to_string(),
+            size_bytes: meta.len(),
+            created_at: meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_millis() as i64)
+                .unwrap_or(0),
+        });
+    }
+    items.sort_by_key(|b| std::cmp::Reverse(b.created_at));
+    Ok(items)
+}
+
+pub fn delete_asset(
+    data_dir: &Path,
+    id: &str,
+    encryption_enabled: bool,
+) -> Result<(), AppError> {
+    let id = validate_asset_id(id)?;
+    let dir = assets_dir(data_dir);
+    let path = if encryption_enabled {
+        encrypted_asset_path(&dir, id)
+    } else {
+        dir.join(id)
+    };
+    if !path.starts_with(&dir) || !path.is_file() {
+        return Err(AppError::AssetNotFound(id.to_string()));
+    }
+    fs::remove_file(path)?;
+    let cache_path = asset_cache_dir(data_dir).join(id);
+    if cache_path.is_file() {
+        let _ = fs::remove_file(cache_path);
     }
     Ok(())
 }

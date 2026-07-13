@@ -19,18 +19,13 @@ pub struct ChatRequest {
     pub use_cloud: bool,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum RagScope {
+    #[default]
     All,
     CurrentDocument,
     CurrentFolder,
-}
-
-impl Default for RagScope {
-    fn default() -> Self {
-        Self::All
-    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -60,6 +55,12 @@ pub struct AgentRequest {
   pub instruction: String,
   #[serde(default)]
   pub messages: Vec<ChatMessage>,
+  #[serde(default)]
+  pub scope: RagScope,
+  #[serde(default)]
+  pub document_id: Option<String>,
+  #[serde(default)]
+  pub folder: Option<String>,
   #[serde(default)]
   pub cloud_provider_id: Option<String>,
   #[serde(default)]

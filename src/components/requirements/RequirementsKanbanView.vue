@@ -3,7 +3,10 @@ import { computed, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { Columns3, Plus } from "@lucide/vue";
 import Btn from "../ui/Btn.vue";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
+import ModuleSearch from "../common/ModuleSearch.vue";
 import EmptyState from "../ui/EmptyState.vue";
+import PageHeader from "../common/PageHeader.vue";
 import KanbanColumn from "./KanbanColumn.vue";
 import RequirementDetailDrawer from "./RequirementDetailDrawer.vue";
 import RequirementsBottomPanel from "./RequirementsBottomPanel.vue";
@@ -20,6 +23,7 @@ const store = useRequirementsStore();
 const ui = useUiStore();
 const route = useRoute();
 const draggingId = ref<string | null>(null);
+const deletePending = ref(false);
 
 const statusStats = computed(() =>
   REQUIREMENT_STATUSES.map((status) => ({
@@ -71,7 +75,12 @@ async function onSave(patch: Parameters<typeof store.save>[1]) {
 
 async function onDelete() {
   if (!store.selected) return;
-  if (!window.confirm("确定删除此需求？")) return;
+  deletePending.value = true;
+}
+
+async function confirmDelete() {
+  if (!store.selected) return;
+  deletePending.value = false;
   await store.remove(store.selected.id);
 }
 
@@ -86,27 +95,34 @@ async function onImport() {
 </script>
 
 <template>
-  <div class="flex h-full flex-col overflow-y-auto bg-canvas">
-    <header class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-0/40 px-4 py-3 backdrop-blur-sm">
-      <div>
-        <h1 class="text-sm font-medium">需求看板</h1>
-        <p class="text-xs text-muted">
-          共 {{ store.isSearching ? store.filteredItems.length : store.totalCount }} 条需求
-          <span v-if="store.isSearching" class="text-muted">（已筛选）</span>
-          <span v-if="highPriorityCount > 0" class="text-danger">
-            · {{ highPriorityCount }} 条高优先级进行中
-          </span>
-        </p>
-      </div>
-      <Btn variant="primary" data-testid="new-requirement-btn" @click="startCreate">
-        <Plus class="mr-1 inline h-3.5 w-3.5" />
-        新建需求
-      </Btn>
-    </header>
+  <div class="module-page overflow-y-auto">
+    <PageHeader
+      title="需求看板"
+      :subtitle="`共 ${store.isSearching ? store.filteredItems.length : store.totalCount} 条${store.isSearching ? '（已筛选）' : ''}${highPriorityCount > 0 ? ` · ${highPriorityCount} 条高优先级` : ''}`"
+      :icon="Columns3"
+      icon-accent="link"
+      test-id="requirements-page-header"
+    >
+      <template #actions>
+        <Btn variant="secondary" size="sm" @click="onImport">导入 CSV</Btn>
+        <Btn variant="primary" size="sm" data-testid="new-requirement-btn" @click="startCreate">
+          <Plus class="mr-1 h-3.5 w-3.5" />
+          新建需求
+        </Btn>
+      </template>
+      <template v-if="store.totalCount > 0" #toolbar>
+        <ModuleSearch
+          v-model="store.searchQuery"
+          placeholder="搜索编号、标题、负责人…"
+          test-id="requirements-search-input"
+          aria-label="搜索需求"
+        />
+      </template>
+    </PageHeader>
 
     <div
       v-if="!store.loading && !store.error && store.totalCount > 0"
-      class="flex shrink-0 flex-wrap gap-2 border-b border-border/60 px-4 py-2.5"
+      class="module-kanban-stats"
       role="status"
       aria-label="状态分布"
     >
@@ -169,7 +185,7 @@ async function onImport() {
 
     <template v-else>
       <div
-        class="flex min-h-[min(480px,55vh)] shrink-0 gap-3 overflow-x-auto p-4 pb-5"
+        class="module-kanban-board"
         data-testid="requirements-kanban"
       >
         <KanbanColumn
@@ -201,5 +217,16 @@ async function onImport() {
       @delete="onDelete"
     />
 
+    <ConfirmDialog
+      :open="deletePending"
+      title="删除需求"
+      :item-name="store.selected?.number"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-requirement-dialog"
+      @confirm="confirmDelete"
+      @cancel="deletePending = false"
+    />
   </div>
 </template>

@@ -504,6 +504,40 @@ pub fn read_asset_bytes(state: State<Arc<AppState>>, id: String) -> Result<Asset
 
 #[tauri::command]
 
+pub fn rebuild_search_index(state: State<Arc<AppState>>) -> Result<usize, String> {
+
+    let dek = session_dek(&state)?;
+
+    let doc_service = state
+
+        .document_service
+
+        .lock()
+
+        .map_err(|_| "document service lock poisoned".to_string())?;
+
+    let count = doc_service
+
+        .list_documents()
+
+        .map_err(|e| e.to_string())?
+
+        .len();
+
+    doc_service
+
+        .rebuild_indexes(dek.as_ref())
+
+        .map_err(|e| e.to_string())?;
+
+    Ok(count)
+
+}
+
+
+
+#[tauri::command]
+
 pub fn search_documents(
 
     state: State<Arc<AppState>>,
@@ -2232,5 +2266,182 @@ pub fn get_vault_ui_state() -> Result<crate::prefs::VaultUiState, String> {
 pub fn save_vault_ui_state(state: crate::prefs::VaultUiState) -> Result<(), String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
     crate::prefs::save_ui_state(&data_dir, &state)
+}
+
+#[tauri::command]
+pub fn list_assets(state: State<Arc<AppState>>) -> Result<Vec<assets::AssetEntry>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (_, encryption_enabled) = vault_meta(&state)?;
+    assets::list_assets(&data_dir, encryption_enabled).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_asset(state: State<Arc<AppState>>, id: String) -> Result<(), String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (_, encryption_enabled) = vault_meta(&state)?;
+    assets::delete_asset(&data_dir, &id, encryption_enabled).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn export_obsidian_vault(
+    state: State<Arc<AppState>>,
+    dest_dir: String,
+    files: Vec<crate::export::MarkdownExportFile>,
+    assets_list: Vec<crate::export::ObsidianExportAsset>,
+) -> Result<crate::export::ObsidianExportResult, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (_, encryption_enabled) = vault_meta(&state)?;
+    let dek = session_dek(&state)?;
+    crate::export::export_obsidian_vault(
+        &data_dir,
+        std::path::Path::new(&dest_dir),
+        &files,
+        &assets_list,
+        encryption_enabled,
+        dek.as_ref(),
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn preview_cc_agents_import(
+    request: crate::cc_workbench::CcAgentImportRequest,
+) -> Result<crate::cc_workbench::chat_input::CcImportPreview, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::chat_input::preview_agents_import(
+        config.project_path.as_deref(),
+        &request.scope,
+        &request.source_paths,
+    ))
+}
+
+#[tauri::command]
+pub fn preview_cc_skills_import(
+    request: crate::cc_workbench::CcSkillImportRequest,
+) -> Result<crate::cc_workbench::chat_input::CcImportPreview, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::skills::preview_skills_import(
+        &data_dir,
+        config.project_path.as_deref(),
+        &request.scope,
+        &request.source_paths,
+    ))
+}
+
+#[tauri::command]
+pub fn preview_cc_prompts_import(
+    request: crate::cc_workbench::CcPromptImportRequest,
+) -> Result<crate::cc_workbench::chat_input::CcImportPreview, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    Ok(crate::cc_workbench::chat_input::preview_prompts_import(
+        config.project_path.as_deref(),
+        &request.scope,
+        &request.source_paths,
+    ))
+}
+
+#[tauri::command]
+pub fn get_cc_claude_permissions() -> Result<crate::cc_workbench::claude_settings::CcClaudePermissionsPreview, String> {
+    Ok(crate::cc_workbench::claude_settings::get_permissions())
+}
+
+#[tauri::command]
+pub fn save_cc_claude_permissions(
+    permissions: crate::cc_workbench::claude_settings::CcClaudePermissions,
+) -> Result<crate::cc_workbench::claude_settings::CcClaudePermissionsPreview, String> {
+    crate::cc_workbench::claude_settings::save_permissions(&permissions)
+}
+
+#[tauri::command]
+pub fn append_cc_usage_entry(entry: crate::cc_workbench::usage::CcUsageEntry) -> Result<(), String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    crate::cc_workbench::usage::append_usage(&data_dir, entry)
+}
+
+#[tauri::command]
+pub fn get_cc_usage_stats() -> Result<Vec<crate::cc_workbench::usage::CcUsageEntry>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    crate::cc_workbench::usage::list_usage(&data_dir)
+}
+
+#[tauri::command]
+pub fn fetch_cc_market_catalog(url: String) -> Result<Vec<serde_json::Value>, String> {
+    crate::cc_workbench::market_catalog::fetch_remote_catalog(&url)
+}
+
+#[tauri::command]
+pub fn cc_workbench_git_status(project_path: String) -> Result<crate::cc_workbench::git_ops::CcGitStatusResult, String> {
+    crate::cc_workbench::git_ops::git_status(&project_path)
+}
+
+#[tauri::command]
+pub fn cc_workbench_git_file_diff(
+    project_path: String,
+    path: String,
+) -> Result<crate::cc_workbench::git_ops::CcGitFileDiffContents, String> {
+    crate::cc_workbench::git_ops::git_file_diff_contents(&project_path, &path)
+}
+
+#[tauri::command]
+pub fn cc_workbench_git_diff(project_path: String, paths: Vec<String>) -> Result<String, String> {
+    crate::cc_workbench::git_ops::git_diff(&project_path, &paths)
+}
+
+#[tauri::command]
+pub fn cc_workbench_git_undo_edits(
+    project_path: String,
+    paths: Vec<String>,
+) -> Result<u32, String> {
+    crate::cc_workbench::git_ops::git_undo_edits(&project_path, &paths)
+}
+
+#[tauri::command]
+pub fn list_document_revisions(
+    state: State<Arc<AppState>>,
+    doc_id: String,
+) -> Result<Vec<crate::revisions::RevisionMeta>, String> {
+    let data_dir = {
+        let vault = state
+            .vault_service
+            .lock()
+            .map_err(|_| "vault service lock poisoned".to_string())?;
+        vault.data_dir().to_path_buf()
+    };
+    crate::revisions::list_revisions(&data_dir, &doc_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn read_document_revision(
+    state: State<Arc<AppState>>,
+    doc_id: String,
+    revision_id: String,
+) -> Result<String, String> {
+    let dek = session_dek(&state)?;
+    let (data_dir, encryption_enabled) = {
+        let vault = state
+            .vault_service
+            .lock()
+            .map_err(|_| "vault service lock poisoned".to_string())?;
+        let encryption_enabled = if vault.is_vault_initialized() {
+            vault
+                .load_meta()
+                .map(|m| m.encryption_enabled)
+                .unwrap_or(false)
+        } else {
+            false
+        };
+        (vault.data_dir().to_path_buf(), encryption_enabled)
+    };
+    crate::revisions::read_revision(
+        &data_dir,
+        &doc_id,
+        &revision_id,
+        encryption_enabled,
+        dek.as_ref(),
+    )
+    .map_err(|e| e.to_string())
 }
 

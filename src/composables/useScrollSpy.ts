@@ -59,11 +59,14 @@ export function useScrollSpy(sectionIds: string[], scrollRoot: Ref<HTMLElement |
   function scrollToSection(id: string) {
     const root = scrollRoot.value;
     const el = root?.querySelector(`#${CSS.escape(id)}`);
-    if (!el || !(el instanceof HTMLElement)) return;
+    if (!el || !(el instanceof HTMLElement) || !root) return;
 
     activeId.value = id;
     ignoreUntil = Date.now() + 700;
-    el.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    const scrollMargin = Number.parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+    const top = el.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop - scrollMargin;
+    root.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }
 
   return { activeId, scrollToSection };

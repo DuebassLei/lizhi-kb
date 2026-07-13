@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Clock, Download, History, Pencil, Search, Trash2, X } from "@lucide/vue";
+import { ClipboardCopy, Clock, Download, History, Pencil, Search, Trash2, X } from "@lucide/vue";
 import { formatSessionTime } from "../../../utils/chatSessionStorage";
 import Btn from "../../ui/Btn.vue";
 
@@ -25,6 +25,8 @@ const emit = defineEmits<{
   rename: [id: string, title: string];
   "export-current": [format: "md" | "json"];
   "export-all": [format: "md" | "json"];
+  "copy-current": [];
+  "copy-all": [];
   "clear-all": [];
 }>();
 
@@ -226,6 +228,28 @@ function confirmClearAll() {
           >
             <Download class="mr-1 h-3.5 w-3.5" />
             导出全部
+          </Btn>
+        </div>
+        <div class="cc-history-panel__export">
+          <Btn
+            variant="secondary"
+            size="sm"
+            class="cc-history-panel__export-btn"
+            :disabled="!hasCurrentMessages"
+            @click="emit('copy-current')"
+          >
+            <ClipboardCopy class="mr-1 h-3.5 w-3.5" />
+            复制当前
+          </Btn>
+          <Btn
+            variant="secondary"
+            size="sm"
+            class="cc-history-panel__export-btn"
+            :disabled="!history.length"
+            @click="emit('copy-all')"
+          >
+            <ClipboardCopy class="mr-1 h-3.5 w-3.5" />
+            复制全部
           </Btn>
         </div>
 

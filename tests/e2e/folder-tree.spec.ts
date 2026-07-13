@@ -68,27 +68,20 @@ test.describe("Folder tree", () => {
     const inboxZone = page.locator("[data-folder-id='inbox'] [data-testid='folder-empty-drop-zone']");
     await expect(inboxZone).toBeVisible();
 
-    await page.evaluate(() => {
-      const dropZone = document.querySelector(
-        "[data-folder-id='inbox'] [data-testid='folder-empty-drop-zone']",
-      );
-      if (!dropZone) throw new Error("drop zone not found");
-
+    const dataTransfer = await page.evaluateHandle(() => {
       const dt = new DataTransfer();
-      const file = new File(["# 导入测试\n\n正文内容"], "import-test.md", { type: "text/markdown" });
-      dt.items.add(file);
-
-      dropZone.dispatchEvent(
-        new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }),
+      dt.items.add(
+        new File(["# 导入测试\n\n正文内容"], "import-test.md", { type: "text/markdown" }),
       );
-      dropZone.dispatchEvent(
-        new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }),
-      );
+      return dt;
     });
 
-    await expect(page.getByTestId("workspace-toast")).toContainText("已导入", { timeout: 5000 });
+    await inboxZone.dispatchEvent("dragover", { dataTransfer });
+    await inboxZone.dispatchEvent("drop", { dataTransfer });
+
+    await expect(page.getByTestId("app-toast")).toContainText("已导入", { timeout: 5_000 });
     await expect(
       page.locator("[data-folder-id='inbox'] [data-testid='folder-doc-item']").filter({ hasText: "导入测试" }),
-    ).toBeVisible({ timeout: 5000 });
+    ).toBeVisible({ timeout: 5_000 });
   });
 });

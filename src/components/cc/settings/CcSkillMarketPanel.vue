@@ -14,6 +14,9 @@ import {
 import { useUiStore } from "../../../stores/ui";
 import {
   listCcSkillMarket,
+  getCcWorkbenchConfig,
+  setCcWorkbenchConfig,
+  fetchCcMarketCatalog,
   type CcSkillMarketEntry,
 } from "../../../services/ccWorkbenchService";
 import { copyToClipboard } from "../../../utils/copyToClipboard";
@@ -27,6 +30,8 @@ const loading = ref(true);
 const search = ref("");
 const expandedId = ref<string | null>(null);
 const entries = ref<CcSkillMarketEntry[]>([]);
+const remoteUrl = ref("");
+const fetchingRemote = ref(false);
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase();
@@ -46,11 +51,32 @@ function toggleExpand(id: string) {
 async function refresh() {
   loading.value = true;
   try {
+    const config = await getCcWorkbenchConfig();
+    remoteUrl.value = config.skillMarketUrl ?? "";
     entries.value = await listCcSkillMarket();
   } catch (e) {
     ui.showToast("error", e instanceof Error ? e.message : "加载技能市场失败");
   } finally {
     loading.value = false;
+  }
+}
+
+async function fetchRemoteCatalog() {
+  const url = remoteUrl.value.trim();
+  if (!url) {
+    ui.showToast("error", "请输入远程市场 URL");
+    return;
+  }
+  fetchingRemote.value = true;
+  try {
+    await setCcWorkbenchConfig({ skillMarketUrl: url });
+    const items = await fetchCcMarketCatalog(url);
+    entries.value = items as CcSkillMarketEntry[];
+    ui.showToast("success", `已加载 ${entries.value.length} 个远程 Skill`);
+  } catch (e) {
+    ui.showToast("error", e instanceof Error ? e.message : "拉取远程市场失败");
+  } finally {
+    fetchingRemote.value = false;
   }
 }
 
@@ -84,6 +110,13 @@ onMounted(() => {
         <input v-model="search" type="search" placeholder="搜索技能市场…" />
       </div>
       <p class="cc-skill-market__hint">精选公开 Skills，下载后通过「导入」安装</p>
+      <div class="cc-skill-market__remote">
+        <input v-model="remoteUrl" type="url" class="cc-skill-market__remote-input" placeholder="远程 catalog URL（可选）" />
+        <button type="button" class="cc-skill-market__remote-btn" :disabled="fetchingRemote" @click="fetchRemoteCatalog">
+          <Loader2 v-if="fetchingRemote" class="h-3 w-3 animate-spin" />
+          拉取远程
+        </button>
+      </div>
     </div>
 
     <div class="cc-skill-market__list">
@@ -176,6 +209,34 @@ onMounted(() => {
 .cc-skill-market__hint {
   font-size: 0.6875rem;
   color: var(--color-muted);
+}
+
+.cc-skill-market__remote {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  width: 100%;
+  margin-top: 0.25rem;
+}
+
+.cc-skill-market__remote-input {
+  min-width: 12rem;
+  flex: 1;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+}
+
+.cc-skill-market__remote-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--color-link);
 }
 
 .cc-skill-market__list {

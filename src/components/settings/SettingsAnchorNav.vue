@@ -14,10 +14,10 @@ const emit = defineEmits<{
 
 <template>
   <aside
-    class="settings-anchor-nav hidden w-44 shrink-0 border-l border-border bg-surface-0 lg:block"
+    class="settings-anchor-nav hidden w-44 shrink-0 self-stretch min-h-0 border-l border-border bg-surface-0 lg:block"
     data-testid="settings-anchor-nav"
   >
-    <nav class="sticky top-0 max-h-full overflow-y-auto px-3 py-6" aria-label="设置目录">
+    <nav class="sticky top-0 px-3 py-6" aria-label="设置目录">
       <div class="mb-3 flex items-center gap-1.5 px-2">
         <ListTree class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
         <span class="text-[11px] font-semibold tracking-wide text-text-secondary">目录</span>

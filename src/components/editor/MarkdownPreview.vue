@@ -4,6 +4,7 @@ import { resolveAssetUrl, isAssetRef } from "../../services/assetService";
 import { useDocumentsStore } from "../../stores/documents";
 import { useUiStore } from "../../stores/ui";
 import { markdownToPreviewHtml } from "../../utils/markdownPreview";
+import { handlePreviewCodeCopyClick } from "../../composables/cc/usePreviewCodeCopy";
 
 const props = defineProps<{
   content: string;
@@ -44,14 +45,24 @@ async function resolvePreviewAssets() {
   }
 }
 
-function onClick(event: MouseEvent) {
+async function onClick(event: MouseEvent) {
   const target = event.target as HTMLElement;
+  if (target.closest(".preview-code-copy") || target.closest(".preview-file-ref")) {
+    await handlePreviewCodeCopyClick(event, (type, message) => ui.showToast(type, message));
+    return;
+  }
+
   const wikiEl = target.closest("[data-wiki-title]") as HTMLElement | null;
   if (!wikiEl?.dataset.wikiTitle) return;
 
   const title = wikiEl.dataset.wikiTitle;
+  const heading = wikiEl.dataset.wikiHeading?.trim();
   if (event.metaKey || event.ctrlKey) {
     void documents.openWikiLinkInNewTab(title);
+  } else if (heading) {
+    void documents.openWikiLink(title).then(() => {
+      ui.requestHeadingScroll(heading);
+    });
   } else {
     void documents.openWikiLink(title);
   }
@@ -174,12 +185,52 @@ onUnmounted(() => {
   font-size: 0.88em;
 }
 
+.markdown-preview :deep(.preview-code-wrap) {
+  margin: 1rem 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+  overflow: hidden;
+}
+
+.markdown-preview :deep(.preview-code-toolbar) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-1) 80%, transparent);
+}
+
+.markdown-preview :deep(.preview-code-lang) {
+  font-size: 0.6875rem;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  text-transform: lowercase;
+}
+
+.markdown-preview :deep(.preview-code-copy) {
+  border: none;
+  background: transparent;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.6875rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+}
+
+.markdown-preview :deep(.preview-code-copy:hover) {
+  color: var(--color-link);
+  background: color-mix(in srgb, var(--color-surface-1) 80%, transparent);
+}
+
 .markdown-preview :deep(pre.preview-code-block) {
   position: relative;
-  background: var(--color-surface-0);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  margin: 1rem 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  margin: 0;
   padding: 0.875rem 1rem;
   overflow-x: auto;
   font-family: var(--font-mono);
@@ -358,8 +409,11 @@ onUnmounted(() => {
   margin: 0.625rem 0;
 }
 
-.preview-theme-compact :deep(pre.preview-code-block) {
+.preview-theme-compact :deep(.preview-code-wrap) {
   margin: 0.625rem 0;
+}
+
+.preview-theme-compact :deep(pre.preview-code-block) {
   padding: 0.625rem 0.75rem;
 }
 
@@ -376,6 +430,57 @@ onUnmounted(() => {
 .preview-theme-mono :deep(h3) {
   font-family: var(--font-ui);
   letter-spacing: normal;
+}
+
+:deep(.preview-wechat-callout) {
+  border-left-color: color-mix(in srgb, var(--color-link) 70%, transparent);
+  background: color-mix(in srgb, var(--color-link) 6%, var(--color-surface-0));
+  color: var(--color-text-secondary);
+}
+
+:deep(.preview-task-list) {
+  list-style: none;
+  padding-left: 0;
+}
+
+:deep(.preview-task-item) {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+:deep(.preview-task-box) {
+  flex-shrink: 0;
+  font-size: 0.85em;
+  line-height: 1.5;
+}
+
+:deep(.preview-task-item--done span:last-child) {
+  opacity: 0.65;
+  text-decoration: line-through;
+}
+
+:deep(.preview-mermaid) {
+  margin: 0.75rem 0;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-0);
+  padding: 0.75rem;
+}
+
+:deep(.preview-mermaid-label) {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-link);
+  margin-bottom: 0.5rem;
+}
+
+:deep(.preview-mermaid-code) {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  color: var(--color-muted);
 }
 
 .preview-theme-mono :deep(p) {

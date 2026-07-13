@@ -1,8 +1,9 @@
 # 狸知知识库 · Claude Agent 工作台设计
 
-**文档版本**：v1.0.0  
+**文档版本**：v1.0.2  
 **更新日期**：2026-07-13  
-**状态**：已实现（对齐 jetbrains-cc-gui）  
+**状态**：已实现（v1.0.2 对齐 jetbrains-cc-gui，2026-07-13）  
+**对齐基准**：jetbrains-cc-gui（后续新功能按需增量对齐，见 §17）  
 **关联**：[2026-07-10-cc-input-model-provider-design.md](./2026-07-10-cc-input-model-provider-design.md)、[2026-07-08-lizhi-ai-chat-design.md](./2026-07-08-lizhi-ai-chat-design.md)
 
 ---
@@ -63,8 +64,9 @@ CcWorkbenchView (Vue)
 
 | 路径 | 说明 |
 |------|------|
-| `~/.lizhi-kb/cc-workbench.json` | `cwdMode`、`projectPath`、供应商列表等 |
+| `~/.lizhi-kb/cc-workbench.json` | `cwdMode`、`projectPath`、供应商列表、`promptEnhancer`、`agentMarketUrl` / `skillMarketUrl` 等 |
 | `~/.lizhi-kb/cc-secrets.json` | API Key（仅 Rust 读写） |
+| `~/.lizhi-kb/cc-usage.json` | 用量统计（按模型/供应商聚合，可配置单价估算） |
 | `~/.lizhi-kb/dependencies/claude-sdk/` | 按需安装的 Agent SDK（**版本锁定**，见 §12） |
 | `~/.claude/agents/` | 全局 Agents（`.md`） |
 | `{project}/.claude/agents/` | 项目 Agents |
@@ -142,7 +144,19 @@ CcWorkbenchView (Vue)
 
 - **权限模式**：默认 / 跳过确认 / 仅规划 等，单行说明不换行
 - **供应商 / 模型**：会话内切换；1M 上下文 Switch；自定义模型
-- **增强提示词**：`CcPromptEnhancerDialog`
+- **增强提示词**：`CcPromptEnhancerDialog`；受 `promptEnhancer.enabled` 控制显示；`autoTrigger` 时发送前自动增强（失败 toast，继续原文）
+- **模型搜索 / 图标**：模型下拉内搜索；供应商与模型图标见 `ccProviderIcons.ts`
+- **自定义模型定价**：添加时可填 input/output 单价（USD/1M tok），供用量 Tab 估算
+
+配置项 `promptEnhancer`（`cc-workbench.json`）：
+
+| 字段 | 说明 |
+|------|------|
+| `enabled` | 是否显示 ✨ 增强按钮（默认 true） |
+| `autoTrigger` | 发送前自动增强（实验性） |
+| `systemPrompt` | 自定义增强 system prompt；留空则用 ai-bridge 内置默认 |
+
+修改 `packages/ai-bridge` 后须同步：`node scripts/sync-ai-bridge-resources.mjs`
 
 ---
 
@@ -155,9 +169,10 @@ CcWorkbenchView (Vue)
 | 消息 footer | `CcChatMessage` | 模型 · 耗时 · 入/出 token（有 usage 时） |
 | 工具块 | `CcToolBlocks` | Read/Write/Bash/Task 等分组展示 |
 | Edit diff | `CcEditDiffView` | 点击 Edit 行展开分屏 diff + 语法高亮 |
-| Subagent | `CcToolBlocks` + `CcSubagentOutputView` | 可折叠卡片、状态图标、内联输出解析 |
+| Subagent | `CcToolBlocks` + `CcSubagentOutputView` | 可折叠卡片、状态图标、内联输出；耗时来自 tool `startedAt` / `completedAt` |
 | 工具权限 | `CcToolPermissionDialog` | 待确认时 Toast + 对话框 |
-| 状态栏 | `CcStatusPanelBar` | 任务（TodoWrite）/ 子代理 / 编辑 三 Tab |
+| 状态栏 | `CcStatusPanelBar` | 任务（TodoWrite）/ 子代理 / 编辑 三 Tab；编辑 Tab 支持保留全部 / 丢弃全部 / 撤销（项目模式 git checkout） |
+| PPT 澄清表单 | `CcClarifyForm` | 解析 `lizhi-clarify` JSON 块（如 guizang-ppt 智能体） |
 
 ---
 
@@ -177,8 +192,13 @@ CcWorkbenchView (Vue)
 | MCP 服务器 | `CcMcpServersSection` | `~/.claude.json` 管理 |
 | Hooks | `CcHooksSection` | settings.json hooks |
 | CLAUDE.md | `CcClaudeMdSection` | 全局 CLAUDE.md 编辑 |
+| **权限** | `CcPermissionsSection` | 编辑 `~/.claude/settings.json` 的 permissions |
+| **用量** | `CcUsageStatsSection` | 读取 `cc-usage.json`；按模型统计与费用估算 |
+| **增强** | `CcEnhancedPromptSection` | `promptEnhancer` 开关、autoTrigger、自定义 system prompt |
 
 Agents / Skills / 提示词路径遵循 Claude Code 约定（`~/.claude/` 与 `{project}/.claude/`）。
+
+**导入冲突**：Agents / Skills / 提示词库导入前调用 `preview_cc_*_import`，由 `CcImportConflictDialog` 选择 skip / overwrite / rename。
 
 ---
 
@@ -208,6 +228,7 @@ Agents / Skills / 提示词路径遵循 Claude Code 约定（`~/.claude/` 与 `{
 | Command | 说明 |
 |---------|------|
 | `list_cc_skills` / `toggle_cc_skill` / `delete_cc_skill` / `import_cc_skills` / `open_cc_skill` | Skills 管理 |
+| `preview_cc_skills_import` | Skills 导入 dry-run |
 | `list_cc_skill_market` | 内置 Skill 市场目录 |
 | `preview_cc_switch_import` / `save_cc_switch_import` | CC Switch 配置导入 |
 
@@ -216,8 +237,10 @@ Agents / Skills / 提示词路径遵循 Claude Code 约定（`~/.claude/` 与 `{
 | Command | 说明 |
 |---------|------|
 | `list_cc_agents` / `save_cc_agent` / `delete_cc_agent` | CRUD |
-| `import_cc_agents` / `export_cc_agents` | 导入/导出（md 多文件 / json） |
-| `list_cc_agent_market` | 内置 Agent 市场（6 模板） |
+| `import_cc_agents` / `export_cc_agents` | 导入/导出（md / json / **zip**） |
+| `preview_cc_agents_import` | 导入 dry-run 预览 |
+| `list_cc_agent_market` | 内置 Agent 市场 |
+| `fetch_cc_market_catalog` | 远程市场 catalog（URL 或 env） |
 
 ### 10.5 提示词库
 
@@ -225,9 +248,20 @@ Agents / Skills / 提示词路径遵循 Claude Code 约定（`~/.claude/` 与 `{
 |---------|------|
 | `list_cc_prompts` / `save_cc_prompt` / `delete_cc_prompt` | CRUD |
 | `import_cc_prompts` / `export_cc_prompts` | 导入/导出 |
+| `preview_cc_prompts_import` | 提示词导入 dry-run |
 | `list_cc_slash_commands` | 内置斜杠命令列表 |
 
-### 10.6 其他
+### 10.6 用量与 Git
+
+| Command | 说明 |
+|---------|------|
+| `append_cc_usage_entry` | 追加单次对话用量 |
+| `get_cc_usage_stats` | 聚合统计 |
+| `cc_workbench_git_status` | 项目 Git 状态 |
+| `cc_workbench_git_diff` | staged/unstaged diff |
+| `cc_workbench_git_undo_edits` | 按路径 git checkout 撤销 Agent 编辑 |
+
+### 10.7 其他
 
 | Command | 说明 |
 |---------|------|
@@ -304,15 +338,23 @@ packages/ai-bridge/    # 与 resources/ai-bridge 同步
 
 ---
 
-## 14. 验收清单（回归）
+## 14. 已实现能力清单（v1.0.2）
 
-- [ ] vault 模式：lizhi-mcp 可读写笔记；无 Bash/Read 文件工具
-- [ ] project 模式：Bash/Edit 可用；文件上下文 + 附件分离
-- [ ] 设置：Agents/Skills/提示词库 创建、导入、导出、市场安装
-- [ ] 输入：`@` `#` `!` `/` 补全；占位符与 CC GUI 一致
-- [ ] 上下文环非 NaN；有 usage 时 footer 显示 token
-- [ ] Subagent 工具块可折叠；Edit 可展开 diff
-- [ ] `pnpm verify` 零 warning
+以下已在代码中落地；发版或大改后建议人工回归：
+
+- [x] vault 模式：lizhi-mcp 读写笔记；禁用内置文件/Bash 工具
+- [x] project 模式：Bash/Edit 可用；文件上下文与附件分离
+- [x] 设置：Agents/Skills/提示词库 CRUD、导入预览、导出（含 Agent ZIP）、内置/远程市场
+- [x] 设置：权限 / 用量 / 增强提示词 Tab
+- [x] 输入：`@` `#` `!` `/` 补全；供应商/模型/1M/权限/effort 底栏（见输入栏 spec）
+- [x] 模型搜索、供应商/模型图标、自定义模型 JSON 导入导出、per-model 1M、定价字段
+- [x] 上下文环与消息 footer token（有 usage 时）
+- [x] Subagent 卡片 + 真实耗时；Edit diff 分屏；状态栏编辑批处理 / git 撤销
+- [x] Commit AI（项目模式 + Git 顶栏入口）
+- [x] 提示词增强：自定义 system prompt 贯通 bridge；enabled / autoTrigger
+- [x] `pnpm verify` 零 warning（合并门禁）
+
+**尚未覆盖 / 按需对齐**：OAuth、Codex/Gemini 供应商、捆绑 Node、官方交流群、CC GUI 后续新增 UI（见 §17）。
 
 ---
 
@@ -321,11 +363,19 @@ packages/ai-bridge/    # 与 resources/ai-bridge 同步
 | 项 | 说明 |
 |----|------|
 | OAuth / Claude 订阅 | 不支持 |
+| Codex / Gemini 供应商 | 不支持 |
 | 捆绑 Node.js | 需用户本机 Node |
 | vault 明文镜像 | 不做 |
-| Agent ZIP 打包导出 | 当前 md/json |
-| 市场远程 catalog | 内置 JSON，可 `LIZHI_CC_*_MARKET` 环境变量覆盖 |
+| Agent 导出 | 支持 md / json / **zip** |
+| 市场 catalog | 内置 JSON；`cc-workbench.json` 的 `agentMarketUrl` / `skillMarketUrl` 或 `LIZHI_CC_*_MARKET` 环境变量 |
+| 导入冲突 | Agents / Skills / 提示词库支持 dry-run 预览 |
+| 工具权限 | 通过设置「权限」Tab 编辑 `~/.claude/settings.json` permissions |
+| 用量统计 | `~/.lizhi-kb/cc-usage.json`；自定义模型可配置单价估算费用 |
+| Commit AI | 仅项目模式 + Git 仓库；基于 diff + 提示词增强 |
+| 编辑批处理 | Keep All 为 UI 确认；Discard All / Undo 走 git checkout（仅 project + Git 仓库） |
 | 部分网关无 usage | 上下文环 / token footer 可能为空 |
+| 历史会话 | 旧消息无 tool 时间戳时，子代理耗时可能为空 |
+| Windows Rust 构建 | 需 `OPENSSL_DIR` 指向 OpenSSL 安装目录 |
 
 ---
 
@@ -335,3 +385,35 @@ packages/ai-bridge/    # 与 resources/ai-bridge 同步
 |------|------|------|
 | v0.1.1 | 2026-07-10 | POC：基础对话、SDK 安装、vault/project cwd |
 | v1.0.0 | 2026-07-13 | 对齐 CC GUI：多供应商、Agents/Skills/提示词库、市场、附件、上下文环、Subagent/Edit 可视化、usage 统计 |
+| v1.0.1 | 2026-07-13 | 导入预览、权限/用量/增强 Tab、ZIP 导出、编辑批处理、远程市场、Commit AI、模型定价 |
+| v1.0.2 | 2026-07-13 | 增强 system prompt 贯通 bridge；autoTrigger；子代理真实耗时；文档与对齐流程定稿 |
+
+---
+
+## 17. CC GUI 后续对齐流程
+
+jetbrains-cc-gui 持续演进时，**不自动追平**；由产品/用户点名新功能后再做增量对齐。
+
+### 17.1 触发方式
+
+用户说明「CC GUI 新增了 X，帮我对齐」→ Agent 按本 spec 与 [输入栏 spec](./2026-07-10-cc-input-model-provider-design.md) 做差距分析 → Plan 确认 → Implement。
+
+### 17.2 对齐步骤（Implementer  checklist）
+
+1. **调研**：对照 CC GUI 行为/截图/版本说明，列出与狸知差距（UI、IPC、bridge、配置字段）。
+2. **更新 spec**：在本文件 §14 增删项，必要时增补 §7–§10；版本号 + 变更记录。
+3. **实现**：优先垂直切片（Vue → `ccWorkbenchService` → Rust → `packages/ai-bridge`）。
+4. **bridge 同步**：改 `packages/ai-bridge` 后执行 `node scripts/sync-ai-bridge-resources.mjs`。
+5. **验证**：`pnpm verify:fe`；Tauri/IPC 变更时 `cargo check` + `pnpm tauri dev` 冒烟。
+6. **文档**：同步 `AGENTS.md` / `complete-design` 索引（若路由或数据路径变化）。
+
+### 17.3 刻意不做（除非 spec 修订）
+
+OAuth 登录、Codex/Gemini 供应商、安装包捆绑 Node、vault 明文镜像、与 AI 助手合并。
+
+### 17.4 差距追踪（待对齐项）
+
+| 功能 | 状态 | 备注 |
+|------|------|------|
+| CC GUI 新功能 | **按需** | 用户点名后填入上表并开 Plan |
+| CC Workbench E2E | 待补 | 无专项 Playwright；大改时建议补 |

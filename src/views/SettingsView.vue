@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { Lock, Shield, WifiOff } from "@lucide/vue";
+import { Lock, RefreshCw, Settings, Shield, WifiOff } from "@lucide/vue";
 import { useRoute, useRouter } from "vue-router";
 import AppShell from "../components/layout/AppShell.vue";
+import HintBanner from "../components/common/HintBanner.vue";
+import PageHeader from "../components/common/PageHeader.vue";
 import BackupRestorePanel from "../components/settings/BackupRestorePanel.vue";
 import McpSettingsPanel from "../components/settings/McpSettingsPanel.vue";
 import AiSettingsPanel from "../components/settings/AiSettingsPanel.vue";
 import CcWorkbenchSettingsPanel from "../components/settings/CcWorkbenchSettingsPanel.vue";
 import QuickNavSettingsPanel from "../components/settings/QuickNavSettingsPanel.vue";
+import DocumentTemplatesSettingsPanel from "../components/settings/DocumentTemplatesSettingsPanel.vue";
 import SettingsAnchorNav from "../components/settings/SettingsAnchorNav.vue";
 import Btn from "../components/ui/Btn.vue";
 import Input from "../components/ui/Input.vue";
@@ -29,6 +32,7 @@ import {
   type AutoLockMinutes,
 } from "../utils/autoLockSetting";
 import { useVaultStore } from "../stores/vault";
+import { rebuildSearchIndex } from "../services/knowledgeIndexService";
 
 
 const ui = useUiStore();
@@ -57,12 +61,20 @@ const scrollEl = ref<HTMLElement | null>(null);
 const sectionIds = SETTINGS_SECTIONS.map((s) => s.id);
 const { activeId, scrollToSection } = useScrollSpy(sectionIds, scrollEl);
 
+const indexRebuilding = ref(false);
+const indexResult = ref<{ ok: boolean; message: string } | null>(null);
+
 function onAutoLockChange() {
   saveAutoLockMinutes(autoLockMinutes.value);
 }
 
 function onLockOnBlurChange() {
   saveLockOnBlur(lockOnBlur.value);
+}
+
+function onBiometricToggle(event: Event) {
+  const checked = (event.target as HTMLInputElement).checked;
+  vault.biometricEnabled = checked;
 }
 
 function onExportWatermarkChange() {
@@ -263,6 +275,23 @@ function resetHeroBackground() {
 
 }
 
+async function onRebuildIndex() {
+  if (indexRebuilding.value) return;
+  indexRebuilding.value = true;
+  indexResult.value = null;
+  try {
+    const count = await rebuildSearchIndex();
+    indexResult.value = { ok: true, message: `已重建 ${count} 篇文档的全文索引` };
+  } catch (e) {
+    indexResult.value = {
+      ok: false,
+      message: e instanceof Error ? e.message : "重建索引失败",
+    };
+  } finally {
+    indexRebuilding.value = false;
+  }
+}
+
 </script>
 
 
@@ -271,11 +300,30 @@ function resetHeroBackground() {
 
   <AppShell>
 
-    <div class="flex h-full min-h-0 flex-1">
+    <div class="flex h-full min-h-0 bg-canvas" data-testid="settings-view">
 
-    <div ref="scrollEl" class="min-w-0 flex-1 overflow-y-auto p-6">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
 
-      <h1 class="mb-8 text-2xl font-semibold tracking-tight text-[var(--color-text)]">设置</h1>
+      <PageHeader
+        title="设置"
+        subtitle="外观、安全、备份与集成 — 修改即时生效于本机"
+        :icon="Settings"
+        icon-accent="link"
+        :bordered="true"
+        test-id="settings-page-header"
+      />
+
+      <HintBanner
+        variant="success"
+        :icon="Shield"
+        title="本地优先"
+        message="所有配置保存在 ~/.lizhi-kb/，密钥与笔记明文不出本机。右侧锚点可快速跳转各分区。"
+        test-id="settings-trust-hint"
+      />
+
+      <div ref="scrollEl" class="min-h-0 flex-1 overflow-y-auto">
+
+      <div class="p-6">
 
 
 
@@ -330,7 +378,7 @@ function resetHeroBackground() {
 
       <QuickNavSettingsPanel />
 
-
+      <DocumentTemplatesSettingsPanel />
 
       <section id="settings-insights-hero" class="settings-section mb-8 max-w-lg scroll-mt-6" data-testid="insights-hero-bg-settings">
 
@@ -487,6 +535,24 @@ function resetHeroBackground() {
             class="focus-within:ring-2 focus-within:ring-link flex items-center justify-between border-t border-divider px-4 py-3 text-sm"
           >
             <span>
+              生物识别快捷解锁
+              <span class="mt-0.5 block text-xs text-muted">Windows Hello / Touch ID（MVP：仅设置占位）</span>
+            </span>
+            <input
+              type="checkbox"
+              class="accent-link"
+              :checked="vault.biometricEnabled"
+              data-testid="biometric-toggle"
+              @change="onBiometricToggle"
+            />
+          </label>
+          <p v-if="vault.biometricEnabled" class="border-t border-divider px-4 pb-3 text-xs text-warning">
+            当前平台暂不支持生物识别解锁，已记录偏好；全栈实现见 spec v1.x Won't。
+          </p>
+          <label
+            class="focus-within:ring-2 focus-within:ring-link flex items-center justify-between border-t border-divider px-4 py-3 text-sm"
+          >
+            <span>
               失焦立即锁定
               <span class="mt-0.5 block text-xs text-muted">切换应用或最小化时锁定</span>
             </span>
@@ -525,6 +591,38 @@ function resetHeroBackground() {
       </div>
 
 
+
+      <section id="settings-index" class="settings-section mb-8 max-w-lg scroll-mt-6" data-testid="index-rebuild-settings">
+        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">知识库索引</h2>
+        <div class="rounded-lg border border-border bg-surface-0 px-4 py-3">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="text-sm text-[var(--color-text)]">全文搜索索引</p>
+              <p class="mt-0.5 text-xs text-muted">
+                重建 FTS5 全文索引与链接关系。搜索结果不准确或迁移分词器后建议执行。
+              </p>
+            </div>
+            <button
+              type="button"
+              class="focus-ring flex shrink-0 items-center gap-1.5 rounded-md bg-surface-1 px-3 py-1.5 text-sm text-link transition-colors hover:bg-surface-2 disabled:opacity-50"
+              :disabled="indexRebuilding"
+              data-testid="rebuild-index-btn"
+              @click="onRebuildIndex"
+            >
+              <RefreshCw class="h-3.5 w-3.5" :class="{ 'animate-spin': indexRebuilding }" aria-hidden="true" />
+              {{ indexRebuilding ? "重建中…" : "重建索引" }}
+            </button>
+          </div>
+          <p
+            v-if="indexResult"
+            class="mt-2 text-xs"
+            :class="indexResult.ok ? 'text-success' : 'text-danger'"
+            role="status"
+          >
+            {{ indexResult.message }}
+          </p>
+        </div>
+      </section>
 
       <BackupRestorePanel />
 
@@ -767,6 +865,10 @@ function resetHeroBackground() {
         <p class="mt-1 text-xs text-muted">数据目录：~/.lizhi-kb/ · 网络活动：0 请求</p>
 
       </section>
+
+      </div>
+
+      </div>
 
     </div>
 

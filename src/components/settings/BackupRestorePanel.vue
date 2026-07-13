@@ -23,6 +23,8 @@ import { loadInsightsHeroBackground } from "../../utils/insightsHeroBackground";
 import { useChatStore } from "../../stores/chat";
 import { useCredentialsStore } from "../../stores/credentials";
 import { useLaunchRecordsStore } from "../../stores/launchRecords";
+import { useDocumentTemplatesStore } from "../../stores/documentTemplates";
+import { loadStoredDocumentTemplates } from "../../utils/documentTemplateSetting";
 import { TauriCommandError } from "../../composables/useTauriCommand";
 import type { ImportResult } from "../../types/vault";
 
@@ -201,6 +203,7 @@ async function handlePickImport(mode: "replace" | "merge" | "merge-documents") {
 async function refreshAfterMerge(mode: "merge" | "merge-documents", result?: ImportResult) {
   await reloadVaultUiStateFromDisk();
   folders.load();
+  useDocumentTemplatesStore().hydrate(loadStoredDocumentTemplates());
   documents.reloadLocalDocPrefs();
   ui.insightsHeroBackground = loadInsightsHeroBackground();
   chat.reloadSessionsFromStorage();

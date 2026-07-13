@@ -3,6 +3,9 @@ use std::path::{Component, Path};
 
 use serde::Serialize;
 
+use crate::assets;
+use crate::crypto::DEK_LEN;
+
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MarkdownExportFile {
@@ -52,6 +55,63 @@ pub fn export_markdown_folder(
 
     Ok(MarkdownFolderExportResult {
         file_count: count,
+        dest_dir: dest_dir.to_string_lossy().into_owned(),
+    })
+}
+
+#[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ObsidianExportAsset {
+    pub relative_path: String,
+    pub asset_id: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ObsidianExportResult {
+    pub file_count: u32,
+    pub asset_count: u32,
+    pub dest_dir: String,
+}
+
+/// Obsidian 兼容导出：保留 wikilink 原文，并将资产复制到 attachments/
+pub fn export_obsidian_vault(
+    data_dir: &Path,
+    dest_dir: &Path,
+    files: &[MarkdownExportFile],
+    assets_list: &[ObsidianExportAsset],
+    encryption_enabled: bool,
+    dek: Option<&[u8; DEK_LEN]>,
+) -> Result<ObsidianExportResult, std::io::Error> {
+    let folder_result = export_markdown_folder(dest_dir, files)?;
+    let mut asset_count = 0u32;
+    for item in assets_list {
+        let rel = Path::new(&item.relative_path);
+        if rel.is_absolute()
+            || rel.components().any(|c| {
+                matches!(
+                    c,
+                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                )
+            })
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "非法资产路径",
+            ));
+        }
+        let bytes = assets::read_asset_bytes(data_dir, &item.asset_id, encryption_enabled, dek)
+            .map_err(|e| std::io::Error::other(e.to_string()))?;
+        let dest = dest_dir.join(rel);
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(&dest, bytes)?;
+        asset_count += 1;
+    }
+    Ok(ObsidianExportResult {
+        file_count: folder_result.file_count,
+        asset_count,
         dest_dir: dest_dir.to_string_lossy().into_owned(),
     })
 }

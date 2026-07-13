@@ -3,30 +3,31 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum CwdMode {
+    #[default]
     Vault,
     Project,
 }
 
-impl Default for CwdMode {
-    fn default() -> Self {
-        Self::Vault
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum CcProviderMode {
+    #[default]
     Official,
     Custom,
 }
 
-impl Default for CcProviderMode {
-    fn default() -> Self {
-        Self::Official
-    }
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CcPromptEnhancerConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub auto_trigger: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_prompt: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -52,6 +53,12 @@ pub struct CcWorkbenchConfig {
     pub providers: Vec<super::providers::CcProviderEntry>,
     #[serde(default)]
     pub provider_order: Vec<String>,
+    #[serde(default)]
+    pub prompt_enhancer: CcPromptEnhancerConfig,
+    #[serde(default)]
+    pub agent_market_url: Option<String>,
+    #[serde(default)]
+    pub skill_market_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -69,6 +76,12 @@ pub struct CcWorkbenchConfigPublic {
     pub api_key_masked: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
+    #[serde(default)]
+    pub prompt_enhancer: CcPromptEnhancerConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_market_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skill_market_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -82,6 +95,9 @@ pub struct CcWorkbenchConfigUpdate {
     pub model: Option<String>,
     pub fast_model: Option<String>,
     pub anthropic_api_key: Option<String>,
+    pub prompt_enhancer: Option<CcPromptEnhancerConfig>,
+    pub agent_market_url: Option<String>,
+    pub skill_market_url: Option<String>,
 }
 
 pub fn config_path(data_dir: &Path) -> PathBuf {
@@ -139,6 +155,9 @@ pub fn to_public(
         providers: super::providers::providers_for_public(config, secrets, reveal_provider_id),
         api_key_masked: mask_key(key.as_deref()),
         api_key: None,
+        prompt_enhancer: config.prompt_enhancer.clone(),
+        agent_market_url: config.agent_market_url.clone(),
+        skill_market_url: config.skill_market_url.clone(),
     }
 }
 
@@ -204,6 +223,25 @@ pub fn apply_update(
             secrets.set_provider_key(&active, normalized.clone());
             secrets.set_legacy_api_key(normalized);
         }
+    }
+    if let Some(enhancer) = &update.prompt_enhancer {
+        config.prompt_enhancer = enhancer.clone();
+    }
+    if let Some(url) = &update.agent_market_url {
+        let trimmed = url.trim();
+        config.agent_market_url = if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        };
+    }
+    if let Some(url) = &update.skill_market_url {
+        let trimmed = url.trim();
+        config.skill_market_url = if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        };
     }
     super::providers::sync_legacy_from_active(config, secrets);
     Ok(())

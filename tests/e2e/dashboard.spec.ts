@@ -13,11 +13,13 @@ test.describe("Insights dashboard", () => {
     await expect(page.getByRole("link", { name: "去写作" })).toBeVisible();
 
     await expect(page.getByTestId("overview-cards")).toBeVisible();
-    await expect(page.getByText("文档数")).toBeVisible();
+    await expect(page.getByTestId("overview-cards").getByText("文档数")).toBeVisible();
     await expect(page.getByTestId("heatmap")).toBeVisible();
     await expect(page.getByTestId("writing-rhythm")).toBeVisible();
-    await expect(page.getByText("双链总数")).toBeVisible();
-    await expect(page.getByText("暂无编辑记录").or(page.getByText(/编辑 \d+ 次/))).toBeVisible();
+    await expect(page.getByTestId("network-highlights").getByText("双链总数")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "编辑活动" }).locator("..").getByText("暂无编辑记录"),
+    ).toBeVisible();
   });
 
   test("root path redirects to dashboard", async ({ page }) => {

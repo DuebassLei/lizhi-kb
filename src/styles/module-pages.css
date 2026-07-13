@@ -1,0 +1,317 @@
+/* ── 记录类模块页（需求看板 / 每日小记 / 密码本）共享样式 ── */
+
+.module-page {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--color-canvas);
+}
+
+.module-page.flex-row {
+  flex-direction: row;
+}
+
+.module-page__body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.module-page__content {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 48rem;
+  padding: 1.25rem 1.25rem 2rem;
+}
+
+.module-page__content--wide {
+  max-width: 56rem;
+}
+
+/* ── 侧栏导航（密码本分类）── */
+
+.module-sidebar {
+  display: flex;
+  width: 11rem;
+  shrink: 0;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+}
+
+.module-sidebar__head {
+  display: flex;
+  height: 4.25rem;
+  shrink: 0;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 0.75rem 0.75rem;
+}
+
+.module-sidebar__nav {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.module-sidebar__item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.625rem;
+  text-align: left;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.module-sidebar__item:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.module-sidebar__item--active {
+  background: var(--color-surface-2);
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.module-sidebar__count {
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-muted);
+}
+
+/* ── 搜索框 ── */
+
+.module-search {
+  border-radius: var(--radius-lg);
+  transition: box-shadow 150ms ease;
+}
+
+.module-search--focused {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-link) 28%, transparent);
+}
+
+.module-search__inner {
+  display: flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-1) 65%, transparent);
+  padding: 0 0.625rem 0 0.75rem;
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+}
+
+.module-search--focused .module-search__inner {
+  border-color: color-mix(in srgb, var(--color-link) 35%, transparent);
+  background: color-mix(in srgb, var(--color-surface-1) 88%, transparent);
+}
+
+.module-search__icon {
+  flex-shrink: 0;
+  width: 0.875rem;
+  height: 0.875rem;
+  color: var(--color-muted);
+}
+
+.module-search__input {
+  min-width: 0;
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.5rem 0;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  outline: none;
+}
+
+.module-search__input::placeholder {
+  color: var(--color-muted);
+}
+
+.module-search__clear {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  padding: 0.25rem;
+  color: var(--color-muted);
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.module-search__clear:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+/* ── 筛选 chip ── */
+
+.module-filter-chip {
+  border-radius: 9999px;
+  border: 1px solid var(--color-border);
+  padding: 0.125rem 0.625rem;
+  font-size: 0.6875rem;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.module-filter-chip--active {
+  border-color: color-mix(in srgb, var(--color-link) 40%, transparent);
+  background: color-mix(in srgb, var(--color-link) 12%, transparent);
+  color: var(--color-text);
+}
+
+/* ── 列表卡片 ── */
+
+.module-list-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+  padding: 0.875rem 1rem;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.module-list-card:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-1);
+}
+
+.module-list-card--prod {
+  border-left: 3px solid var(--color-danger);
+}
+
+.module-list-card--test {
+  border-left: 3px solid var(--color-warning);
+}
+
+.module-list-card--local {
+  border-left: 3px solid var(--color-secure);
+}
+
+.module-list-card--public {
+  border-left: 3px solid var(--color-link);
+}
+
+/* ── 骨架屏 ── */
+
+.module-skeleton {
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-1) 0%,
+    color-mix(in srgb, var(--color-surface-1) 55%, var(--color-surface-2)) 50%,
+    var(--color-surface-1) 100%
+  );
+  background-size: 200% 100%;
+  animation: module-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes module-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ── Kanban 看板 ── */
+
+.module-kanban-board {
+  display: flex;
+  min-height: min(480px, 55vh);
+  shrink: 0;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding: 1rem 1rem 1.25rem;
+}
+
+.module-kanban-stats {
+  display: flex;
+  shrink: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  padding: 0.625rem 1rem;
+}
+
+/* ── 底部面板 Tab ── */
+
+.module-tab-bar {
+  display: inline-flex;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-1) 50%, transparent);
+  padding: 0.125rem;
+}
+
+.module-tab-bar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: var(--radius-md);
+  padding: 0.375rem 0.75rem;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-muted);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.module-tab-bar__btn--active {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+/* ── 错误条 ── */
+
+.module-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 8%, var(--color-surface-0));
+  padding: 0.75rem 1rem;
+  font-size: var(--text-sm);
+  color: var(--color-danger);
+}
+
+.module-trust-footer {
+  shrink: 0;
+  border-top: 1px solid var(--color-border);
+  padding: 0.5rem 1.25rem;
+  text-align: center;
+  font-size: 0.625rem;
+  color: var(--color-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .module-skeleton {
+    animation: none;
+  }
+}

@@ -1,4 +1,5 @@
 import { tauriInvoke } from "../composables/useTauriCommand";
+import { isTauriRuntime } from "./vaultService";
 import { runConcurrent } from "../utils/readConcurrent";
 import { extractH1Title } from "../utils/documentTitle";
 import type {
@@ -24,10 +25,6 @@ interface StoredDocument {
 interface LocalData {
   documents: Record<string, StoredDocument>;
   activity: Record<string, number>;
-}
-
-function isTauriRuntime(): boolean {
-  return !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 }
 
 function loadLocal(): LocalData {
@@ -131,6 +128,12 @@ function localRenameDocument(id: string, title: string): void {
 }
 
 function localSaveDocument(id: string, content: string): SaveResult {
+  if (
+    typeof localStorage !== "undefined" &&
+    localStorage.getItem("lizhi-kb-e2e-save-fail") === "1"
+  ) {
+    throw new Error("E2E 模拟保存失败");
+  }
   const data = loadLocal();
   const doc = data.documents[id];
   if (!doc) throw new Error(`Document not found: ${id}`);

@@ -13,6 +13,7 @@ const vault = useVaultStore();
 const router = useRouter();
 
 const saveLabel = computed(() => {
+  if (editor.saveError) return "保存失败";
   if (editor.isSaving) return "保存中";
   return editor.isDirty ? "未保存" : "已保存";
 });

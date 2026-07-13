@@ -11,7 +11,7 @@ import {
 export type ChatSessionExportFormat = "md" | "json";
 
 const SURFACE_LABELS: Record<RagSurface, string> = {
-  workspace: "工作区对话",
+  workspace: "知识库对话",
   standalone: "独立页对话",
 };
 
@@ -26,7 +26,7 @@ function exportFilename(surface: RagSurface, format: ChatSessionExportFormat): s
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-  const prefix = surface === "workspace" ? "工作区" : "独立页";
+  const prefix = surface === "workspace" ? "知识库" : "独立页";
   const ext = format === "md" ? "md" : "json";
   return `AI对话-${prefix}-${y}${m}${day}.${ext}`;
 }

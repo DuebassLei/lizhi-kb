@@ -9,11 +9,13 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: [];
-  add: [payload: { id: string; label?: string }];
+  add: [payload: { id: string; label?: string; inputPrice?: number; outputPrice?: number }];
 }>();
 
 const modelId = ref("");
 const modelLabel = ref("");
+const inputPrice = ref("");
+const outputPrice = ref("");
 const error = ref("");
 
 watch(
@@ -22,6 +24,8 @@ watch(
     if (!isOpen) return;
     modelId.value = "";
     modelLabel.value = "";
+    inputPrice.value = "";
+    outputPrice.value = "";
     error.value = "";
   },
 );
@@ -32,7 +36,12 @@ function onSubmit() {
     error.value = "请输入模型 ID";
     return;
   }
-  emit("add", { id, label: modelLabel.value.trim() || undefined });
+  emit("add", {
+    id,
+    label: modelLabel.value.trim() || undefined,
+    inputPrice: inputPrice.value.trim() ? Number(inputPrice.value) : undefined,
+    outputPrice: outputPrice.value.trim() ? Number(outputPrice.value) : undefined,
+  });
   emit("close");
 }
 
@@ -69,6 +78,16 @@ function onKeydown(event: KeyboardEvent) {
             @keydown="onKeydown"
           />
         </label>
+        <div class="cc-add-model-dialog__pricing">
+          <label class="cc-add-model-dialog__field">
+            <span>输入单价 / 1M tok（USD，可选）</span>
+            <Input v-model="inputPrice" placeholder="3.00" @keydown="onKeydown" />
+          </label>
+          <label class="cc-add-model-dialog__field">
+            <span>输出单价 / 1M tok（USD，可选）</span>
+            <Input v-model="outputPrice" placeholder="15.00" @keydown="onKeydown" />
+          </label>
+        </div>
         <p v-if="error" class="cc-add-model-dialog__error">{{ error }}</p>
       </div>
 
@@ -139,6 +158,12 @@ function onKeydown(event: KeyboardEvent) {
   flex-direction: column;
   gap: 0.375rem;
   font-size: 0.8125rem;
+}
+
+.cc-add-model-dialog__pricing {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
 }
 
 .cc-add-model-dialog__error {

@@ -16,6 +16,12 @@ import {
 
   saveCcAgent,
 
+  getCcWorkbenchConfig,
+
+  setCcWorkbenchConfig,
+
+  fetchCcMarketCatalog,
+
   type CcAgentMarketEntry,
 
 } from "../../../services/ccWorkbenchService";
@@ -35,6 +41,10 @@ const expandedId = ref<string | null>(null);
 const entries = ref<CcAgentMarketEntry[]>([]);
 
 const installedIds = ref<Set<string>>(new Set());
+
+const remoteUrl = ref("");
+
+const fetchingRemote = ref(false);
 
 
 
@@ -84,6 +94,10 @@ async function refresh() {
 
   try {
 
+    const config = await getCcWorkbenchConfig();
+
+    remoteUrl.value = config.agentMarketUrl ?? "";
+
     entries.value = await listCcAgentMarket();
 
     await refreshInstalled();
@@ -95,6 +109,44 @@ async function refresh() {
   } finally {
 
     loading.value = false;
+
+  }
+
+}
+
+
+
+async function fetchRemoteCatalog() {
+
+  const url = remoteUrl.value.trim();
+
+  if (!url) {
+
+    ui.showToast("error", "请输入远程市场 URL");
+
+    return;
+
+  }
+
+  fetchingRemote.value = true;
+
+  try {
+
+    await setCcWorkbenchConfig({ agentMarketUrl: url });
+
+    const items = await fetchCcMarketCatalog(url);
+
+    entries.value = items as CcAgentMarketEntry[];
+
+    ui.showToast("success", `已加载 ${entries.value.length} 个远程 Agent`);
+
+  } catch (e) {
+
+    ui.showToast("error", e instanceof Error ? e.message : "拉取远程市场失败");
+
+  } finally {
+
+    fetchingRemote.value = false;
 
   }
 
@@ -167,6 +219,20 @@ onMounted(() => {
       </div>
 
       <p class="cc-agent-market__hint">精选子代理模板，一键安装到全局或项目</p>
+
+      <div class="cc-agent-market__remote">
+
+        <input v-model="remoteUrl" type="url" class="cc-agent-market__remote-input" placeholder="远程 catalog URL（可选）" />
+
+        <button type="button" class="cc-agent-market__remote-btn" :disabled="fetchingRemote" @click="fetchRemoteCatalog">
+
+          <Loader2 v-if="fetchingRemote" class="h-3 w-3 animate-spin" />
+
+          拉取远程
+
+        </button>
+
+      </div>
 
     </div>
 
@@ -382,6 +448,62 @@ onMounted(() => {
 
 
 
+.cc-agent-market__remote {
+
+  display: flex;
+
+  flex-wrap: wrap;
+
+  gap: 0.375rem;
+
+  width: 100%;
+
+  margin-top: 0.25rem;
+
+}
+
+
+
+.cc-agent-market__remote-input {
+
+  min-width: 12rem;
+
+  flex: 1;
+
+  border-radius: 0.375rem;
+
+  border: 1px solid var(--color-border);
+
+  padding: 0.25rem 0.5rem;
+
+  font-size: 0.6875rem;
+
+}
+
+
+
+.cc-agent-market__remote-btn {
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 0.25rem;
+
+  border-radius: 0.375rem;
+
+  border: 1px solid var(--color-border);
+
+  padding: 0.25rem 0.5rem;
+
+  font-size: 0.6875rem;
+
+  color: var(--color-link);
+
+}
+
+
+
 .cc-agent-market__list {
 
   display: flex;
@@ -458,9 +580,9 @@ onMounted(() => {
 
   border-radius: 0.5rem;
 
-  background: color-mix(in srgb, #8b5cf6 15%, transparent);
+  background: color-mix(in srgb, var(--color-link) 15%, transparent);
 
-  color: #8b5cf6;
+  color: var(--color-link);
 
 }
 

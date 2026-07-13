@@ -1,9 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { ensureAppReady } from "./helpers";
+import { cmEditor, ensureAppReady } from "./helpers";
 
 /** 公众号排版已并入工作区；/wechat-studio 重定向至 /workspace?preview=wechat */
 async function openWechatWorkspace(page: import("@playwright/test").Page) {
   await ensureAppReady(page, "/workspace?preview=wechat");
+  await page.getByTestId("new-doc-btn").click();
+  await expect(cmEditor(page)).toBeVisible({ timeout: 10_000 });
   await expect(page.getByTestId("toolbar-preview-kind-wechat")).toBeVisible();
 }
 
@@ -16,6 +18,7 @@ test.describe("WeChat preview in workspace", () => {
 
   test("shows theme selector with full migrated themes", async ({ page }) => {
     await page.getByTestId("toolbar-preview-kind-wechat").click();
+    await page.getByTestId("wechat-toolbar-menu-trigger").click();
     const themeSelect = page.getByTestId("workspace-wechat-theme-select");
     await expect(themeSelect).toBeVisible();
     await themeSelect.click();
@@ -31,8 +34,7 @@ test.describe("WeChat preview in workspace", () => {
   });
 
   test("renders layout module in preview", async ({ page }) => {
-    await page.getByTestId("new-doc-btn").click();
-    const editor = page.locator('[data-testid="markdown-codemirror"] .cm-content');
+    const editor = cmEditor(page);
     await editor.click();
     await editor.pressSequentially(`:::tip[提示]\n这是一条提示\n:::\n`);
 
@@ -42,8 +44,7 @@ test.describe("WeChat preview in workspace", () => {
   });
 
   test("renders info callout module in preview", async ({ page }) => {
-    await page.getByTestId("new-doc-btn").click();
-    const editor = page.locator('[data-testid="markdown-codemirror"] .cm-content');
+    const editor = cmEditor(page);
     await editor.click();
     await editor.pressSequentially(`:::info[信息]\n补充说明\n:::\n`);
 
@@ -55,6 +56,8 @@ test.describe("WeChat preview in workspace", () => {
   test("legacy /wechat-studio redirects to workspace wechat preview", async ({ page }) => {
     await page.goto("/wechat-studio");
     await expect(page).toHaveURL(/\/workspace\?preview=wechat/);
+    await page.getByTestId("new-doc-btn").click();
+    await expect(cmEditor(page)).toBeVisible({ timeout: 10_000 });
     await expect(page.getByTestId("toolbar-preview-kind-wechat")).toHaveAttribute(
       "aria-pressed",
       "true",

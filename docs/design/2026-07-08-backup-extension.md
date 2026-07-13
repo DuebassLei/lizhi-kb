@@ -31,6 +31,8 @@
 | **文档标签** | `localStorage` `lizhi-kb-doc-tags` | → `vault-ui-state.json` |
 | **AI 配置** | `ai-config.json` | 纳入备份（可选文件） |
 | **AI 密钥** | `ai-secrets.json` | 纳入备份（可选文件） |
+| **CC 工作台配置** | `cc-workbench.json` | 纳入备份（可选文件） |
+| **CC 工作台密钥** | `cc-secrets.json` | 纳入备份（可选文件；含 API Key） |
 | **MCP 配置** | `mcp-config.json` | 纳入备份（可选文件） |
 
 ### Tier 2 — 建议纳入（体验连续）

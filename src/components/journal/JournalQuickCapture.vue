@@ -16,6 +16,13 @@ const emit = defineEmits<{
 const draft = ref("");
 const submitting = ref(false);
 const focused = ref(false);
+const inputRef = ref<HTMLTextAreaElement | null>(null);
+
+function focus() {
+  inputRef.value?.focus();
+}
+
+defineExpose({ focus });
 
 async function handleSubmit() {
   const text = draft.value.trim();
@@ -47,6 +54,7 @@ function onKeydown(e: KeyboardEvent) {
     data-testid="journal-quick-capture"
   >
     <textarea
+      ref="inputRef"
       v-model="draft"
       rows="3"
       class="journal-capture__input focus-ring"

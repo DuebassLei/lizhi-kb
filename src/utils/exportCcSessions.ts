@@ -26,7 +26,7 @@ function exportFilename(format: CcSessionExportFormat, single = false): string {
   return `${prefix}-${y}${m}${day}.${ext}`;
 }
 
-function buildMessageMarkdown(msg: CcMessage): string {
+export function buildMessageMarkdown(msg: CcMessage): string {
   const role = msg.role === "user" ? "用户" : "助手";
   const lines: string[] = [`### ${role}`, ""];
   if (msg.contextFiles?.length) {
@@ -62,7 +62,7 @@ function buildMessageMarkdown(msg: CcMessage): string {
   return lines.join("\n").trimEnd();
 }
 
-function buildSessionMarkdown(entry: CcSessionExportEntry): string {
+export function buildSessionMarkdown(entry: CcSessionExportEntry): string {
   const lines: string[] = [
     `## ${entry.title}`,
     "",

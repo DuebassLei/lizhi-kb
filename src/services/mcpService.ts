@@ -1,4 +1,5 @@
 import { tauriInvoke } from "../composables/useTauriCommand";
+import { isTauriRuntime } from "./vaultService";
 
 export type McpBackendMode = "bridge" | "standalone";
 
@@ -20,15 +21,45 @@ export interface McpConfigUpdate {
   sessionTimeoutMinutes?: number;
 }
 
+const DEFAULT_MCP_CONFIG: McpConfigPublic = {
+  enabled: false,
+  writeEnabled: false,
+  port: 13721,
+  standalonePort: 13722,
+  sessionTimeoutMinutes: 30,
+  tokenMasked: "e2e-****-mock",
+  token: "e2e-mock-token",
+};
+
+let browserMcpConfig: McpConfigPublic = { ...DEFAULT_MCP_CONFIG };
+
 export async function getMcpConfig(revealToken = false): Promise<McpConfigPublic> {
+  if (!isTauriRuntime()) {
+    return {
+      ...browserMcpConfig,
+      token: revealToken ? browserMcpConfig.token ?? DEFAULT_MCP_CONFIG.token : undefined,
+    };
+  }
   return tauriInvoke<McpConfigPublic>("get_mcp_config", { revealToken });
 }
 
 export async function setMcpConfig(update: McpConfigUpdate): Promise<McpConfigPublic> {
+  if (!isTauriRuntime()) {
+    browserMcpConfig = { ...browserMcpConfig, ...update };
+    return getMcpConfig(true);
+  }
   return tauriInvoke<McpConfigPublic>("set_mcp_config", { update });
 }
 
 export async function regenerateMcpToken(): Promise<McpConfigPublic> {
+  if (!isTauriRuntime()) {
+    browserMcpConfig = {
+      ...browserMcpConfig,
+      token: `e2e-regen-${Date.now()}`,
+      tokenMasked: "e2e-****-regen",
+    };
+    return getMcpConfig(true);
+  }
   return tauriInvoke<McpConfigPublic>("regenerate_mcp_token");
 }
 

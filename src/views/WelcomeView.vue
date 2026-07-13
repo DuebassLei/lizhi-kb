@@ -1,7 +1,9 @@
 ﻿<script setup lang="ts">
 import { computed, ref } from "vue";
+import { Lock, Shield, Sparkles } from "@lucide/vue";
 import { useRoute, useRouter } from "vue-router";
 import logoNest from "../assets/logo-nest.svg";
+import HintBanner from "../components/common/HintBanner.vue";
 import Btn from "../components/ui/Btn.vue";
 import Input from "../components/ui/Input.vue";
 import { DEFAULT_APP_ROUTE } from "../router/constants";
@@ -20,8 +22,16 @@ const showRecovery = ref(false);
 const enableWithLock = ref(false);
 
 const introSteps = [
-  { title: "你的加密知识库", desc: "本地优先、端到端加密。猫一样安静，知识成网。" },
-  { title: "准备就绪", desc: "默认无需密码即可开始使用。可在设置中随时启用主密码加密。" },
+  {
+    title: "你的加密知识库",
+    desc: "笔记、双链与图谱都在本机。端到端加密，猫一样安静守护。",
+    hint: "默认无需密码即可开始；可在设置中随时启用主密码。",
+  },
+  {
+    title: "准备就绪",
+    desc: "写作看板、知识库与 Agent 工作台已就位。写下第一篇，知识网络会在这里生长。",
+    hint: "点击「开始使用」进入写作看板，侧栏可随时切换功能。",
+  },
 ];
 
 async function nextIntro() {
@@ -32,9 +42,11 @@ async function nextIntro() {
   error.value = "";
   try {
     await vault.completeSetup({ withPassword: false });
-    router.replace(DEFAULT_APP_ROUTE);
+    router.replace(vault.needsUnlock ? "/unlock" : DEFAULT_APP_ROUTE);
   } catch (e) {
-    error.value = e instanceof Error ? e.message : "初始化失败";
+    const message = e instanceof Error ? e.message : "初始化失败";
+    error.value =
+      message === "vault already exists" ? "知识库已存在，请直接进入应用" : message;
   }
 }
 
@@ -79,9 +91,10 @@ function cancelPasswordSetup() {
 </script>
 
 <template>
-  <div class="flex h-full items-center justify-center p-8">
+  <div class="auth-screen">
     <div
-      class="w-full max-w-md rounded-xl border border-border bg-surface-1 px-8 py-10"
+      class="auth-card"
+      :class="{ 'auth-card--narrow': !isPasswordSetup && !showRecovery }"
       data-testid="welcome-card"
     >
       <div class="flex flex-col items-center text-center">
@@ -91,9 +104,12 @@ function cancelPasswordSetup() {
           <h1 class="mt-6 text-2xl font-semibold tracking-tight text-[var(--color-text)]">
             保存恢复密钥
           </h1>
-          <p class="mt-2 text-sm text-muted">
-            请抄写并妥善保管这 24 个单词。丢失后无法恢复加密数据。
-          </p>
+          <HintBanner
+            class="!mt-4 !rounded-lg !border !border-warning/30"
+            variant="warning"
+            title="仅此一次展示"
+            message="请抄写并妥善保管这 24 个单词。丢失后无法恢复加密数据。"
+          />
           <p
             class="mt-4 w-full rounded-lg border border-border bg-surface-0 p-4 text-left font-mono text-xs leading-relaxed text-[var(--color-text)]"
             data-testid="recovery-phrase"
@@ -106,14 +122,22 @@ function cancelPasswordSetup() {
         </template>
 
         <template v-else-if="isPasswordSetup">
-          <h1 class="mt-6 text-3xl font-semibold tracking-tight text-[var(--color-text)]">
+          <h1 class="mt-6 text-2xl font-semibold tracking-tight text-[var(--color-text)]">
             设置主密码
           </h1>
           <p class="mt-2 text-sm text-muted">
-            主密码用于备份导出与恢复校验。启用后仍可立即使用；若需每次打开应用时输入密码，请开启启动锁定。
+            主密码用于备份导出与恢复校验。启用后仍可立即使用。
           </p>
 
-          <div class="mt-8 w-full space-y-3 text-left">
+          <HintBanner
+            class="!mt-4 !rounded-lg !border !text-left"
+            variant="info"
+            :icon="Shield"
+            title="两种启用方式"
+            message="「启用主密码」立即可用；「启用并锁定」则每次打开应用需输入密码解锁。"
+          />
+
+          <div class="mt-6 w-full space-y-3 text-left">
             <Input
               v-model="password"
               type="password"
@@ -155,6 +179,7 @@ function cancelPasswordSetup() {
                 data-testid="enable-and-lock"
                 @click="submitPassword(true)"
               >
+                <Lock class="mr-1.5 inline h-3.5 w-3.5" aria-hidden="true" />
                 启用并锁定
               </Btn>
               <Btn
@@ -172,17 +197,22 @@ function cancelPasswordSetup() {
         </template>
 
         <template v-else>
-          <h1 class="mt-6 text-3xl font-semibold tracking-tight text-[var(--color-text)]">
+          <h1 class="mt-6 text-2xl font-semibold tracking-tight text-[var(--color-text)]">
             {{ introSteps[step].title }}
           </h1>
-          <p class="mt-2 text-sm text-muted">{{ introSteps[step].desc }}</p>
+          <p class="mt-2 text-sm leading-relaxed text-muted">{{ introSteps[step].desc }}</p>
 
-          <div class="mt-6 flex gap-2" role="tablist" aria-label="引导步骤">
+          <p class="mt-4 inline-flex items-center gap-1.5 text-xs text-paw">
+            <Sparkles class="h-3.5 w-3.5" aria-hidden="true" />
+            {{ introSteps[step].hint }}
+          </p>
+
+          <div class="auth-step-dots mt-6" role="tablist" aria-label="引导步骤">
             <span
               v-for="(_, i) in introSteps"
               :key="i"
-              class="h-2 w-2 rounded-full transition-colors"
-              :class="i === step ? 'bg-paw' : 'bg-surface-3'"
+              class="auth-step-dot"
+              :class="{ 'auth-step-dot--active': i === step }"
               :aria-current="i === step ? 'step' : undefined"
             />
           </div>

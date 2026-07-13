@@ -11,6 +11,7 @@ import { extractHeadings } from "../../utils/headings";
 import { scrollToDocumentHeading } from "../../utils/scrollToHeading";
 import { scrollToFolderRow } from "../../utils/folderScroll";
 import DocumentToc from "./DocumentToc.vue";
+import RevisionHistoryPanel from "./RevisionHistoryPanel.vue";
 import EditorFindReplace from "./EditorFindReplace.vue";
 import MarkdownCodeEditor from "./MarkdownCodeEditor.vue";
 import MarkdownPreview from "./MarkdownPreview.vue";
@@ -19,9 +20,7 @@ import EmptyState from "../ui/EmptyState.vue";
 import { useSplitPreviewResize } from "../../composables/useSplitPreviewResize";
 import { useEditorPreviewScrollSync } from "../../composables/useEditorPreviewScrollSync";
 import { useWechatTheme } from "../../composables/useWechatTheme";
-import { getDocumentTags, setDocumentTags } from "../../utils/documentTags";
-import { getTagPillClass } from "../../utils/tagColor";
-import { PenLine, Tag } from "@lucide/vue";
+import { PenLine } from "@lucide/vue";
 
 const documents = useDocumentsStore();
 const route = useRoute();
@@ -38,13 +37,6 @@ const findReplaceRef = ref<InstanceType<typeof EditorFindReplace> | null>(null);
 const splitContainerRef = ref<HTMLElement | null>(null);
 const gfmPreviewCmp = ref<{ containerRef: HTMLElement | null } | null>(null);
 const previewRef = computed(() => gfmPreviewCmp.value?.containerRef ?? null);
-const tagDraft = ref("");
-const tagsTick = ref(0);
-
-const docTags = computed(() => {
-  void tagsTick.value;
-  return documents.activeId ? getDocumentTags(documents.activeId) : [];
-});
 
 const activeTitle = computed(
   () => documents.tree.find((d) => d.id === documents.activeId)?.title ?? "无标题",
@@ -93,6 +85,10 @@ const { scheduleSave, flush, cancel } = useAutoSave({
       documents.patchMeta(documents.activeId, { updatedAt: savedAt });
       links.updatePlainTextForDoc(documents.activeId, documents.content);
     }
+  },
+  onError: (error) => {
+    const message = error instanceof Error ? error.message : "自动保存失败";
+    ui.showToast("error", `${message}，请检查网络或稍后重试`);
   },
 });
 
@@ -199,23 +195,9 @@ const scrollSyncEnabled = computed(() => showSplitPreview.value);
 
 useEditorPreviewScrollSync(cmView, previewRef, scrollSyncEnabled);
 
-function addTag() {
-  if (!documents.activeId) return;
-  const tag = tagDraft.value.trim();
-  if (!tag) return;
-  const next = [...docTags.value, tag];
-  setDocumentTags(documents.activeId, next);
-  tagDraft.value = "";
-  tagsTick.value++;
-}
-
-function removeTag(tag: string) {
-  if (!documents.activeId) return;
-  setDocumentTags(
-    documents.activeId,
-    docTags.value.filter((t) => t !== tag),
-  );
-  tagsTick.value++;
+async function retrySave() {
+  editor.clearSaveError();
+  await flush();
 }
 </script>
 
@@ -230,7 +212,7 @@ function removeTag(tag: string) {
         aria-label="面包屑"
         data-testid="doc-breadcrumb"
       >
-        <span>工作区</span>
+        <span>知识库</span>
         <template v-for="seg in breadcrumbFolders" :key="seg.id">
           <span class="mx-1 text-border-strong">/</span>
           <button
@@ -267,44 +249,27 @@ function removeTag(tag: string) {
         </h1>
       </div>
 
-      <div
-        v-if="docTags.length || tagDraft !== undefined"
-        class="doc-tags-row mt-3 flex items-center gap-2"
-        data-testid="doc-tags-row"
-      >
-        <Tag :size="14" class="shrink-0 text-muted" aria-hidden="true" />
-        <div
-          v-if="docTags.length"
-          class="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto"
-          data-testid="doc-tags-list"
-        >
-          <span
-            v-for="tag in docTags"
-            :key="tag"
-            :class="[getTagPillClass(tag), 'shrink-0']"
-          >
-            {{ tag }}
-            <button
-              type="button"
-              class="doc-tag-pill__remove focus-ring rounded-sm leading-none"
-              :aria-label="`移除标签 ${tag}`"
-              @click="removeTag(tag)"
-            >
-              ×
-            </button>
-          </span>
-        </div>
-        <input
-          v-model="tagDraft"
-          type="text"
-          placeholder="添加标签，回车确认"
-          class="doc-tag-input focus-ring shrink-0 rounded-full border border-dashed border-border bg-transparent px-2 py-0.5 text-[11px] outline-none"
-          :class="docTags.length ? 'w-[9.5rem]' : 'min-w-0 flex-1'"
-          data-testid="doc-tag-input"
-          @keydown.enter.prevent="addTag"
-        />
+      <div class="mt-2 flex items-center justify-end gap-2">
+        <RevisionHistoryPanel :doc-id="documents.activeId" />
       </div>
     </header>
+
+    <div
+      v-if="editor.saveError && documents.activeId"
+      class="mx-6 mb-2 flex items-center justify-between gap-3 rounded-lg border border-danger/30 bg-danger/8 px-3 py-2 text-xs text-danger sm:mx-10 lg:mx-16"
+      role="alert"
+      data-testid="autosave-error-banner"
+    >
+      <span>自动保存失败：{{ editor.saveError }}</span>
+      <button
+        type="button"
+        class="focus-ring shrink-0 rounded-md border border-danger/40 px-2 py-1 text-[11px] font-medium hover:bg-danger/10"
+        data-testid="autosave-retry"
+        @click="retrySave"
+      >
+        重试
+      </button>
+    </div>
 
     <div
       v-if="documents.loading"

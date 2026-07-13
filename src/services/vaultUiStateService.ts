@@ -12,6 +12,12 @@ import {
   VAULT_UI_PINNED_KEY,
   VAULT_UI_RECENT_KEY,
 } from "../utils/vaultUiStateLocalStorage";
+import {
+  DOC_TEMPLATES_STORAGE_KEY,
+  loadStoredDocumentTemplates,
+} from "../utils/documentTemplateSetting";
+import type { DocTemplateConfig } from "../utils/documentTemplates";
+import { normalizeTemplateList } from "../utils/documentTemplates";
 import { isTauriRuntime } from "./vaultService";
 
 const FOLDERS_KEY = "lizhi-kb-folders";
@@ -34,6 +40,7 @@ export interface VaultUiState {
   graphNodePositions?: Record<string, { x: number; y: number }>;
   pinnedDocIds?: string[];
   recentDocIds?: string[];
+  documentTemplates?: DocTemplateConfig[];
 }
 
 let persistTimer: ReturnType<typeof setTimeout> | null = null;
@@ -63,6 +70,7 @@ export function buildVaultUiStateFromLocal(): VaultUiState {
     graphNodePositions: readGraphNodePositionsFromStorage(),
     pinnedDocIds: readPinnedDocIdsFromStorage(),
     recentDocIds: readRecentDocIdsFromStorage(),
+    documentTemplates: loadStoredDocumentTemplates(),
   };
 }
 
@@ -88,6 +96,12 @@ export function applyVaultUiStateToLocal(state: VaultUiState): void {
   if (state.recentDocIds) {
     localStorage.setItem(RECENT_KEY, JSON.stringify(state.recentDocIds));
   }
+  if (state.documentTemplates) {
+    localStorage.setItem(
+      DOC_TEMPLATES_STORAGE_KEY,
+      JSON.stringify(normalizeTemplateList(state.documentTemplates)),
+    );
+  }
 }
 
 function diskStateHasContent(state: VaultUiState): boolean {
@@ -102,6 +116,7 @@ function diskStateHasContent(state: VaultUiState): boolean {
   if (state.graphNodePositions && Object.keys(state.graphNodePositions).length > 0) return true;
   if (state.pinnedDocIds && state.pinnedDocIds.length > 0) return true;
   if (state.recentDocIds && state.recentDocIds.length > 0) return true;
+  if (state.documentTemplates && state.documentTemplates.length > 0) return true;
   return false;
 }
 

@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useDocumentsStore } from "../../stores/documents";
 import { useUiStore } from "../../stores/ui";
 import { fetchLocalGraph, type GraphPayload } from "../../services/knowledgeIndexService";
+import HintBanner from "../common/HintBanner.vue";
 import { isTauriRuntime } from "../../services/vaultService";
 import { buildLocalGraph } from "../../composables/useGraphCanvas";
 import { useLinksStore } from "../../stores/links";
@@ -142,6 +143,13 @@ const centerTitle = computed(
       暂无链接关系 · 使用 [[文档名]] 创建双链
     </div>
     <div v-else class="flex min-h-0 flex-1 flex-col">
+      <HintBanner
+        class="mx-4 mt-2 shrink-0"
+        variant="info"
+        title="图谱为只读视图"
+        message="点击节点打开文档；正文编辑请切回「编辑」视图。"
+        test-id="graph-edit-hint"
+      />
       <div class="flex shrink-0 items-center justify-between border-b border-border px-4 py-2">
         <p class="text-xs text-muted">以「{{ centerTitle }}」为中心 · 2 层深度</p>
         <div class="flex items-center gap-1 text-xs" data-testid="graph-zoom-controls">

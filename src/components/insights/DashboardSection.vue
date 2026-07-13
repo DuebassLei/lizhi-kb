@@ -1,20 +1,17 @@
 ﻿<script setup lang="ts">
+import type { Component } from "vue";
+import SectionCard from "../common/SectionCard.vue";
+
 defineProps<{
   title: string;
   subtitle?: string;
+  icon?: Component;
+  fill?: boolean;
 }>();
 </script>
 
 <template>
-  <section class="space-y-3">
-    <header>
-      <h2 class="text-sm font-medium uppercase tracking-wide text-text-secondary">
-        {{ title }}
-      </h2>
-      <p v-if="subtitle" class="mt-0.5 text-xs text-muted">{{ subtitle }}</p>
-    </header>
-    <div class="rounded-lg border border-border bg-surface-0 p-5">
-      <slot />
-    </div>
-  </section>
+  <SectionCard :title="title" :subtitle="subtitle" :icon="icon" :fill="fill">
+    <slot />
+  </SectionCard>
 </template>

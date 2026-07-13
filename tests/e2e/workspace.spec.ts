@@ -1,9 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { ensureAppReady } from "./helpers";
-
-function cmEditor(page: import("@playwright/test").Page) {
-  return page.locator('[data-testid="markdown-codemirror"] .cm-content');
-}
+import { cmEditor, ensureAppReady } from "./helpers";
 
 test.describe("Workspace editor", () => {
   test.beforeEach(async ({ page }) => {
@@ -16,7 +12,7 @@ test.describe("Workspace editor", () => {
     page,
   }) => {
     await expect(page).toHaveURL(/\/workspace/);
-    await expect(page.getByRole("link", { name: "工作区", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "个人知识库", exact: true })).toBeVisible();
 
     await page.getByTestId("new-doc-btn").click();
 
@@ -91,12 +87,7 @@ test.describe("Workspace editor", () => {
     await editor.click();
     await editor.press("Control+a");
     await editor.press("Backspace");
-    await page.getByRole("button", { name: "标题 1" }).click();
-    await editor.pressSequentially("持久化标题");
-    await editor.press("Enter");
-
-    await page.getByRole("button", { name: "代码块" }).click();
-    await editor.pressSequentially("const x = 1;");
+    await editor.pressSequentially("# 持久化标题\n\n```\nconst x = 1;\n```");
 
     await expect(editor).toContainText("# 持久化标题");
     await expect(editor).toContainText("const x = 1;");
@@ -223,6 +214,7 @@ test.describe("Workspace editor", () => {
 
     await page.getByTestId("toolbar-preview-kind-wechat").click();
     await expect(page.getByTestId("wechat-preview-panel")).toBeVisible();
+    await page.getByTestId("wechat-toolbar-menu-trigger").click();
     await expect(page.getByTestId("workspace-wechat-theme-select")).toBeVisible();
     await expect(page.getByTestId("workspace-wechat-copy")).toBeVisible();
     await expect(page.getByTestId("markdown-preview")).not.toBeVisible();
@@ -240,5 +232,44 @@ test.describe("Workspace editor", () => {
     await page.reload();
     await ensureAppReady(page, "/workspace");
     await expect(page.getByTestId("wechat-preview-panel")).toBeVisible();
+  });
+
+  test("autosave failure shows banner and retry succeeds", async ({ page }) => {
+    await page.getByTestId("new-doc-btn").click();
+    const editor = cmEditor(page);
+    await editor.click();
+    await editor.pressSequentially("触发保存失败");
+
+    await page.evaluate(() => localStorage.setItem("lizhi-kb-e2e-save-fail", "1"));
+    await editor.pressSequentially("！");
+
+    await expect(page.getByTestId("autosave-error-banner")).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId("app-toast")).toContainText("保存失败");
+
+    await page.evaluate(() => localStorage.removeItem("lizhi-kb-e2e-save-fail"));
+    await page.getByTestId("autosave-retry").click();
+    await expect(page.getByText("已保存")).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByTestId("autosave-error-banner")).not.toBeVisible();
+  });
+
+  test("frontmatter is edited in markdown editor, not a separate panel", async ({ page }) => {
+    await page.getByTestId("new-doc-btn").click();
+    const editor = cmEditor(page);
+    await expect(editor).toBeVisible();
+    await expect(page.getByTestId("frontmatter-panel")).not.toBeVisible();
+    await expect(page.getByTestId("doc-tags-row")).not.toBeVisible();
+
+    await editor.click();
+    await editor.press("Control+Home");
+    await editor.pressSequentially("---\ndate: 2026-07-13\ntags:\n  - e2e\n---\n");
+
+    await expect(editor).toContainText("---");
+    await expect(editor).toContainText("date: 2026-07-13");
+  });
+
+  test("split graph toggle shows graph panel beside editor", async ({ page }) => {
+    await page.getByTestId("new-doc-btn").click();
+    await page.getByTestId("toolbar-split-graph").click();
+    await expect(page.getByTestId("split-graph-panel")).toBeVisible();
   });
 });

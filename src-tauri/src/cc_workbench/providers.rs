@@ -365,13 +365,13 @@ pub fn resolve_active_provider<'a>(
         .iter()
         .find(|p| p.id == active_id)
         .ok_or_else(|| "未找到激活的供应商".to_string())?;
-    let key = secrets.get_provider_key(&entry.id);
-    if key.as_deref().unwrap_or("").is_empty() {
-        return Err(format!("请为「{}」配置 API Key / Auth Token", entry.name));
-    }
+    let key = secrets
+        .get_provider_key(&entry.id)
+        .filter(|k| !k.is_empty())
+        .ok_or_else(|| format!("请为「{}」配置 API Key / Auth Token", entry.name))?;
     Ok(ResolvedProvider::Managed {
         entry,
-        api_key: key.unwrap(),
+        api_key: key,
     })
 }
 
@@ -490,6 +490,35 @@ pub fn ensure_builtin_providers(config: &mut CcWorkbenchConfig) {
     ensure_provider_order(config);
 }
 
+pub fn hydrate_local_settings_provider(public: &mut CcProviderPublic) {
+    let env = super::claude_settings::load_claude_settings_env().unwrap_or_default();
+    let extras = super::claude_settings::load_claude_settings_env_extras();
+    if let Some(url) = env.anthropic_base_url {
+        public.base_url = url;
+    }
+    if let Some(m) = env.anthropic_model {
+        public.model = m;
+    }
+    if let Some(m) = env.anthropic_default_sonnet_model {
+        public.sonnet_model = m;
+    }
+    if let Some(m) = env.anthropic_default_opus_model {
+        public.opus_model = m;
+    }
+    if let Some(m) = env
+        .anthropic_default_haiku_model
+        .or(env.anthropic_small_fast_model)
+    {
+        public.fast_model = m;
+    }
+    public.env_extras = extras;
+    if public.base_url.is_empty() {
+        public.provider_mode = CcProviderMode::Official;
+    } else {
+        public.provider_mode = CcProviderMode::Custom;
+    }
+}
+
 pub fn providers_for_public(
     config: &CcWorkbenchConfig,
     secrets: &CcWorkbenchSecrets,
@@ -504,6 +533,7 @@ pub fn providers_for_public(
         None,
     );
     local.is_builtin = true;
+    hydrate_local_settings_provider(&mut local);
     let mut list: Vec<CcProviderPublic> = vec![local];
     list.extend(config.providers.iter().map(|p| {
         to_provider_public(

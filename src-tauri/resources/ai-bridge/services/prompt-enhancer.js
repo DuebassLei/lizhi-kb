@@ -74,7 +74,7 @@ export async function runPromptEnhancer(params) {
     includePartialMessages: true,
     model: sdkModel,
     settings,
-    systemPrompt: ENHANCE_SYSTEM_PROMPT,
+    systemPrompt: params.enhanceSystemPrompt || ENHANCE_SYSTEM_PROMPT,
     canUseTool: async () => ({ behavior: "deny", message: "提示词增强不执行工具" }),
   };
 

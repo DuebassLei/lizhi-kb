@@ -289,6 +289,24 @@ pub struct CcAgentImportResult {
     pub errors: Vec<String>,
 }
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CcImportPreviewItem {
+    pub id: String,
+    pub name: String,
+    pub status: String,
+    pub source_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CcImportPreview {
+    pub items: Vec<CcImportPreviewItem>,
+    pub errors: Vec<String>,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CcAgentExportRequest {
@@ -549,6 +567,115 @@ pub fn import_agents(
     }
 }
 
+fn preview_agent_item(
+    requested_id: &str,
+    name: &str,
+    source_path: &str,
+    dest: &std::path::Path,
+) -> CcImportPreviewItem {
+    let status = if dest.join(format!("{requested_id}.md")).exists() {
+        "conflict"
+    } else {
+        "new"
+    };
+    CcImportPreviewItem {
+        id: requested_id.to_string(),
+        name: name.to_string(),
+        status: status.to_string(),
+        source_path: source_path.to_string(),
+        message: None,
+    }
+}
+
+pub fn preview_agents_import(
+    project_path: Option<&str>,
+    scope: &str,
+    source_paths: &[String],
+) -> CcImportPreview {
+    let mut items = Vec::new();
+    let mut errors = Vec::new();
+    let Some(dest) = agents_dir(scope, project_path) else {
+        errors.push("无法定位 agents 目录".into());
+        return CcImportPreview { items, errors };
+    };
+
+    let mut files = Vec::new();
+    for source in source_paths {
+        let src = PathBuf::from(source.trim());
+        if !src.exists() {
+            errors.push(format!("路径不存在: {source}"));
+            continue;
+        }
+        collect_agent_source_files(&src, &mut files);
+    }
+
+    for file in files {
+        let ext = file.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if ext == "json" {
+            let raw = match fs::read_to_string(&file) {
+                Ok(s) => s,
+                Err(e) => {
+                    errors.push(format!("{}: {e}", file.display()));
+                    continue;
+                }
+            };
+            let value: serde_json::Value = match serde_json::from_str(&raw) {
+                Ok(v) => v,
+                Err(e) => {
+                    errors.push(format!("{}: JSON 解析失败: {e}", file.display()));
+                    continue;
+                }
+            };
+            let list: Vec<serde_json::Value> = match value {
+                serde_json::Value::Array(arr) => arr,
+                obj @ serde_json::Value::Object(_) => vec![obj],
+                _ => {
+                    errors.push(format!("{}: JSON 格式无效", file.display()));
+                    continue;
+                }
+            };
+            for item in list {
+                let Some(obj) = item.as_object() else {
+                    continue;
+                };
+                let name = obj
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Agent")
+                    .trim()
+                    .to_string();
+                let requested_id = obj
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| agent_id_from_source(&file));
+                items.push(preview_agent_item(
+                    &requested_id,
+                    &name,
+                    &file.display().to_string(),
+                    &dest,
+                ));
+            }
+        } else {
+            let Some(parsed) = parse_agent_file(&file, "import") else {
+                errors.push(format!("无法解析 Agent 文件: {}", file.display()));
+                continue;
+            };
+            let requested_id = agent_id_from_source(&file);
+            items.push(preview_agent_item(
+                &requested_id,
+                &parsed.name,
+                &file.display().to_string(),
+                &dest,
+            ));
+        }
+    }
+
+    CcImportPreview { items, errors }
+}
+
 pub fn export_agents(
     project_path: Option<&str>,
     agents: &[CcAgentDeleteRequest],
@@ -605,6 +732,46 @@ pub fn export_agents(
                 }
             }
             Err(e) => errors.push(format!("序列化 JSON 失败: {e}")),
+        }
+        return CcAgentExportResult { exported, errors };
+    }
+
+    if format == "zip" {
+        use std::io::Write;
+        let zip_path = dest.join("agents-export.zip");
+        let file = match fs::File::create(&zip_path) {
+            Ok(f) => f,
+            Err(e) => {
+                errors.push(format!("创建 ZIP 失败: {e}"));
+                return CcAgentExportResult { exported, errors };
+            }
+        };
+        let mut zip = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for agent in &selected {
+            let filename = format!("{}.md", agent.id);
+            let content = format!(
+                "---\nname: \"{}\"\ndescription: \"{}\"\n---\n\n{}",
+                agent.name.replace('"', "\\\""),
+                agent.description.replace('"', "\\\""),
+                agent.prompt.trim()
+            );
+            if let Err(e) = zip.start_file(&filename, options) {
+                errors.push(format!("{}: {e}", agent.id));
+                continue;
+            }
+            if let Err(e) = zip.write_all(content.as_bytes()) {
+                errors.push(format!("{}: {e}", agent.id));
+                continue;
+            }
+            exported.push(filename);
+        }
+        if let Err(e) = zip.finish() {
+            errors.push(format!("完成 ZIP 失败: {e}"));
+        } else {
+            exported.clear();
+            exported.push(zip_path.display().to_string());
         }
         return CcAgentExportResult { exported, errors };
     }
@@ -1009,6 +1176,106 @@ pub fn import_prompts(
         skipped,
         errors,
     }
+}
+
+pub fn preview_prompts_import(
+    project_path: Option<&str>,
+    scope: &str,
+    source_paths: &[String],
+) -> CcImportPreview {
+    let mut items = Vec::new();
+    let mut errors = Vec::new();
+    let Some(dest) = prompts_dir(scope, project_path) else {
+        errors.push("无法定位 prompts 目录".into());
+        return CcImportPreview { items, errors };
+    };
+    let mut files = Vec::new();
+    for src in source_paths {
+        collect_prompt_source_files(&PathBuf::from(src), &mut files);
+    }
+    for file in files {
+        let ext = file.extension().and_then(|e| e.to_str()).unwrap_or("");
+        if ext == "json" {
+            let raw = match fs::read_to_string(&file) {
+                Ok(s) => s,
+                Err(e) => {
+                    errors.push(format!("{}: {e}", file.display()));
+                    continue;
+                }
+            };
+            let value: serde_json::Value = match serde_json::from_str(&raw) {
+                Ok(v) => v,
+                Err(e) => {
+                    errors.push(format!("{}: JSON 解析失败: {e}", file.display()));
+                    continue;
+                }
+            };
+            let list: Vec<serde_json::Value> = match value {
+                serde_json::Value::Array(arr) => arr,
+                obj @ serde_json::Value::Object(_) => vec![obj],
+                _ => {
+                    errors.push(format!("{}: JSON 格式无效", file.display()));
+                    continue;
+                }
+            };
+            for item in list {
+                let Some(obj) = item.as_object() else {
+                    continue;
+                };
+                let name = obj
+                    .get("name")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("提示词")
+                    .trim()
+                    .to_string();
+                let requested_id = obj
+                    .get("id")
+                    .and_then(|v| v.as_str())
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| slugify_agent_id(&name));
+                let status = if dest.join(format!("{requested_id}.md")).exists()
+                    || dest.join(format!("{requested_id}.txt")).exists()
+                {
+                    "conflict"
+                } else {
+                    "new"
+                };
+                items.push(CcImportPreviewItem {
+                    id: requested_id,
+                    name,
+                    status: status.to_string(),
+                    source_path: file.display().to_string(),
+                    message: None,
+                });
+            }
+        } else {
+            let Some(parsed) = parse_prompt_file(&file, "import") else {
+                errors.push(format!("无法解析提示词文件: {}", file.display()));
+                continue;
+            };
+            let requested_id = file
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| slugify_agent_id(&parsed.name));
+            let status = if dest.join(format!("{requested_id}.md")).exists()
+                || dest.join(format!("{requested_id}.txt")).exists()
+            {
+                "conflict"
+            } else {
+                "new"
+            };
+            items.push(CcImportPreviewItem {
+                id: requested_id,
+                name: parsed.name,
+                status: status.to_string(),
+                source_path: file.display().to_string(),
+                message: None,
+            });
+        }
+    }
+    CcImportPreview { items, errors }
 }
 
 pub fn export_prompts(

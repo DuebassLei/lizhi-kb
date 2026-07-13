@@ -1,0 +1,488 @@
+/* ── Insights dashboard motion tokens & utilities ── */
+
+:root {
+  --motion-insights-fast: 150ms;
+  --motion-insights-base: 300ms;
+  --motion-insights-slow: 600ms;
+  --motion-insights-ambient: 14s;
+  --ease-insights-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Keyframes ── */
+
+@keyframes insights-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes insights-hero-ambient {
+  0%,
+  100% {
+    background-position: 0% 50%, 100% 50%, 0% 0%;
+  }
+  50% {
+    background-position: 100% 50%, 0% 50%, 100% 100%;
+  }
+}
+
+@keyframes insights-hero-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.1;
+  }
+  50% {
+    transform: scale(1.02);
+    opacity: 0.12;
+  }
+}
+
+@keyframes insights-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-paw) 0%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 12px 2px color-mix(in srgb, var(--color-paw) 28%, transparent);
+  }
+}
+
+@keyframes insights-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes insights-bar-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes insights-trend-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-3px);
+  }
+  70% {
+    transform: translateY(1px);
+  }
+}
+
+@keyframes insights-today-pulse {
+  0%,
+  100% {
+    stroke-opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    stroke-opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes insights-snake-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+
+@keyframes insights-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes insights-section-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes insights-trend-flash {
+  0% {
+    color: var(--color-paw);
+  }
+  100% {
+    color: color-mix(in srgb, var(--color-paw) 90%, transparent);
+  }
+}
+
+/* ── Hero ── */
+
+.insights-hero--default.insights-hero--ambient {
+  background-size: 200% 200%, 200% 200%, 100% 100%;
+  animation: insights-hero-ambient var(--motion-insights-ambient) ease-in-out infinite;
+}
+
+.insights-hero--default.insights-hero--ambient::before {
+  animation: insights-hero-breathe 8s ease-in-out infinite;
+  transform-origin: right bottom;
+}
+
+.insights-hero-enter {
+  opacity: 0;
+  animation: insights-fade-up var(--motion-insights-base) var(--ease-insights-out) forwards;
+}
+
+.insights-hero-enter--1 { animation-delay: 0ms; }
+.insights-hero-enter--2 { animation-delay: 80ms; }
+.insights-hero-enter--3 { animation-delay: 160ms; }
+.insights-hero-enter--4 { animation-delay: 240ms; }
+
+.insights-hero-cta-glow {
+  animation: insights-glow-pulse 2s ease-in-out 3;
+}
+
+.insights-hero-cta-glow:hover {
+  animation: insights-glow-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Overview cards ── */
+
+.insights-metric-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform var(--motion-insights-fast) var(--ease-insights-out),
+    border-color var(--motion-insights-fast) ease,
+    box-shadow var(--motion-insights-fast) ease;
+}
+
+.insights-metric-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.insights-metric-card--docs::before {
+  background: linear-gradient(90deg, var(--color-link), color-mix(in srgb, var(--color-link) 40%, transparent));
+}
+
+.insights-metric-card--words::before {
+  background: linear-gradient(90deg, var(--color-muted), color-mix(in srgb, var(--color-muted) 40%, transparent));
+}
+
+.insights-metric-card--edits::before {
+  background: linear-gradient(90deg, var(--color-paw), color-mix(in srgb, var(--color-paw) 40%, transparent));
+}
+
+.insights-metric-card--active::before {
+  background: linear-gradient(90deg, var(--color-secure), color-mix(in srgb, var(--color-secure) 40%, transparent));
+}
+
+.insights-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.insights-metric-enter {
+  opacity: 0;
+  animation: insights-fade-up var(--motion-insights-base) var(--ease-insights-out) forwards;
+}
+
+.insights-metric-enter--0 { animation-delay: 200ms; }
+.insights-metric-enter--1 { animation-delay: 280ms; }
+.insights-metric-enter--2 { animation-delay: 360ms; }
+.insights-metric-enter--3 { animation-delay: 440ms; }
+
+.insights-skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-1) 0%,
+    color-mix(in srgb, var(--color-surface-1) 60%, var(--color-surface-2)) 50%,
+    var(--color-surface-1) 100%
+  );
+  background-size: 200% 100%;
+  animation: insights-shimmer 1.4s ease-in-out infinite;
+}
+
+.insights-subline-enter {
+  animation: insights-fade-up var(--motion-insights-fast) var(--ease-insights-out) 500ms forwards;
+  opacity: 0;
+}
+
+.insights-trend-flash {
+  animation: insights-trend-flash 800ms ease-out forwards;
+}
+
+/* ── Writing rhythm ── */
+
+.insights-rhythm-bar {
+  transform-origin: bottom center;
+  animation: insights-bar-grow var(--motion-insights-slow) var(--ease-insights-out) forwards;
+  transform: scaleY(0);
+}
+
+@keyframes insights-bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.insights-rhythm-bar--0 { animation-delay: 0ms; }
+.insights-rhythm-bar--1 { animation-delay: 60ms; }
+.insights-rhythm-bar--2 { animation-delay: 120ms; }
+.insights-rhythm-bar--3 { animation-delay: 180ms; }
+.insights-rhythm-bar--4 { animation-delay: 240ms; }
+.insights-rhythm-bar--5 { animation-delay: 300ms; }
+.insights-rhythm-bar--6 { animation-delay: 360ms; }
+
+.insights-rhythm-today-ring {
+  animation: insights-today-pulse 2.5s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.insights-trend-bounce {
+  animation: insights-trend-bounce 600ms var(--ease-insights-out) 400ms;
+}
+
+/* ── Heatmap ── */
+
+.insights-heatmap-cell {
+  transition:
+    fill var(--motion-insights-base) ease,
+    transform var(--motion-insights-fast) ease;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.insights-heatmap-cell:hover {
+  transform: scale(1.15);
+}
+
+.insights-snake-eye {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: insights-snake-blink 4s ease-in-out infinite;
+}
+
+/* ── Recent docs ── */
+
+.insights-rhythm-pair {
+  --insights-pair-body-h: 14.375rem;
+}
+
+@media (min-width: 1024px) {
+  .insights-rhythm-pair .section-card__body {
+    display: flex;
+    flex-direction: column;
+    height: var(--insights-pair-body-h);
+    min-height: 0;
+  }
+}
+
+.insights-recent-scroll {
+  margin: -0.25rem -0.5rem;
+  padding: 0.25rem 0.5rem;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 1024px) {
+  .insights-recent-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+}
+
+.insights-recent-item {
+  position: relative;
+  transition: background-color var(--motion-insights-fast) ease;
+}
+
+.insights-recent-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 0;
+  height: 60%;
+  transform: translateY(-50%);
+  background: var(--color-link);
+  border-radius: 0 2px 2px 0;
+  transition: width var(--motion-insights-fast) var(--ease-insights-out);
+}
+
+.insights-recent-item:hover::before {
+  width: 2px;
+}
+
+.insights-recent-icon {
+  transition:
+    background-color var(--motion-insights-fast) ease,
+    border-color var(--motion-insights-fast) ease;
+}
+
+.insights-recent-item:hover .insights-recent-icon {
+  background: color-mix(in srgb, var(--color-paw) 12%, var(--color-surface-1));
+  border-color: color-mix(in srgb, var(--color-paw) 30%, var(--color-border));
+}
+
+.insights-recent-enter-active {
+  transition:
+    opacity var(--motion-insights-base) var(--ease-insights-out),
+    transform var(--motion-insights-base) var(--ease-insights-out);
+}
+
+.insights-recent-enter-from {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+
+.insights-recent-move {
+  transition: transform var(--motion-insights-base) var(--ease-insights-out);
+}
+
+/* ── Tags ── */
+
+.insights-tag-pill {
+  transition:
+    transform var(--motion-insights-fast) var(--ease-insights-out),
+    border-color var(--motion-insights-fast) ease,
+    background-color var(--motion-insights-fast) ease;
+}
+
+.insights-tag-pill:hover {
+  transform: translateY(-1px);
+}
+
+.insights-tag-pill:hover .insights-tag-count {
+  transform: scale(1.08);
+}
+
+.insights-tag-count {
+  display: inline-block;
+  transition: transform var(--motion-insights-fast) var(--ease-insights-out);
+}
+
+.insights-tag-pop {
+  opacity: 0;
+  animation: insights-pop-in var(--motion-insights-fast) var(--ease-insights-out) forwards;
+}
+
+/* ── Network & audit ── */
+
+.insights-hub-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-link) 70%, transparent);
+  transform-origin: left center;
+  animation: insights-bar-grow-x var(--motion-insights-slow) var(--ease-insights-out) forwards;
+  transform: scaleX(0);
+}
+
+.insights-audit-timeline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-muted);
+  flex-shrink: 0;
+  animation: insights-pop-in var(--motion-insights-fast) var(--ease-insights-out) forwards;
+}
+
+.insights-audit-row {
+  position: relative;
+  padding-left: 1rem;
+  transition: background-color var(--motion-insights-fast) ease;
+}
+
+.insights-audit-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+  transform: translateY(-50%);
+  transition: background-color var(--motion-insights-fast) ease;
+}
+
+.insights-audit-row:hover::before {
+  background: var(--color-paw);
+}
+
+/* ── Section card ── */
+
+.section-card--in-view .section-card__body {
+  animation: insights-section-enter var(--motion-insights-slow) var(--ease-insights-out) forwards;
+}
+
+.section-card__body {
+  transition: border-color var(--motion-insights-fast) ease;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text) 3%, transparent);
+}
+
+.section-card__body:hover {
+  border-color: var(--color-border-strong);
+}
+
+/* ── Reduced motion ── */
+
+@media (prefers-reduced-motion: reduce) {
+  .insights-hero--default.insights-hero--ambient,
+  .insights-hero--default.insights-hero--ambient::before,
+  .insights-hero-enter,
+  .insights-hero-cta-glow,
+  .insights-metric-enter,
+  .insights-skeleton-shimmer,
+  .insights-subline-enter,
+  .insights-trend-flash,
+  .insights-rhythm-bar,
+  .insights-rhythm-today-ring,
+  .insights-trend-bounce,
+  .insights-snake-eye,
+  .insights-tag-pop,
+  .insights-hub-bar,
+  .insights-audit-timeline-dot,
+  .section-card--in-view .section-card__body {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .insights-recent-enter-active,
+  .insights-recent-move {
+    transition: none !important;
+  }
+}

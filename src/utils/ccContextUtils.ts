@@ -2,6 +2,8 @@ import type { CcAgentEntry } from "../services/ccWorkbenchService";
 
 export const CC_RECENT_AGENTS_KEY = "cc-workbench-recent-agents";
 export const CC_DEFAULT_AGENT_KEY = "cc-workbench-default-agent-id";
+/** 内置默认智能体（`.claude/agents/general-assistant.md`） */
+export const BUILTIN_DEFAULT_AGENT_ID = "general-assistant";
 const MAX_RECENT_AGENTS = 8;
 
 function escapeRegExp(value: string): string {
@@ -65,6 +67,11 @@ export function loadDefaultAgentId(): string | null {
   } catch {
     return null;
   }
+}
+
+/** 用户未设置默认时回退到内置「基础助手」 */
+export function getEffectiveDefaultAgentId(): string {
+  return loadDefaultAgentId() ?? BUILTIN_DEFAULT_AGENT_ID;
 }
 
 export function saveDefaultAgentId(agentId: string | null) {
@@ -211,6 +218,19 @@ interface CcHistoryMessage {
   blocks?: { type: string; content?: string; name?: string; input?: string; output?: string }[];
 }
 
+const MAX_TOOL_OUTPUT_IN_HISTORY = 800;
+
+function summarizeToolForHistory(tool: { name: string; output?: string }): string {
+  if (tool.output === undefined) {
+    return `[工具 ${tool.name}: 执行中/已中断]`;
+  }
+  const preview =
+    tool.output.length > MAX_TOOL_OUTPUT_IN_HISTORY
+      ? `${tool.output.slice(0, MAX_TOOL_OUTPUT_IN_HISTORY)}…`
+      : tool.output;
+  return `[工具 ${tool.name} 结果]\n${preview}`;
+}
+
 function summarizeAssistantMessage(msg: CcHistoryMessage): string {
   const parts: string[] = [];
   const text =
@@ -228,8 +248,7 @@ function summarizeAssistantMessage(msg: CcHistoryMessage): string {
       .map((b) => ({ name: b.name ?? "tool", input: b.input ?? "{}", output: b.output }));
 
   for (const tool of tools ?? []) {
-    const status = tool.output === undefined ? "执行中/已中断" : "已完成";
-    parts.push(`[工具 ${tool.name}: ${status}]`);
+    parts.push(summarizeToolForHistory(tool));
   }
 
   return parts.join("\n").trim() || "（无文本回复）";
@@ -248,8 +267,7 @@ export function buildCcPromptWithHistory(
   const history = priorMessages.filter((m) => m.role === "user" || m.role === "assistant");
   if (history.length <= 1) return userText;
 
-  const needsHistory =
-    !options?.hasSessionId || isCcContinuationPrompt(userText);
+  const needsHistory = !options?.hasSessionId;
   if (!needsHistory) return userText;
 
   const lines: string[] = ["【对话历史 — 请延续以下上下文】"];

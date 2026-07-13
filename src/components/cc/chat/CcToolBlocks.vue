@@ -17,16 +17,23 @@ import type { CcFileChangeItem, CcSubagentItem } from "../../../composables/cc/u
 import { fileChangeFromToolInput, hasDiffContent, parseEditToolInput } from "../../../utils/ccEditDiff";
 import {
   agentStatusLabel,
+  agentToolIsActive,
   countEditDiff,
   extractAgentDescription,
   extractAgentLabel,
   extractToolCommand,
   extractToolFilePath,
   extractToolPattern,
+  extractToolResultSummary,
   fileBaseName,
+  formatCcToolDisplayName,
   groupCcToolCalls,
+  isLizhiVaultTool,
+  isMcpToolName,
+  toolHasNoResult,
   toolIsComplete,
   toolIsError,
+  toolStatusHint,
   type CcToolCallItem,
 } from "../../../utils/ccToolGrouping";
 import CcEditDiffView from "./CcEditDiffView.vue";
@@ -46,6 +53,8 @@ const expandedGroups = ref<Record<string, boolean>>({});
 const expandedEditDiffs = ref<Record<string, boolean>>({});
 
 const groups = computed(() => groupCcToolCalls(props.tools));
+
+const showVaultLegend = computed(() => props.tools.some((t) => isLizhiVaultTool(t.name)));
 
 function groupKey(group: ReturnType<typeof groupCcToolCalls>[number], index: number): string {
   return `${group.type}-${index}`;
@@ -113,34 +122,80 @@ function openEditInPanel(item: CcToolCallItem, event: Event) {
   if (change) emit("selectFileChange", change);
 }
 
-function toSubagentItem(agent: CcToolCallItem, groupIndex: number): CcSubagentItem {
-  const status = !toolIsComplete(agent)
+function toSubagentItem(
+  agent: CcToolCallItem,
+  nestedItems: CcToolCallItem[],
+  groupIndex: number,
+): CcSubagentItem {
+  const active = agentToolIsActive(agent, { nestedItems, streaming: props.streaming });
+  const status = active
     ? "running"
     : toolIsError(agent.output)
       ? "error"
       : "completed";
+  const startedAt = agent.startedAt;
+  const completedAt = agent.completedAt;
+  const completed = status === "completed";
+  const durationMs =
+    completed && startedAt != null && completedAt != null
+      ? completedAt - startedAt
+      : undefined;
   return {
     id: `tool-block:${groupIndex}:${agent.id ?? agent.name}`,
     name: extractAgentLabel(agent.input),
     status,
     description: extractAgentDescription(agent.input),
     output: agent.output,
-    updatedAt: Date.now(),
+    updatedAt: completedAt ?? startedAt ?? Date.now(),
+    startedAt,
+    durationMs,
+    parentId: `group-${groupIndex}`,
   };
+}
+
+function agentGroupIsActive(
+  group: Extract<ReturnType<typeof groupCcToolCalls>[number], { type: "agent_group" }>,
+): boolean {
+  return agentToolIsActive(group.agent, {
+    nestedItems: group.items,
+    streaming: props.streaming,
+  });
 }
 
 function openAgentDetail(agent: CcToolCallItem, groupIndex: number, event: Event) {
   event.stopPropagation();
-  emit("selectSubagent", toSubagentItem(agent, groupIndex));
+  const group = groups.value[groupIndex];
+  const nestedItems = group?.type === "agent_group" ? group.items : [];
+  emit("selectSubagent", toSubagentItem(agent, nestedItems, groupIndex));
 }
 
 function isAgentExpanded(key: string): boolean {
   return expandedGroups.value[key] ?? true;
 }
+
+function resultSourceLabel(name: string): string | null {
+  if (isLizhiVaultTool(name)) return "知识库";
+  if (isMcpToolName(name)) return "MCP";
+  return null;
+}
+
+function searchGroupTitle(items: CcToolCallItem[]): string {
+  return items.every((item) => isLizhiVaultTool(item.name)) ? "知识库查询" : "Search";
+}
+
+function rowStatusClass(item: CcToolCallItem): string {
+  if (!toolIsComplete(item)) return "cc-tool-block__row-wrap--running";
+  if (toolIsError(item.output)) return "cc-tool-block__row-wrap--error";
+  if (toolHasNoResult(item.output)) return "cc-tool-block__row-wrap--empty";
+  return "cc-tool-block__row-wrap--ok";
+}
 </script>
 
 <template>
   <div class="cc-tool-blocks">
+    <p v-if="showVaultLegend" class="cc-tool-blocks__legend">
+      下方工具块为知识库检索/读取的真实返回；正文摘要由模型整理，请以工具块为准。
+    </p>
     <div v-for="(group, index) in groups" :key="groupKey(group, index)" class="cc-tool-blocks__group">
       <template v-if="group.type === 'read_group'">
         <button
@@ -157,13 +212,25 @@ function isAgentExpanded(key: string): boolean {
           />
         </button>
         <ul v-show="isExpanded(groupKey(group, index), true)" class="cc-tool-block__list">
-          <li v-for="(item, i) in group.items" :key="i" class="cc-tool-block__row">
-            <component
-              :is="statusIcon(item)"
-              class="cc-tool-block__status"
-              :class="statusClass(item)"
-            />
-            <span class="cc-tool-block__file">{{ fileBaseName(extractToolFilePath(item.input) ?? item.name) }}</span>
+          <li
+            v-for="(item, i) in group.items"
+            :key="i"
+            class="cc-tool-block__row-wrap"
+            :class="rowStatusClass(item)"
+          >
+            <div class="cc-tool-block__row">
+              <component
+                :is="statusIcon(item)"
+                class="cc-tool-block__status"
+                :class="statusClass(item)"
+                :title="toolStatusHint(item)"
+              />
+              <span class="cc-tool-block__file">{{ fileBaseName(extractToolFilePath(item.input) ?? item.name) }}</span>
+              <span v-if="resultSourceLabel(item.name)" class="cc-tool-block__source">{{ resultSourceLabel(item.name) }}</span>
+            </div>
+            <p v-if="extractToolResultSummary(item.output, item.name)" class="cc-tool-block__result">
+              {{ extractToolResultSummary(item.output, item.name) }}
+            </p>
           </li>
         </ul>
       </template>
@@ -191,7 +258,10 @@ function isAgentExpanded(key: string): boolean {
             v-for="(item, i) in group.items"
             :key="i"
             class="cc-tool-block__edit-item"
-            :class="{ 'cc-tool-block__edit-item--open': isEditDiffExpanded(index, i) }"
+            :class="[
+              { 'cc-tool-block__edit-item--open': isEditDiffExpanded(index, i) },
+              rowStatusClass(item),
+            ]"
           >
             <button
               type="button"
@@ -203,6 +273,7 @@ function isAgentExpanded(key: string): boolean {
                 :is="statusIcon(item)"
                 class="cc-tool-block__status"
                 :class="statusClass(item)"
+                :title="toolStatusHint(item)"
               />
               <span class="cc-tool-block__file">{{ fileBaseName(extractToolFilePath(item.input) ?? item.name) }}</span>
               <span class="cc-tool-block__diff cc-tool-block__diff--inline">
@@ -227,6 +298,9 @@ function isAgentExpanded(key: string): boolean {
             <div v-if="isEditDiffExpanded(index, i) && canShowEditDiff(item)" class="cc-tool-block__inline-diff">
               <CcEditDiffView :input="item.input" compact />
             </div>
+            <p v-if="extractToolResultSummary(item.output, item.name)" class="cc-tool-block__result cc-tool-block__result--nested">
+              {{ extractToolResultSummary(item.output, item.name) }}
+            </p>
           </li>
         </ul>
       </template>
@@ -246,13 +320,24 @@ function isAgentExpanded(key: string): boolean {
           />
         </button>
         <ul v-show="isExpanded(groupKey(group, index), true)" class="cc-tool-block__list">
-          <li v-for="(item, i) in group.items" :key="i" class="cc-tool-block__row cc-tool-block__row--mono">
-            <component
-              :is="statusIcon(item)"
-              class="cc-tool-block__status"
-              :class="statusClass(item)"
-            />
-            <span class="cc-tool-block__cmd">{{ extractToolCommand(item.input) ?? item.name }}</span>
+          <li
+            v-for="(item, i) in group.items"
+            :key="i"
+            class="cc-tool-block__row-wrap"
+            :class="rowStatusClass(item)"
+          >
+            <div class="cc-tool-block__row cc-tool-block__row--mono">
+              <component
+                :is="statusIcon(item)"
+                class="cc-tool-block__status"
+                :class="statusClass(item)"
+                :title="toolStatusHint(item)"
+              />
+              <span class="cc-tool-block__cmd">{{ extractToolCommand(item.input) ?? item.name }}</span>
+            </div>
+            <p v-if="extractToolResultSummary(item.output, item.name)" class="cc-tool-block__result">
+              {{ extractToolResultSummary(item.output, item.name) }}
+            </p>
           </li>
         </ul>
       </template>
@@ -264,7 +349,7 @@ function isAgentExpanded(key: string): boolean {
           @click="toggleGroup(groupKey(group, index))"
         >
           <Search class="cc-tool-block__icon" />
-          <span class="cc-tool-block__title">Search</span>
+          <span class="cc-tool-block__title">{{ searchGroupTitle(group.items) }}</span>
           <span class="cc-tool-block__summary">{{ group.items.length }} 次</span>
           <ChevronDown
             class="cc-tool-block__chevron"
@@ -272,13 +357,25 @@ function isAgentExpanded(key: string): boolean {
           />
         </button>
         <ul v-show="isExpanded(groupKey(group, index), true)" class="cc-tool-block__list">
-          <li v-for="(item, i) in group.items" :key="i" class="cc-tool-block__row cc-tool-block__row--mono">
-            <component
-              :is="statusIcon(item)"
-              class="cc-tool-block__status"
-              :class="statusClass(item)"
-            />
-            <span class="cc-tool-block__cmd">{{ extractToolPattern(item.input) ?? item.name }}</span>
+          <li
+            v-for="(item, i) in group.items"
+            :key="i"
+            class="cc-tool-block__row-wrap"
+            :class="rowStatusClass(item)"
+          >
+            <div class="cc-tool-block__row cc-tool-block__row--mono">
+              <component
+                :is="statusIcon(item)"
+                class="cc-tool-block__status"
+                :class="statusClass(item)"
+                :title="toolStatusHint(item)"
+              />
+              <span class="cc-tool-block__cmd">{{ extractToolPattern(item.input) ?? item.name }}</span>
+              <span v-if="resultSourceLabel(item.name)" class="cc-tool-block__source">{{ resultSourceLabel(item.name) }}</span>
+            </div>
+            <p v-if="extractToolResultSummary(item.output, item.name)" class="cc-tool-block__result">
+              {{ extractToolResultSummary(item.output, item.name) }}
+            </p>
           </li>
         </ul>
       </template>
@@ -292,14 +389,19 @@ function isAgentExpanded(key: string): boolean {
           >
             <Bot class="cc-tool-block__icon cc-tool-block__icon--agent" />
             <span class="cc-tool-block__title">{{ extractAgentLabel(group.agent.input) }}</span>
-            <span class="cc-tool-block__agent-status">{{ agentStatusLabel(group.agent) }}</span>
+            <span class="cc-tool-block__agent-status">{{
+              agentStatusLabel(group.agent, { nestedItems: group.items, streaming })
+            }}</span>
+            <span v-if="!agentGroupIsActive(group)" class="cc-tool-block__agent-progress">完成</span>
+            <LoaderCircle v-else class="cc-tool-block__agent-progress cc-tool-block__agent-progress--spin h-3 w-3" />
             <component
               :is="statusIcon(group.agent)"
               class="cc-tool-block__status"
-              :class="statusClass(group.agent)"
+              :class="agentGroupIsActive(group) ? 'cc-tool-block__status--running' : statusClass(group.agent)"
+              :title="agentGroupIsActive(group) ? '运行中' : toolStatusHint(group.agent)"
             />
             <button
-              v-if="toolIsComplete(group.agent)"
+              v-if="!agentGroupIsActive(group)"
               type="button"
               class="cc-tool-block__panel-btn"
               title="查看子代理详情"
@@ -324,8 +426,9 @@ function isAgentExpanded(key: string): boolean {
                   :is="statusIcon(item)"
                   class="cc-tool-block__status"
                   :class="statusClass(item)"
+                  :title="toolStatusHint(item)"
                 />
-                <span class="cc-tool-block__file">{{ item.name }}</span>
+                <span class="cc-tool-block__file">{{ formatCcToolDisplayName(item.name) }}</span>
                 <span v-if="extractToolFilePath(item.input)" class="cc-tool-block__cmd">
                   {{ fileBaseName(extractToolFilePath(item.input)!) }}
                 </span>
@@ -335,7 +438,7 @@ function isAgentExpanded(key: string): boolean {
             <div v-if="group.agent.output" class="cc-tool-block__agent-output">
               <CcSubagentOutputView :output="group.agent.output" />
             </div>
-            <p v-else-if="!toolIsComplete(group.agent)" class="cc-tool-block__agent-hint">
+            <p v-else-if="agentGroupIsActive(group)" class="cc-tool-block__agent-hint">
               子代理正在运行…
             </p>
           </div>
@@ -343,18 +446,20 @@ function isAgentExpanded(key: string): boolean {
       </template>
 
       <template v-else>
-        <div class="cc-tool-block">
+        <div class="cc-tool-block" :class="rowStatusClass(group.item)">
           <button
             type="button"
             class="cc-tool-block__header"
             @click="toggleGroup(groupKey(group, index))"
           >
             <Terminal class="cc-tool-block__icon" />
-            <span class="cc-tool-block__title">{{ group.item.name }}</span>
+            <span class="cc-tool-block__title">{{ formatCcToolDisplayName(group.item.name) }}</span>
+            <span v-if="resultSourceLabel(group.item.name)" class="cc-tool-block__source">{{ resultSourceLabel(group.item.name) }}</span>
             <component
               :is="statusIcon(group.item)"
               class="cc-tool-block__status"
               :class="statusClass(group.item)"
+              :title="toolStatusHint(group.item)"
             />
             <ChevronDown
               v-if="group.item.output"
@@ -362,10 +467,19 @@ function isAgentExpanded(key: string): boolean {
               :class="{ 'cc-tool-block__chevron--open': isExpanded(groupKey(group, index)) }"
             />
           </button>
+          <p
+            v-if="extractToolResultSummary(group.item.output, group.item.name) && !isExpanded(groupKey(group, index))"
+            class="cc-tool-block__result cc-tool-block__result--header"
+          >
+            {{ extractToolResultSummary(group.item.output, group.item.name) }}
+          </p>
           <pre
             v-if="group.item.output && isExpanded(groupKey(group, index))"
             class="cc-tool-block__output"
           >{{ group.item.output }}</pre>
+          <p v-else-if="toolIsComplete(group.item) && toolHasNoResult(group.item.output)" class="cc-tool-block__empty-result">
+            工具已执行但未返回有效内容
+          </p>
         </div>
       </template>
     </div>
@@ -374,18 +488,92 @@ function isAgentExpanded(key: string): boolean {
 
 <style scoped>
 .cc-tool-blocks {
-  margin-top: 0.625rem;
+  margin-top: 0.75rem;
+  margin-bottom: 0.625rem;
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  gap: 0.3125rem;
+}
+
+.cc-tool-blocks__legend {
+  margin: 0 0 0.25rem;
+  font-size: 0.625rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+  opacity: 0.8;
+}
+
+.cc-tool-block__row-wrap {
+  border-radius: 0.25rem;
+  padding: 0.125rem 0.25rem;
+}
+
+.cc-tool-block__row-wrap--error {
+  background: color-mix(in srgb, var(--color-danger) 6%, transparent);
+}
+
+.cc-tool-block__row-wrap--empty {
+  background: color-mix(in srgb, var(--color-warning) 6%, transparent);
+}
+
+.cc-tool-block__source {
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-secure) 10%, transparent);
+  padding: 0 0.3125rem;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  color: var(--color-secure);
+  letter-spacing: 0.02em;
+}
+
+.cc-tool-block__result {
+  margin: 0.125rem 0 0.25rem 1.5rem;
+  font-size: 0.625rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+  word-break: break-word;
+}
+
+.cc-tool-block__result--nested {
+  margin-left: 2rem;
+}
+
+.cc-tool-block__result--header {
+  margin: 0;
+  padding: 0 0.75rem 0.4375rem;
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+}
+
+.cc-tool-block__empty-result {
+  margin: 0;
+  padding: 0.375rem 0.75rem 0.5rem;
+  font-size: 0.625rem;
+  color: var(--color-warning);
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+}
+
+.cc-tool-block__summary--result {
+  font-style: italic;
 }
 
 .cc-tool-block,
 .cc-tool-blocks__group {
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
-  background: color-mix(in srgb, var(--color-surface-1) 45%, var(--color-surface-0));
+  border: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-surface-1) 35%, var(--color-surface-0)),
+      color-mix(in srgb, var(--color-surface-0) 90%, var(--color-surface-1))
+    );
   overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.cc-tool-block:hover,
+.cc-tool-blocks__group:hover {
+  border-color: color-mix(in srgb, var(--color-border) 100%, transparent);
 }
 
 .cc-tool-block__header {
@@ -400,6 +588,7 @@ function isAgentExpanded(key: string): boolean {
   color: var(--color-text);
   cursor: pointer;
   text-align: left;
+  transition: background-color 0.12s ease;
 }
 
 .cc-tool-block__header--static {
@@ -407,7 +596,7 @@ function isAgentExpanded(key: string): boolean {
 }
 
 .cc-tool-block__header:hover:not(.cc-tool-block__header--static) {
-  background: color-mix(in srgb, var(--color-surface-1) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface-1) 55%, transparent);
 }
 
 .cc-tool-block__icon {
@@ -437,7 +626,7 @@ function isAgentExpanded(key: string): boolean {
   width: 0.875rem;
   flex-shrink: 0;
   color: var(--color-muted);
-  transition: transform 0.15s ease;
+  transition: transform 0.18s ease;
 }
 
 .cc-tool-block__chevron--open {
@@ -448,7 +637,7 @@ function isAgentExpanded(key: string): boolean {
   list-style: none;
   margin: 0;
   padding: 0.25rem 0.5rem 0.5rem;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
 }
 
 .cc-tool-block__list--nested {
@@ -481,11 +670,11 @@ function isAgentExpanded(key: string): boolean {
 }
 
 .cc-tool-block__status--ok {
-  color: #16a34a;
+  color: var(--color-secure);
 }
 
 .cc-tool-block__status--error {
-  color: #dc2626;
+  color: var(--color-danger);
 }
 
 .cc-tool-block__file,
@@ -511,11 +700,11 @@ function isAgentExpanded(key: string): boolean {
 }
 
 .cc-tool-block__diff-add {
-  color: #16a34a;
+  color: var(--color-secure);
 }
 
 .cc-tool-block__diff-del {
-  color: #dc2626;
+  color: var(--color-danger);
 }
 
 .cc-tool-block__row--clickable {
@@ -525,10 +714,11 @@ function isAgentExpanded(key: string): boolean {
   cursor: pointer;
   text-align: left;
   color: inherit;
+  transition: background-color 0.12s ease;
 }
 
 .cc-tool-block__row--clickable:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-surface-1) 80%, transparent);
+  background: color-mix(in srgb, var(--color-surface-1) 55%, transparent);
 }
 
 .cc-tool-block__row--clickable:disabled {
@@ -536,7 +726,7 @@ function isAgentExpanded(key: string): boolean {
 }
 
 .cc-tool-block__edit-item--open .cc-tool-block__row--clickable {
-  background: color-mix(in srgb, var(--color-surface-1) 60%, transparent);
+  background: color-mix(in srgb, var(--color-surface-1) 45%, transparent);
 }
 
 .cc-tool-block__edit-item + .cc-tool-block__edit-item {
@@ -551,10 +741,13 @@ function isAgentExpanded(key: string): boolean {
   padding: 0.125rem;
   color: var(--color-muted);
   cursor: pointer;
+  border-radius: 0.1875rem;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .cc-tool-block__panel-btn:hover {
   color: var(--color-link);
+  background: color-mix(in srgb, var(--color-link) 10%, transparent);
 }
 
 .cc-tool-block__chevron--sm {
@@ -570,7 +763,7 @@ function isAgentExpanded(key: string): boolean {
   margin: 0;
   max-height: 8rem;
   overflow: auto;
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
   background: var(--color-surface-0);
   padding: 0.5rem 0.75rem;
   font-family: var(--font-mono);
@@ -584,7 +777,7 @@ function isAgentExpanded(key: string): boolean {
 }
 
 .cc-tool-block__icon--agent {
-  color: #8b5cf6;
+  color: var(--color-link);
 }
 
 .cc-tool-block__agent-status {
@@ -593,8 +786,18 @@ function isAgentExpanded(key: string): boolean {
   color: var(--color-muted);
 }
 
+.cc-tool-block__agent-progress {
+  font-size: 0.625rem;
+  color: var(--color-muted);
+}
+
+.cc-tool-block__agent-progress--spin {
+  color: var(--color-link);
+  animation: cc-status-spin 1s linear infinite;
+}
+
 .cc-tool-block__agent-body {
-  border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
   padding: 0.375rem 0.75rem 0.625rem;
 }
 
@@ -616,6 +819,12 @@ function isAgentExpanded(key: string): boolean {
 }
 
 @keyframes cc-tool-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cc-status-spin {
   to {
     transform: rotate(360deg);
   }

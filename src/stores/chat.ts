@@ -23,6 +23,7 @@ import {
   type LlmTarget,
   type RagScope,
   type StreamEvent,
+  setAiConfig,
 } from "../services/aiService";
 import {
   createSessionId,
@@ -37,6 +38,11 @@ import {
   type StoredChatMessage,
 } from "../utils/chatSessionStorage";
 import { splitEmbeddedThinking } from "../utils/ccMessageBlocks";
+import {
+  extractDocIdFromWriteTool,
+  isLizhiWriteTool,
+  isWriteDisabledOutput,
+} from "../utils/aiWriteTools";
 import { useDocumentsStore } from "./documents";
 import { useVaultStore } from "./vault";
 
@@ -71,6 +77,7 @@ function nextMsgId() {
 }
 
 const WORKSPACE_RAG_SCOPE_KEY = "lizhi-kb-rag-scope-workspace";
+const WRITE_GUIDE_DISMISSED_KEY = "lizhi-kb-ai-write-guide-dismissed";
 
 function loadSavedWorkspaceRagScope(): RagScope | null {
   if (typeof localStorage === "undefined") return null;
@@ -135,6 +142,7 @@ export const useChatStore = defineStore("chat", () => {
   const isStreaming = ref(false);
   const abortFlag = ref(false);
   const activeStreamStartedAt = ref<number | null>(null);
+  const writeGuideVisible = ref(false);
 
   const documents = useDocumentsStore();
   const vault = useVaultStore();
@@ -446,6 +454,39 @@ export const useChatStore = defineStore("chat", () => {
     return id;
   }
 
+  function isWriteGuideDismissed(): boolean {
+    if (typeof localStorage === "undefined") return false;
+    return localStorage.getItem(WRITE_GUIDE_DISMISSED_KEY) === "1";
+  }
+
+  function dismissWriteGuide() {
+    writeGuideVisible.value = false;
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(WRITE_GUIDE_DISMISSED_KEY, "1");
+    }
+  }
+
+  function maybePromptWritePermission(toolName: string, output?: string) {
+    if (aiConfig.value?.writeEnabled || isWriteGuideDismissed()) return;
+    if (!isLizhiWriteTool(toolName) && !(output && isWriteDisabledOutput(output))) return;
+    writeGuideVisible.value = true;
+  }
+
+  async function enableWritePermission() {
+    await setAiConfig({ writeEnabled: true });
+    await loadAiEnabled();
+    writeGuideVisible.value = false;
+  }
+
+  async function syncAfterWriteTool(toolName: string, input: string, output: string) {
+    if (!isLizhiWriteTool(toolName)) return;
+    const docId = extractDocIdFromWriteTool(toolName, input, output);
+    await documents.fetchTree();
+    if (docId && documents.activeId === docId) {
+      await documents.loadContent(docId);
+    }
+  }
+
   function handleStreamEvent(messageId: string, event: StreamEvent, startedAt: number) {
     if (abortFlag.value) return;
 
@@ -484,6 +525,7 @@ export const useChatStore = defineStore("chat", () => {
         const toolCalls = [...(current.toolCalls ?? [])];
         toolCalls.push({ name: event.name, input: event.input });
         patchMessage(messageId, { toolCalls });
+        maybePromptWritePermission(event.name);
         break;
       }
       case "toolResult": {
@@ -491,6 +533,10 @@ export const useChatStore = defineStore("chat", () => {
         const last = [...toolCalls].reverse().find((t) => t.name === event.name && !t.output);
         if (last) last.output = event.output;
         patchMessage(messageId, { toolCalls });
+        maybePromptWritePermission(event.name, event.output);
+        if (!isWriteDisabledOutput(event.output)) {
+          void syncAfterWriteTool(event.name, last?.input ?? "", event.output);
+        }
         break;
       }
       case "usage":
@@ -582,10 +628,28 @@ export const useChatStore = defineStore("chat", () => {
     }
 
     if (mode.value === "agent") {
-      await streamAiAgent(text, target, onEvent, [
-        ...history,
-        { role: "user", content: text },
-      ]);
+      const activeDoc = documents.tree.find((d) => d.id === documents.activeId);
+      const inWorkspace = ragSurface.value === "workspace";
+      let scope = inWorkspace ? ragScope.value : "all";
+      let documentId = inWorkspace ? documents.activeId : null;
+      let folder = inWorkspace ? (activeDoc?.folder ?? null) : null;
+
+      if (inWorkspace && scope === "currentDocument" && !documentId) {
+        scope = "all";
+        documentId = null;
+      }
+      if (inWorkspace && scope === "currentFolder" && !folder) {
+        scope = "all";
+        folder = null;
+      }
+
+      await streamAiAgent(
+        text,
+        target,
+        onEvent,
+        [...history, { role: "user", content: text }],
+        { scope, documentId, folder },
+      );
       return;
     }
 
@@ -736,5 +800,8 @@ export const useChatStore = defineStore("chat", () => {
     stop,
     send,
     reloadSessionsFromStorage,
+    writeGuideVisible,
+    enableWritePermission,
+    dismissWriteGuide,
   };
 });

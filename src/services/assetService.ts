@@ -1,16 +1,13 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { tauriInvoke } from "../composables/useTauriCommand";
 import { compressImageForAsset, compressDataUrlForWechat, urlToDataUrl } from "../utils/imageDataUrl";
+import { isTauriRuntime } from "./vaultService";
 
 export const ASSET_PREFIX = "asset://";
 
 const ASSETS_STORAGE_KEY = "lizhi-kb-assets";
 
 type AssetStore = Record<string, string>;
-
-function isTauriRuntime(): boolean {
-  return !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
-}
 
 export function isAssetRef(src: string): boolean {
   return src.startsWith(ASSET_PREFIX);
@@ -105,6 +102,45 @@ export async function resolveAssetUrl(src: string): Promise<string> {
   } catch {
     return src;
   }
+}
+
+export interface AssetEntry {
+  id: string;
+  mime: string;
+  sizeBytes: number;
+  createdAt: number;
+}
+
+export async function listAssets(): Promise<AssetEntry[]> {
+  if (!isTauriRuntime()) {
+    const store = loadLocalAssets();
+    return Object.entries(store).map(([id, dataUrl]) => ({
+      id,
+      mime: mimeFromId(id),
+      sizeBytes: dataUrl.length,
+      createdAt: 0,
+    }));
+  }
+  return tauriInvoke<AssetEntry[]>("list_assets");
+}
+
+export async function deleteAsset(id: string): Promise<void> {
+  if (!isTauriRuntime()) {
+    const store = loadLocalAssets();
+    delete store[id];
+    saveLocalAssets(store);
+    return;
+  }
+  await tauriInvoke<void>("delete_asset", { id });
+}
+
+function mimeFromId(id: string): string {
+  const ext = id.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "png") return "image/png";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "gif") return "image/gif";
+  if (ext === "webp") return "image/webp";
+  return "application/octet-stream";
 }
 
 /** 将 asset:// 或本地 asset 协议 URL 转为 data URL，供微信公众号粘贴 */

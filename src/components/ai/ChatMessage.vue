@@ -20,7 +20,18 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   openCitation: [id: string];
+  insertToEditor: [content: string];
+  createDocument: [content: string];
+  insertCitation: [title: string];
 }>();
+
+const canWriteToEditor = computed(
+  () =>
+    isAssistant.value &&
+    !props.message.streaming &&
+    Boolean(props.message.content?.trim()) &&
+    !props.message.error,
+);
 
 const expandedThinking = ref<Record<string, boolean>>({});
 const manuallyToggled = ref<Record<string, boolean>>({});
@@ -244,7 +255,31 @@ watch(
           v-if="message.citations?.length"
           :citations="message.citations"
           @open="emit('openCitation', $event)"
+          @insert="emit('insertCitation', $event)"
         />
+
+        <div
+          v-if="canWriteToEditor"
+          class="mt-2.5 flex flex-wrap gap-2 border-t border-divider/80 pt-2.5"
+          data-testid="chat-message-write-actions"
+        >
+          <button
+            type="button"
+            class="focus-ring rounded-md border border-border bg-surface-0 px-2 py-1 text-[11px] text-link hover:border-link/30 hover:bg-link/8"
+            data-testid="chat-insert-to-editor"
+            @click="emit('insertToEditor', message.content)"
+          >
+            插入正文
+          </button>
+          <button
+            type="button"
+            class="focus-ring rounded-md border border-border bg-surface-0 px-2 py-1 text-[11px] text-link hover:border-link/30 hover:bg-link/8"
+            data-testid="chat-create-document"
+            @click="emit('createDocument', message.content)"
+          >
+            新建文档
+          </button>
+        </div>
 
         <p v-if="message.error" class="mt-2 text-xs text-danger" role="alert">{{ message.error }}</p>
 

@@ -14,6 +14,9 @@ import {
   saveDocument,
 } from "../services/documentService";
 import { extractH1Title, syncTitleInContent } from "../utils/documentTitle";
+import { parseTagsFromFrontmatter, splitFrontmatter } from "../utils/frontmatter";
+import { getDocumentTags, setDocumentTags } from "../utils/documentTags";
+import { appendToMarkdownContent } from "../utils/editorContentInsert";
 import { isMarkdownFile, readFileAsText, titleFromFileName } from "../utils/importMarkdown";
 import type { DashboardStats, DocumentMeta, EditActivityDay } from "../types/document";
 import { loadWorkspaceSession, saveWorkspaceSession } from "../utils/workspaceSession";
@@ -23,6 +26,7 @@ import { docHasWikiLinkTo, isIndexComplete } from "../utils/linkIndexOps";
 import { replaceWikiLinkTitle } from "../utils/wikiLinkQuery";
 import { normalizeTitle } from "../utils/wikiLinks";
 import { useEditorStore } from "./editor";
+import { useDocumentTemplatesStore } from "./documentTemplates";
 import { getLinksStore } from "./linksStoreLazy";
 import { useFoldersStore } from "./folders";
 import { useUiStore } from "./ui";
@@ -105,6 +109,17 @@ export const useDocumentsStore = defineStore("documents", () => {
       content.value = doc.content;
       editor.isDirty = false;
       editor.wordCount = countWords(doc.content);
+      const { frontmatter } = splitFrontmatter(doc.content);
+      const fmTags = parseTagsFromFrontmatter(frontmatter);
+      if (fmTags.length) {
+        const existing = getDocumentTags(id);
+        if (
+          !existing.length ||
+          existing.join("\0") !== fmTags.join("\0")
+        ) {
+          setDocumentTags(id, fmTags);
+        }
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (msg.includes("VAULT_LOCKED")) {
@@ -137,15 +152,28 @@ export const useDocumentsStore = defineStore("documents", () => {
     await loadContent(id);
   }
 
-  async function create(title = "无标题", folder?: string) {
+  async function create(
+    title = "无标题",
+    folder?: string,
+    options: { templateId?: string; initialContent?: string } = {},
+  ) {
     error.value = null;
     const folders = useFoldersStore();
+    const tplStore = useDocumentTemplatesStore();
     const targetFolder = folders.normalizeFolder(folder ?? folders.selectedFolderId);
     try {
       const meta = await createDocument(title, targetFolder);
+      const initialContent =
+        options.initialContent ??
+        tplStore.buildContent(options.templateId ?? tplStore.primaryTemplateId(), title);
+      if (initialContent) {
+        const saved = await saveDocument(meta.id, initialContent);
+        meta.updatedAt = saved.savedAt;
+        meta.title = extractH1Title(initialContent) ?? meta.title;
+      }
       tree.value = [meta, ...tree.value];
       folders.onDocumentMoved(meta.id, "", targetFolder);
-      (await getLinksStore()).patchDocument(tree.value, meta.id, "");
+      (await getLinksStore()).patchDocument(tree.value, meta.id, initialContent);
       await openDocument(meta.id);
       return meta;
     } catch (e) {
@@ -259,6 +287,20 @@ export const useDocumentsStore = defineStore("documents", () => {
 
   function updateContent(value: string) {
     content.value = value;
+  }
+
+  function appendContent(text: string) {
+    if (!activeId.value) return;
+    content.value = appendToMarkdownContent(content.value, text);
+    useEditorStore().isDirty = true;
+  }
+
+  async function createFromContent(title: string, body: string, folder?: string) {
+    const trimmedTitle = title.trim().slice(0, 80) || "无标题";
+    const initialContent = body.trim().startsWith("#")
+      ? body.trim()
+      : `# ${trimmedTitle}\n\n${body.trim()}`;
+    return create(trimmedTitle, folder, { initialContent });
   }
 
   function patchMeta(
@@ -426,6 +468,8 @@ export const useDocumentsStore = defineStore("documents", () => {
     setActive,
     clearActive,
     updateContent,
+    appendContent,
+    createFromContent,
     patchMeta,
     findIdByTitle,
     openWikiLink,

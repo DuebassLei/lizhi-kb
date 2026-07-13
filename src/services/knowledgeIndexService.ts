@@ -81,6 +81,11 @@ export async function searchKnowledgeBase(
   return searchDocuments(tree, plainTextMap, query, limit);
 }
 
+/** 手动重建全文搜索索引（FTS5 + 链接索引），返回已索引文档数 */
+export async function rebuildSearchIndex(): Promise<number> {
+  return tauriInvoke<number>("rebuild_search_index");
+}
+
 /** Tauri 轻量快照：不含 plain/stripped 全文，仅链接关系 + snippet */
 export async function fetchLinkIndexSnapshot(): Promise<LinkIndexSnapshot | null> {
   if (!isTauriRuntime()) return null;

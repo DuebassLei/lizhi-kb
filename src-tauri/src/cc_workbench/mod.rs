@@ -4,8 +4,10 @@ pub mod chat_input;
 pub mod claude_md;
 pub mod claude_settings;
 pub mod config;
+pub mod git_ops;
 pub mod hooks;
 pub mod context;
+pub mod market_catalog;
 pub mod mcp_servers;
 pub mod path_utils;
 pub mod paths;
@@ -18,6 +20,7 @@ pub mod skill_market;
 pub mod skills;
 pub mod slash_commands;
 pub mod types;
+pub mod usage;
 
 pub use cc_switch::{CcSwitchImportPreview, CcSwitchSaveRequest};
 pub use claude_md::CcClaudeMdPreview;
@@ -40,7 +43,8 @@ pub use skill_market::CcSkillMarketEntry;
 pub use chat_input::{
     CcAgentDeleteRequest, CcAgentEntry, CcAgentExportRequest, CcAgentExportResult,
     CcAgentImportRequest, CcAgentImportResult, CcAgentInput, CcContextFileEntry,
-    CcEnhancePromptRequest, CcEnhancePromptResult, CcListContextFilesRequest, CcModelTestRequest,
+    CcEnhancePromptRequest, CcEnhancePromptResult,
+    CcListContextFilesRequest, CcModelTestRequest,
     CcModelTestResult, CcPromptDeleteRequest, CcPromptEntry, CcPromptExportRequest,
     CcPromptExportResult, CcPromptImportRequest, CcPromptImportResult, CcPromptInput,
 };

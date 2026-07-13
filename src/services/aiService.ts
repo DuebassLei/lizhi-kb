@@ -1,6 +1,7 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 
 import { tauriInvoke } from "../composables/useTauriCommand";
+import { isTauriRuntime } from "./vaultService";
 
 export type AiChatMode = "chat" | "rag" | "agent";
 export type RagScope = "all" | "currentDocument" | "currentFolder";
@@ -90,10 +91,6 @@ export type StreamEvent =
     }
   | { type: "done" }
   | { type: "error"; message: string };
-
-function isTauriRuntime(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-}
 
 const DEFAULT_CONFIG: AiConfigPublic = {
   enabled: false,
@@ -198,10 +195,18 @@ export async function testAiConnection(target: LlmTarget): Promise<ConnectionRes
   const invokeTest = tauriInvoke<ConnectionResult>("test_ai_connection", {
     request: { providerId },
   });
+  let timer: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<ConnectionResult>((_, reject) => {
-    setTimeout(() => reject(new Error("连接测试超时（20 秒），请检查网络或 API Key")), 22_000);
+    timer = setTimeout(
+      () => reject(new Error("连接测试超时（20 秒），请检查网络或 API Key")),
+      22_000,
+    );
   });
-  return Promise.race([invokeTest, timeout]);
+  try {
+    return await Promise.race([invokeTest, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export interface RagQueryOptions {
@@ -266,6 +271,7 @@ export async function streamAiAgent(
   llmTarget: LlmTarget,
   onEvent: (event: StreamEvent) => void,
   messages: ChatMessage[] = [],
+  options?: { scope?: RagScope; documentId?: string | null; folder?: string | null },
 ): Promise<void> {
   if (!isTauriRuntime()) {
     onEvent({ type: "token", content: "（浏览器预览模式：请在 Tauri 应用中测试笔记助手）" });
@@ -277,6 +283,9 @@ export async function streamAiAgent(
     request: {
       instruction,
       messages,
+      scope: options?.scope ?? "all",
+      documentId: options?.documentId ?? null,
+      folder: options?.folder ?? null,
       cloudProviderId: cloudProviderIdFromTarget(llmTarget),
       useCloud: llmTarget !== "local",
     },

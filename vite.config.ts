@@ -15,8 +15,17 @@ export default defineConfig(async () => ({
   plugins: [vue(), tailwindcss()],
   clearScreen: false,
   build: {
-    chunkSizeWarningLimit: 2048,
+    chunkSizeWarningLimit: 1024,
     rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-vue": ["vue", "vue-router", "pinia"],
+          "vendor-editor": ["codemirror", "@codemirror/state", "@codemirror/view", "@codemirror/language", "@codemirror/commands", "@codemirror/lang-markdown"],
+          "vendor-ui": ["@lucide/vue", "marked", "lowlight"],
+          "vendor-export": ["docx", "juice"],
+          "vendor-pinyin": ["pinyin-pro"],
+        },
+      },
       onwarn(warning) {
         if (isThirdPartyWarning(warning)) return;
         // Vite 打包优化提示（如 dynamic import 解 cycle），非源码缺陷

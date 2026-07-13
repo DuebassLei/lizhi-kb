@@ -27,6 +27,10 @@ export async function unlockVault(password: string): Promise<VaultStatus> {
   return tauriInvoke<VaultStatus>("unlock_vault", { password });
 }
 
+export async function getVaultLockoutStatus(): Promise<number> {
+  return tauriInvoke<number>("get_vault_lockout_status");
+}
+
 export async function lockVault(): Promise<void> {
   return tauriInvoke<void>("lock_vault");
 }
@@ -81,6 +85,14 @@ export async function exportMarkdownFolder(
   files: Array<{ relativePath: string; content: string }>,
 ): Promise<{ fileCount: number; destDir: string }> {
   return tauriInvoke("export_markdown_folder", { destDir, files });
+}
+
+export async function exportObsidianVault(
+  destDir: string,
+  files: Array<{ relativePath: string; content: string }>,
+  assetsList: Array<{ relativePath: string; assetId: string }>,
+): Promise<{ fileCount: number; assetCount: number; destDir: string }> {
+  return tauriInvoke("export_obsidian_vault", { destDir, files, assetsList });
 }
 
 export async function unlockVaultWithRecovery(recoveryPhrase: string): Promise<VaultStatus> {

@@ -1,4 +1,3 @@
-import juice from "juice";
 import { isAssetRef, resolveAssetAsDataUrl } from "../assetService";
 import { compressDataUrlForWechat, urlToDataUrl } from "../../utils/imageDataUrl";
 import {
@@ -135,6 +134,7 @@ export async function buildWechatArticleHtml(
 
   let result: string;
   try {
+    const { default: juice } = await import("juice");
     result = juice.inlineContent(processedHtml, mergedCss, {
       inlinePseudoElements: true,
       preserveImportant: true,

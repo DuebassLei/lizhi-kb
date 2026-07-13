@@ -12,6 +12,8 @@ const MAX_RECENT = 5;
 export interface CcPerProviderPrefs {
   selectedModelId: string;
   recentModelIds: string[];
+  /** baseId（无 [1m]）→ 是否启用 1M */
+  model1mPrefs?: Record<string, boolean>;
 }
 
 export interface CcExtendedChatPrefs {
@@ -78,16 +80,27 @@ export function useCcModelCatalog() {
     return prefs.value.customModels[providerId] ?? [];
   }
 
-  function addCustomModel(providerId: string, baseId: string, label?: string): boolean {
+  function addCustomModel(
+    providerId: string,
+    baseId: string,
+    label?: string,
+    pricing?: { inputPrice?: number; outputPrice?: number },
+  ): boolean {
     const id = strip1mSuffix(baseId.trim());
     if (!id) return false;
     const existing = getCustomModels(providerId);
     if (existing.some((m) => strip1mSuffix(m.id) === id)) return false;
+    const entry: CcCustomModelEntry = {
+      id,
+      label: label?.trim() || undefined,
+      inputPrice: pricing?.inputPrice,
+      outputPrice: pricing?.outputPrice,
+    };
     const next = {
       ...prefs.value,
       customModels: {
         ...prefs.value.customModels,
-        [providerId]: [...existing, { id, label: label?.trim() || undefined }],
+        [providerId]: [...existing, entry],
       },
     };
     persist(next);
@@ -172,6 +185,74 @@ export function useCcModelCatalog() {
     return () => window.removeEventListener(CATALOG_CHANGE_EVENT, listener);
   }
 
+  function getModel1mEnabled(providerId: string, baseId: string, globalDefault: boolean): boolean {
+    const prefs1m = prefs.value.perProvider[providerId]?.model1mPrefs;
+    const key = strip1mSuffix(baseId);
+    if (prefs1m && key in prefs1m) return Boolean(prefs1m[key]);
+    return globalDefault;
+  }
+
+  function setModel1mEnabled(providerId: string, baseId: string, enabled: boolean) {
+    const key = strip1mSuffix(baseId.trim());
+    if (!key || !providerId) return;
+    const current = prefs.value.perProvider[providerId] ?? {
+      selectedModelId: "",
+      recentModelIds: [],
+    };
+    persist({
+      ...prefs.value,
+      perProvider: {
+        ...prefs.value.perProvider,
+        [providerId]: {
+          ...current,
+          model1mPrefs: { ...(current.model1mPrefs ?? {}), [key]: enabled },
+        },
+      },
+    });
+  }
+
+  function exportCustomModelsJson(): string {
+    return JSON.stringify(
+      { version: 1, exportedAt: new Date().toISOString(), customModels: prefs.value.customModels },
+      null,
+      2,
+    );
+  }
+
+  function importCustomModelsJson(
+    raw: string,
+    mode: "merge" | "replace",
+  ): { added: number; skipped: number } {
+    const parsed = JSON.parse(raw) as { customModels?: Record<string, CcCustomModelEntry[]> };
+    const incoming = parsed.customModels ?? {};
+    let added = 0;
+    let skipped = 0;
+    const base = mode === "replace" ? {} : { ...prefs.value.customModels };
+    for (const [providerId, models] of Object.entries(incoming)) {
+      if (!Array.isArray(models)) continue;
+      const existing = base[providerId] ?? [];
+      const seen = new Set(existing.map((m) => strip1mSuffix(m.id)));
+      const merged = [...existing];
+      for (const m of models) {
+        const id = strip1mSuffix(String(m.id ?? "").trim());
+        if (!id) {
+          skipped++;
+          continue;
+        }
+        if (seen.has(id)) {
+          skipped++;
+          continue;
+        }
+        seen.add(id);
+        merged.push({ id, label: m.label?.trim() || undefined });
+        added++;
+      }
+      base[providerId] = merged;
+    }
+    persist({ ...prefs.value, customModels: base });
+    return { added, skipped };
+  }
+
   return {
     prefs,
     reload,
@@ -185,6 +266,10 @@ export function useCcModelCatalog() {
     saveProviderModelBeforeSwitch,
     updateSessionPrefs,
     onCatalogChange,
+    getModel1mEnabled,
+    setModel1mEnabled,
+    exportCustomModelsJson,
+    importCustomModelsJson,
   };
 }
 

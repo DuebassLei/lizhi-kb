@@ -38,6 +38,8 @@ import {
 
   importCcAgents,
 
+  previewCcAgentsImport,
+
   listCcAgents,
 
   pickAgentExportDirectory,
@@ -49,6 +51,8 @@ import {
   saveCcAgent,
 
   type CcAgentConflictMode,
+
+  type CcImportPreviewItem,
 
   type CcAgentEntry,
 
@@ -63,6 +67,8 @@ import CcAgentDialog from "./CcAgentDialog.vue";
 import CcAgentMarketPanel from "./CcAgentMarketPanel.vue";
 
 import CcSkillConfirmDialog from "./CcSkillConfirmDialog.vue";
+
+import CcImportConflictDialog from "./CcImportConflictDialog.vue";
 
 
 
@@ -106,7 +112,23 @@ const search = ref("");
 
 const conflictMode = ref<CcAgentConflictMode>("skip");
 
-const exportFormat = ref<"md" | "json">("md");
+const exportFormat = ref<"md" | "json" | "zip">("md");
+
+const importDialogOpen = ref(false);
+
+const importPreviewItems = ref<CcImportPreviewItem[]>([]);
+
+const importPreviewLoading = ref(false);
+
+const importPreviewError = ref<string | null>(null);
+
+const pendingImport = ref<{
+
+  scope: "global" | "project";
+
+  paths: string[];
+
+} | null>(null);
 
 const importWrapRef = ref<HTMLElement | null>(null);
 
@@ -316,17 +338,57 @@ async function onImport(scope: "global" | "project", mode: "files" | "dirs") {
 
   if (!paths.length) return;
 
+  importPreviewLoading.value = true;
+
+  importPreviewError.value = null;
+
+  pendingImport.value = { scope, paths };
+
+  importDialogOpen.value = true;
+
+  try {
+
+    const preview = await previewCcAgentsImport({ scope, sourcePaths: paths });
+
+    importPreviewItems.value = preview.items;
+
+    if (preview.errors.length) importPreviewError.value = preview.errors.join("；");
+
+  } catch (e) {
+
+    importPreviewError.value = e instanceof Error ? e.message : "预览失败";
+
+    importPreviewItems.value = [];
+
+  } finally {
+
+    importPreviewLoading.value = false;
+
+  }
+
+}
+
+
+
+async function onImportConfirm(_selected: string[], mode: CcAgentConflictMode) {
+
+  const pending = pendingImport.value;
+
+  if (!pending) return;
+
+  importDialogOpen.value = false;
+
   importing.value = true;
 
   try {
 
     const result = await importCcAgents({
 
-      scope,
+      scope: pending.scope,
 
-      sourcePaths: paths,
+      sourcePaths: pending.paths,
 
-      conflictMode: conflictMode.value,
+      conflictMode: mode,
 
     });
 
@@ -357,6 +419,8 @@ async function onImport(scope: "global" | "project", mode: "files" | "dirs") {
   } finally {
 
     importing.value = false;
+
+    pendingImport.value = null;
 
   }
 
@@ -676,6 +740,8 @@ onUnmounted(() => {
 
                 <option value="json">JSON 合集</option>
 
+                <option value="zip">ZIP 打包</option>
+
               </select>
 
               <button type="button" @click="onExport">
@@ -827,6 +893,30 @@ onUnmounted(() => {
         @confirm="onConfirmDelete"
 
         @cancel="onCancelDelete"
+
+      />
+
+
+
+      <CcImportConflictDialog
+
+        :open="importDialogOpen"
+
+        title="导入 Agent 预览"
+
+        :loading="importPreviewLoading"
+
+        :error="importPreviewError"
+
+        :items="importPreviewItems"
+
+        show-conflict-mode
+
+        :conflict-mode="conflictMode"
+
+        @close="importDialogOpen = false"
+
+        @confirm="onImportConfirm"
 
       />
 

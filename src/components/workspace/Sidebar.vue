@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { Plus, Search, Star } from "@lucide/vue";
+import { Search, Star } from "@lucide/vue";
 
 import { computed, provide, ref, watch } from "vue";
 
@@ -15,6 +15,9 @@ import { useLinksStore } from "../../stores/links";
 import { searchKnowledgeBase } from "../../services/knowledgeIndexService";
 
 import { searchDocuments } from "../../utils/documentSearch";
+import { filterDocsByTag, listAllTags } from "../../utils/documentTags";
+import { getTagPillClass } from "../../utils/tagColor";
+import NewDocMenu from "./NewDocMenu.vue";
 
 import { isTauriRuntime } from "../../services/vaultService";
 
@@ -23,6 +26,7 @@ import type { SearchHit } from "../../utils/documentSearch";
 import { SIDEBAR_SCROLL_KEY } from "../../constants/folderTree";
 
 import FolderTree from "./FolderTree.vue";
+import AssetLibraryPanel from "./AssetLibraryPanel.vue";
 
 
 
@@ -35,8 +39,13 @@ const ui = useUiStore();
 const links = useLinksStore();
 
 const creating = ref(false);
-
 const filter = ref("");
+const selectedTag = ref<string | null>(null);
+const tagsExpanded = ref(false);
+const assetLibraryOpen = ref(false);
+
+/** 折叠时预览数量；展开后显示全部并在容器内滚动 */
+const TAGS_PREVIEW_COUNT = 6;
 
 const sidebarScrollRef = ref<HTMLElement | null>(null);
 provide(SIDEBAR_SCROLL_KEY, sidebarScrollRef);
@@ -98,20 +107,42 @@ const folderLabel = (folderId: string) => folders.pathLabel(folderId);
 
 
 
-async function handleCreate() {
+const allTags = computed(() => listAllTags());
 
-  creating.value = true;
+const hasMoreTags = computed(() => allTags.value.length > TAGS_PREVIEW_COUNT);
 
-  try {
-
-    await documents.create("无标题", folders.selectedFolderId);
-
-  } finally {
-
-    creating.value = false;
-
+const visibleTags = computed(() => {
+  const tags = allTags.value;
+  if (tagsExpanded.value) return tags;
+  const preview = tags.slice(0, TAGS_PREVIEW_COUNT);
+  const sel = selectedTag.value;
+  if (sel && !preview.includes(sel)) {
+    return [...preview.slice(0, TAGS_PREVIEW_COUNT - 1), sel];
   }
+  return preview;
+});
 
+const tagFilteredDocs = computed(() => {
+  if (!selectedTag.value) return [];
+  const ids = filterDocsByTag(
+    documents.tree.map((doc) => doc.id),
+    selectedTag.value,
+  );
+  const idSet = new Set(ids);
+  return documents.tree.filter((doc) => idSet.has(doc.id));
+});
+
+async function handleCreate(templateId?: string) {
+  creating.value = true;
+  try {
+    await documents.create("无标题", folders.selectedFolderId, { templateId });
+  } finally {
+    creating.value = false;
+  }
+}
+
+function toggleTagFilter(tag: string) {
+  selectedTag.value = selectedTag.value === tag ? null : tag;
 }
 
 
@@ -122,7 +153,7 @@ async function handleCreate() {
 
 <template>
 
-  <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
+  <div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
 
     <div class="shrink-0 border-b border-border px-3 py-2">
 
@@ -157,32 +188,48 @@ async function handleCreate() {
 
 
 
-    <div class="shrink-0 border-b border-border px-3 py-2">
-
-      <button
-        type="button"
-        data-testid="new-doc-btn"
-        class="focus-ring flex w-full items-center gap-1.5 rounded-md bg-paw/15 px-2 py-1.5 text-left text-xs text-paw transition-colors hover:bg-paw/25 disabled:opacity-50"
-        :disabled="creating"
-        :aria-busy="creating"
-        aria-label="新建文档"
-        @click="handleCreate"
-      >
-        <Plus :size="12" aria-hidden="true" />
-        <span>{{ creating ? "创建中…" : "新建文档" }}</span>
-      </button>
+    <div class="relative shrink-0 border-b border-border px-3 py-2">
+      <NewDocMenu :disabled="creating" :busy="creating" @create="handleCreate" />
 
       <p v-if="!filterActive" class="mt-1 truncate text-[10px] text-muted">
-
         将创建于：{{ folders.folders.find((f) => f.id === folders.selectedFolderId)?.label ?? "收件箱" }}
-
       </p>
 
+      <div v-if="allTags.length && !filterActive" class="mt-2" data-testid="sidebar-tag-filter">
+        <div
+          class="doc-tags-row flex flex-wrap gap-1 overflow-y-auto overscroll-contain"
+          :class="tagsExpanded ? 'max-h-24' : 'max-h-12'"
+        >
+          <button
+            v-for="tag in visibleTags"
+            :key="tag"
+            type="button"
+            :class="[getTagPillClass(tag), selectedTag === tag ? 'ring-1 ring-link/40' : '']"
+            @click="toggleTagFilter(tag)"
+          >
+            {{ tag }}
+          </button>
+        </div>
+        <button
+          v-if="hasMoreTags"
+          type="button"
+          class="focus-ring mt-1 text-[10px] text-link hover:underline"
+          data-testid="sidebar-tag-filter-toggle"
+          @click="tagsExpanded = !tagsExpanded"
+        >
+          {{ tagsExpanded ? "收起" : `展开 (+${allTags.length - TAGS_PREVIEW_COUNT})` }}
+        </button>
+      </div>
     </div>
 
 
 
-    <nav ref="sidebarScrollRef" class="flex-1 overflow-y-auto p-2 text-sm" data-testid="doc-tree">
+    <nav
+      ref="sidebarScrollRef"
+      class="doc-tree-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 text-sm"
+      data-testid="doc-tree"
+      aria-label="文档目录"
+    >
 
       <!-- 固定 -->
 
@@ -318,11 +365,55 @@ async function handleCreate() {
 
 
 
-      <!-- 目录树 -->
+      <!-- 标签筛选 -->
+      <template v-else-if="selectedTag">
+        <p class="mb-2 px-2 text-[10px] text-muted">
+          标签「{{ selectedTag }}」共 {{ tagFilteredDocs.length }} 篇
+          <button type="button" class="ml-1 text-link hover:underline" @click="selectedTag = null">
+            清除
+          </button>
+        </p>
+        <ul class="space-y-0.5">
+          <li
+            v-for="doc in tagFilteredDocs"
+            :key="doc.id"
+            role="button"
+            tabindex="0"
+            class="interactive-row group flex flex-col rounded-sm px-2 py-1.5 hover:bg-surface-2"
+            :class="documents.activeId === doc.id ? 'tree-row-selected' : 'tree-row-hover'"
+            data-testid="sidebar-tag-result"
+            @click="documents.setActive(doc.id)"
+            @keydown.enter="documents.setActive(doc.id)"
+          >
+            <span class="min-w-0 truncate text-xs">{{ doc.title }}</span>
+            <span class="mt-0.5 text-[9px] text-muted">{{ folderLabel(doc.folder) }}</span>
+          </li>
+          <li v-if="!tagFilteredDocs.length" class="px-2 py-6 text-center text-xs text-muted">
+            该标签下暂无文档
+          </li>
+        </ul>
+      </template>
 
+      <!-- 目录树 -->
       <FolderTree v-else :nodes="folderTreeNodes" />
 
     </nav>
+
+    <div v-if="!filterActive && !selectedTag" class="shrink-0 border-t border-border p-2">
+      <button
+        type="button"
+        class="focus-ring mb-2 w-full rounded-md px-2 py-1 text-left text-[11px] text-muted hover:bg-surface-2 hover:text-[var(--color-text)]"
+        data-testid="sidebar-asset-library-toggle"
+        @click="assetLibraryOpen = !assetLibraryOpen"
+      >
+        {{ assetLibraryOpen ? "收起资产库" : "资产库" }}
+      </button>
+      <AssetLibraryPanel
+        v-if="assetLibraryOpen"
+        class="max-h-48"
+        @insert="(md) => { documents.updateContent(documents.content + (documents.content.endsWith('\n') ? '' : '\n') + md + '\n'); }"
+      />
+    </div>
 
   </div>
 

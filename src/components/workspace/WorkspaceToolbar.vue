@@ -11,7 +11,6 @@ import {
   Save,
   Columns2,
   Eye,
-  Network,
   PanelLeftClose,
   PanelLeftOpen,
 } from "@lucide/vue";
@@ -23,9 +22,7 @@ import { useWechatTheme } from "../../composables/useWechatTheme";
 import { insertModuleSnippet } from "../../services/wechatExport";
 import BtnIcon from "../ui/BtnIcon.vue";
 import ExportMenu from "./ExportMenu.vue";
-import WechatThemeSelect from "../wechat/WechatThemeSelect.vue";
-import WechatCopyButton from "../wechat/WechatCopyButton.vue";
-import WechatModuleSelect from "../wechat/WechatModuleSelect.vue";
+import WechatToolbarMenu from "../wechat/WechatToolbarMenu.vue";
 
 const ui = useUiStore();
 const editor = useEditorStore();
@@ -72,13 +69,6 @@ function toggleChatPanel() {
 const showExport = computed(
   () => ui.workspaceViewMode === "edit" && !!documents.activeId && !ui.focusMode,
 );
-const showMindMap = computed(
-  () =>
-    (ui.workspaceViewMode === "edit" || ui.workspaceViewMode === "mindmap") &&
-    !!documents.activeId &&
-    !ui.focusMode,
-);
-
 function toggleSplitPreview() {
   if (ui.previewOnlyMode) {
     ui.setPreviewOnly(false);
@@ -97,8 +87,16 @@ function insertModuleSnippetInDoc(snippet: string) {
   void editor.saveNow();
 }
 
-function toggleMindMap() {
-  ui.setWorkspaceView(ui.workspaceViewMode === "mindmap" ? "edit" : "mindmap");
+function onSelectView(mode: WorkspaceViewMode) {
+  if (mode === "graph") {
+    ui.setSplitGraph(false);
+  }
+  ui.setWorkspaceView(mode);
+  documents.persistSession();
+}
+
+function toggleSplitGraph() {
+  ui.toggleSplitGraph();
   documents.persistSession();
 }
 
@@ -149,7 +147,7 @@ const isPinned = computed(() =>
     <div
       v-if="!ui.focusMode"
       class="flex rounded-md bg-surface-1 p-0.5 text-xs"
-      aria-label="工作区视图"
+      aria-label="知识库视图"
     >
       <button
         v-for="m in modes"
@@ -159,7 +157,7 @@ const isPinned = computed(() =>
         class="focus-ring rounded px-2.5 py-0.5 transition-colors"
         :class="ui.workspaceViewMode === m.id ? 'bg-surface-2 text-[var(--color-text)]' : 'text-muted hover:text-[var(--color-text)]'"
         :aria-pressed="ui.workspaceViewMode === m.id"
-        @click="ui.setWorkspaceView(m.id)"
+        @click="onSelectView(m.id)"
       >
         {{ m.label }}
       </button>
@@ -167,18 +165,18 @@ const isPinned = computed(() =>
     <span v-else class="text-xs text-paw">专注模式</span>
 
     <div
-      v-if="!ui.focusMode && (ui.workspaceViewMode === 'edit' || ui.workspaceViewMode === 'mindmap')"
+      v-if="!ui.focusMode && ui.workspaceViewMode === 'edit'"
       class="ml-1 flex shrink-0 items-center gap-1 border-l border-border pl-2"
       data-testid="toolbar-editor-tools"
     >
       <BtnIcon
-        v-if="showMindMap"
-        label="思维导图"
-        :pressed="ui.workspaceViewMode === 'mindmap'"
-        data-testid="toolbar-mindmap"
-        @click="toggleMindMap()"
+        v-if="ui.workspaceViewMode === 'edit' && documents.activeId && !ui.focusMode"
+        label="编辑+图谱分屏"
+        :pressed="ui.splitGraphVisible"
+        data-testid="toolbar-split-graph"
+        @click="toggleSplitGraph()"
       >
-        <Network class="h-3.5 w-3.5" aria-hidden="true" />
+        <Columns2 class="h-3.5 w-3.5" aria-hidden="true" />
       </BtnIcon>
 
       <template v-if="ui.workspaceViewMode === 'edit'">
@@ -214,16 +212,16 @@ const isPinned = computed(() =>
 
         <div
           v-if="showPreviewKind"
-          class="grid w-[30.75rem] shrink-0 grid-cols-[8rem_8rem_6.5rem_7.5rem] items-center gap-1"
+          class="flex shrink-0 items-center gap-1"
           data-testid="toolbar-preview-cluster"
         >
         <div
-          class="flex rounded-md bg-surface-1 p-0.5 text-xs"
+          class="flex shrink-0 rounded-md bg-surface-1 p-0.5 text-xs"
           aria-label="预览类型"
         >
           <button
             type="button"
-            class="focus-ring min-w-0 flex-1 rounded px-2 py-0.5 transition-colors"
+            class="focus-ring shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 transition-colors"
             :class="ui.splitPreviewKind === 'gfm' ? 'bg-surface-2 text-[var(--color-text)]' : 'text-muted hover:text-[var(--color-text)]'"
             :aria-pressed="ui.splitPreviewKind === 'gfm'"
             data-testid="toolbar-preview-kind-gfm"
@@ -233,7 +231,7 @@ const isPinned = computed(() =>
           </button>
           <button
             type="button"
-            class="focus-ring min-w-0 flex-1 rounded px-2 py-0.5 transition-colors"
+            class="focus-ring shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 transition-colors"
             :class="ui.splitPreviewKind === 'wechat' ? 'bg-surface-2 text-[var(--color-text)]' : 'text-muted hover:text-[var(--color-text)]'"
             :aria-pressed="ui.splitPreviewKind === 'wechat'"
             data-testid="toolbar-preview-kind-wechat"
@@ -243,33 +241,12 @@ const isPinned = computed(() =>
           </button>
         </div>
 
-        <WechatThemeSelect
-          v-model="wechatThemeId"
-          class="min-w-0"
-          :class="showWechatControls ? '' : 'invisible pointer-events-none'"
-          :inert="!showWechatControls || undefined"
-          :aria-hidden="!showWechatControls"
-          test-id="workspace-wechat-theme-select"
-        />
-
-        <WechatModuleSelect
-          class="min-w-0"
-          :class="showWechatControls ? '' : 'invisible pointer-events-none'"
-          :inert="!showWechatControls || undefined"
-          :aria-hidden="!showWechatControls"
-          test-id="workspace-wechat-module-select"
-          @insert="insertModuleSnippetInDoc"
-        />
-
-        <WechatCopyButton
+        <WechatToolbarMenu
+          v-model:theme-id="wechatThemeId"
           :content="documents.content"
-          :theme-id="wechatThemeId"
-          class="min-w-0"
-          :class="showWechatControls ? '' : 'invisible pointer-events-none'"
-          :inert="!showWechatControls || undefined"
-          :aria-hidden="!showWechatControls"
-          test-id="workspace-wechat-copy"
-          compact
+          :visible="showWechatControls"
+          class="w-[7.5rem]"
+          @insert="insertModuleSnippetInDoc"
         />
         </div>
       </template>

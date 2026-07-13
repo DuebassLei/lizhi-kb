@@ -9,6 +9,7 @@ import {
   Loader2,
   Paperclip,
   RefreshCw,
+  Search,
   Send,
   Sparkles,
   Square,
@@ -25,12 +26,15 @@ import {
   strip1mSuffix,
 } from "../../../utils/ccChatModels";
 import { groupModelOptions, modelSupports1mContext } from "../../../utils/ccModelCatalog";
+import { modelOptionIcon } from "../../../utils/ccProviderIcons";
 import type { CcAgentEntry, CcProviderPublic, CwdMode } from "../../../services/ccWorkbenchService";
 import { enhanceCcPrompt, testCcModel } from "../../../services/ccWorkbenchService";
 import type { CcChatAttachment } from "../../../utils/ccAttachments";
+import { isCcContinuationPrompt } from "../../../utils/ccContextUtils";
 import { isTauriRuntime } from "../../../services/vaultService";
 import CcAddModelDialog from "./CcAddModelDialog.vue";
 import CcAgentSelect from "./CcAgentSelect.vue";
+import CcCwdModeSelect from "./CcCwdModeSelect.vue";
 import CcFileContextPicker from "./CcFileContextPicker.vue";
 import CcInputDropdown from "./CcInputDropdown.vue";
 import CcPromptEnhancerDialog from "./CcPromptEnhancerDialog.vue";
@@ -47,9 +51,9 @@ const props = defineProps<{
   activeProviderId?: string | null;
   switchingProvider?: boolean;
   longContextEnabled?: boolean;
+  context1mDisabled?: boolean;
   permissionMode: CcPermissionMode;
   reasoningEffort: CcReasoningEffort;
-  cwdModeLabel?: string;
   contextLabel?: string;
   contextPercentage?: number;
   contextUsedTokens?: number;
@@ -60,9 +64,12 @@ const props = defineProps<{
   attachments?: CcChatAttachment[];
   disableThinking?: boolean;
   selectedAgent?: CcAgentEntry | null;
-  activeDocumentPath?: string | null;
   runtimeReady?: boolean;
   runtimeHint?: string | null;
+  promptEnhancerEnabled?: boolean;
+  sessionCwdMismatch?: boolean;
+  vaultKbModelHint?: string | null;
+  mcpEnabled?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -83,12 +90,14 @@ const emit = defineEmits<{
   "clear-attachments": [];
   "pick-attachments": [];
   "attach-files-from-browser": [paths: string[]];
-  "attach-current-document": [];
   submit: [];
   stop: [];
+  "set-cwd-mode": [mode: CwdMode];
+  "pick-project": [];
 }>();
 
 const modelOpen = ref(false);
+const modelSearchQuery = ref("");
 const modeOpen = ref(false);
 const effortOpen = ref(false);
 const addModelOpen = ref(false);
@@ -212,11 +221,30 @@ const selectedModel = computed(
     ?? null,
 );
 
-const modelGroups = computed(() => groupModelOptions(props.modelOptions));
+const modelGroups = computed(() => {
+  const groups = groupModelOptions(props.modelOptions);
+  const q = modelSearchQuery.value.trim().toLowerCase();
+  if (!q) return groups;
+  return groups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (opt) =>
+          opt.label.toLowerCase().includes(q)
+          || opt.baseId.toLowerCase().includes(q)
+          || opt.description.toLowerCase().includes(q),
+      ),
+    }))
+    .filter((g) => g.items.length > 0);
+});
+
+const modelGroupsEmpty = computed(() => modelGroups.value.every((g) => !g.items.length));
 
 const selectedBaseId = computed(() => strip1mSuffix(props.selectedModelId));
 
-const canToggle1m = computed(() => modelSupports1mContext(selectedBaseId.value));
+const canToggle1m = computed(
+  () => !props.context1mDisabled && modelSupports1mContext(selectedBaseId.value),
+);
 
 const longContextOn = computed({
   get: () => props.longContextEnabled ?? true,
@@ -248,13 +276,6 @@ const fileContextLabel = computed(() => {
   return count ? `文件上下文 (${count})` : "文件上下文";
 });
 
-const projectPathTitle = computed(() => {
-  if (props.cwdMode === "project" && props.projectPath?.trim()) {
-    return props.projectPath.trim();
-  }
-  return undefined;
-});
-
 const showTokenIndicator = computed(() => {
   const max = props.contextMaxTokens;
   return typeof max === "number" && Number.isFinite(max) && max > 0;
@@ -266,8 +287,31 @@ const safeContextPercentage = computed(() => {
   return pct;
 });
 
+const continuationHint = computed(() => {
+  if (!isCcContinuationPrompt(props.modelValue)) return null;
+  return "「继续」会沿用当前会话上下文，让 Agent 接着上次未完成的部分执行。若无响应，请具体说明要接着做什么。";
+});
+
+const activeTriggerHint = computed(() => {
+  if (completionState.value.open && completionState.value.kind) {
+    const map: Record<string, string> = {
+      file: "选择文件后将加入 @ 上下文",
+      agent: "选择后将绑定 # 智能体",
+      prompt: "选择后将插入 ! 提示词",
+      slash: "选择后将执行斜杠命令",
+    };
+    return map[completionState.value.kind] ?? null;
+  }
+  const text = props.modelValue;
+  if (text.endsWith("@") || /\s@$/.test(text)) return "输入文件名筛选，Tab/Enter 确认引用";
+  if (text.endsWith("#") || /\s#$/.test(text)) return "输入智能体名称筛选，Tab/Enter 确认";
+  if (text.endsWith("!") || /\s!$/.test(text)) return "输入提示词名称筛选，Tab/Enter 插入";
+  return null;
+});
+
 function closeMenus() {
   modelOpen.value = false;
+  modelSearchQuery.value = "";
   modeOpen.value = false;
   effortOpen.value = false;
 }
@@ -465,16 +509,6 @@ watch(
           <FolderOpen class="h-3.5 w-3.5" />
           {{ fileContextLabel }}
         </button>
-        <button
-          v-if="activeDocumentPath && cwdMode === 'vault'"
-          type="button"
-          class="cc-chat-input__chip cc-chat-input__chip--accent"
-          title="附加当前打开的笔记"
-          :disabled="disabled"
-          @click="emit('attach-current-document')"
-        >
-          当前笔记
-        </button>
         <span v-if="selectedAgent" class="cc-chat-input__agent">
           #{{ selectedAgent.name }}
           <button
@@ -487,12 +521,19 @@ watch(
           </button>
         </span>
       </div>
-      <span
-        v-if="cwdModeLabel"
-        class="cc-chat-input__cwd"
-        :title="projectPathTitle"
-      >{{ cwdModeLabel }}</span>
+      <CcCwdModeSelect
+        :cwd-mode="cwdMode ?? 'vault'"
+        :project-path="projectPath"
+        :mcp-enabled="mcpEnabled"
+        :disabled="disabled || streaming"
+        @set-mode="emit('set-cwd-mode', $event)"
+        @pick-project="emit('pick-project')"
+      />
     </div>
+
+    <p v-if="sessionCwdMismatch" class="cc-chat-input__session-note">
+      工作目录已变更：下一条消息将按新模式执行，会话上下文可能重置
+    </p>
 
     <div v-if="localAttachments.length" class="cc-chat-input__attachments">
       <span
@@ -571,9 +612,22 @@ watch(
       />
     </div>
 
+    <div v-if="continuationHint || activeTriggerHint || vaultKbModelHint" class="cc-chat-input__hints">
+      <p v-if="continuationHint" class="cc-chat-input__hint cc-chat-input__hint--continue">
+        {{ continuationHint }}
+      </p>
+      <p v-else-if="vaultKbModelHint" class="cc-chat-input__hint cc-chat-input__hint--vault-model">
+        {{ vaultKbModelHint }}
+      </p>
+      <p v-else-if="activeTriggerHint" class="cc-chat-input__hint">
+        {{ activeTriggerHint }}
+      </p>
+    </div>
+
     <div class="cc-chat-input__footer">
       <div class="cc-chat-input__footer-left">
         <button
+          v-if="promptEnhancerEnabled !== false"
           type="button"
           class="cc-chat-input__icon-btn"
           :class="{ 'cc-chat-input__icon-btn--active': enhancerLoading }"
@@ -645,6 +699,7 @@ watch(
               modelOpen = !modelOpen;
               modeOpen = false;
               effortOpen = false;
+              if (!modelOpen) modelSearchQuery = '';
             "
           >
             <span class="truncate">{{ modelDisplay }}</span>
@@ -664,6 +719,16 @@ watch(
                 测试
               </button>
             </div>
+            <div class="cc-chat-select__search-wrap">
+              <Search class="cc-chat-select__search-icon" aria-hidden="true" />
+              <input
+                v-model="modelSearchQuery"
+                type="search"
+                class="cc-chat-select__search focus-ring"
+                placeholder="搜索模型…"
+                @click.stop
+              />
+            </div>
             <div class="cc-chat-select__groups">
               <div v-for="group in modelGroups" :key="group.source" class="cc-chat-select__group">
                 <p class="cc-chat-select__group-label">{{ group.label }}</p>
@@ -676,6 +741,7 @@ watch(
                   :title="modelTestError(opt.id)"
                   @click="selectModel(opt)"
                 >
+                  <span class="cc-chat-select__model-icon" aria-hidden="true">{{ modelOptionIcon(opt) }}</span>
                   <div class="cc-chat-select__item-main">
                     <span class="font-medium">{{ opt.label }}</span>
                     <span class="cc-chat-select__desc">{{ opt.description }}</span>
@@ -694,6 +760,7 @@ watch(
                   />
                 </button>
               </div>
+              <p v-if="modelGroupsEmpty" class="cc-chat-select__empty">无匹配模型</p>
             </div>
             <div class="cc-chat-select__menu-footer">
               <label
@@ -892,9 +959,9 @@ watch(
   align-items: center;
   gap: 0.25rem;
   border-radius: 999px;
-  background: color-mix(in srgb, #8b5cf6 12%, transparent);
+  background: color-mix(in srgb, var(--color-link) 12%, transparent);
   padding: 0.125rem 0.5rem;
-  color: #7c3aed;
+  color: var(--color-link);
 }
 
 .cc-chat-input__agent-clear {
@@ -906,18 +973,6 @@ watch(
 
 .cc-chat-input__agent-clear:hover {
   opacity: 1;
-}
-
-.cc-chat-input__cwd {
-  max-width: min(16rem, 48vw);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-link) 10%, transparent);
-  padding: 0.125rem 0.5rem;
-  font-size: 0.625rem;
-  color: var(--color-link);
 }
 
 .cc-chat-input__attachments {
@@ -1028,6 +1083,35 @@ watch(
 
 .cc-chat-input__editor::placeholder {
   color: var(--color-muted);
+}
+
+.cc-chat-input__session-note {
+  margin: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-warning) 25%, var(--color-border));
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+  padding: 0.3125rem 0.75rem;
+  font-size: 0.625rem;
+  color: var(--color-warning);
+}
+
+.cc-chat-input__hints {
+  border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  padding: 0.3125rem 0.75rem 0;
+}
+
+.cc-chat-input__hint {
+  margin: 0 0 0.3125rem;
+  font-size: 0.625rem;
+  line-height: 1.45;
+  color: var(--color-muted);
+}
+
+.cc-chat-input__hint--continue {
+  color: var(--color-link);
+}
+
+.cc-chat-input__hint--vault-model {
+  color: var(--color-warning);
 }
 
 .cc-chat-input__footer {
@@ -1210,6 +1294,43 @@ watch(
 
 .cc-chat-select__test-btn:disabled {
   opacity: 0.5;
+}
+
+.cc-chat-select__search-wrap {
+  position: relative;
+  margin: 0 0.25rem 0.375rem;
+}
+
+.cc-chat-select__search-icon {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  height: 0.75rem;
+  width: 0.75rem;
+  transform: translateY(-50%);
+  color: var(--color-muted);
+}
+
+.cc-chat-select__search {
+  width: 100%;
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+  padding: 0.3125rem 0.5rem 0.3125rem 1.625rem;
+  font-size: 0.6875rem;
+  color: var(--color-text);
+}
+
+.cc-chat-select__model-icon {
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  line-height: 1;
+}
+
+.cc-chat-select__item--model {
+  gap: 0.375rem;
 }
 
 .cc-chat-select__item--model,

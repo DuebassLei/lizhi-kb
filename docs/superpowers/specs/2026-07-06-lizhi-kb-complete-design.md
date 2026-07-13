@@ -1,6 +1,6 @@
 # 狸知知识库 完整产品设计与定位包装方案
 
-**文档版本**：v2.2.0  
+**文档版本**：v2.3.0  
 **更新日期**：2026-07-13  
 **品牌短名**：狸知 · **Lizhi Knowledge**  
 **产品全称**：狸知知识库 — 个人加密知识库  
@@ -34,7 +34,8 @@
 | **Must** | v1.0 | **Vault** | 加密库、主密码解锁、Markdown 编辑器、目录树、热力图、MD/PDF 导出 |
 | **Must** | v1.5 | **Network** | 双链、反向链接、局部图谱、App Lock 完善、界面/导出水印 |
 | **Could** | v1.6+ | **灵狸 AI** | 应用内 AI 助手（闲聊/RAG/笔记助手），见 [AI Chat spec](./2026-07-08-lizhi-ai-chat-design.md) |
-| **Could** | v1.7+ | **Agent 工作台** | Claude Agent SDK 独立工作台，见 [CC Workbench spec](./2026-07-10-cc-workbench-design.md) |
+| **Could** | v1.7+ | **Agent 工作台** | Claude Agent SDK 独立工作台 — **v1.0.2 已实现**（2026-07-13），见 [CC Workbench spec](./2026-07-10-cc-workbench-design.md) |
+| **Could** | v1.8+ | **写作看板动效** | 守夜猫主题动效系统 — **已设计**，见 [Insights Motion spec](./2026-07-13-insights-dashboard-motion-design.md) |
 | **Could** | v2.0 | **Shadow** | 诱饵库、盲水印、防截屏 API、红蓝对抗审计包 |
 | **Won't (v1.x)** | — | — | 云同步、多人协作、插件市场、移动端 |
 
@@ -207,7 +208,7 @@
 | 模块 | 功能 | 验收标准 |
 |------|------|----------|
 | Vault 创建 | Argon2id + AES-256-GCM，恢复密钥 | 错误密码 100% 无法解密 |
-| 编辑器 | TipTap MD 双模式、打字机、专注模式 | 10 万字文档滚动 ≥ 55fps |
+| 编辑器 | **CodeMirror 6**（源码模式） | v1.x 已落地 CM-only；TipTap WYSIWYG 见 Won't / 后续迭代 |
 | 目录 | 收件箱 / 知识库 树形结构、拖拽排序 | 1000 文档树展开 < 200ms |
 | 热力图 | GitHub 风格，按日编辑次数 | 与 audit_logs 一致 |
 | 导出 | MD + PDF，元数据清洗 | PDF 无 Author/Creator 元数据 |
@@ -243,7 +244,7 @@
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Presentation (Vue 3 + Pinia + Tailwind)                │
-│  ├── Editor (TipTap Vue)  ├── Graph (PixiJS)  ├── Canvas│
+│  ├── Editor (TipTap Vue)  ├── Graph (SVG)  ├── Canvas  │
 │  └── Watermark Canvas Overlay                           │
 ├─────────────────────────────────────────────────────────┤
 │  Tauri IPC Bridge (Commands + Events)                   │
@@ -272,6 +273,8 @@
 | 双链索引来源 | **写入时增量更新 `links` 表** | 避免启动全量扫盘；启动仅校验 checksum |
 | 正文存储 | **加密文件 + DB 元数据** | 便于 Git 式备份整个 workspace 目录 |
 | 生物识别 | **OS 验证通过后解密 `keys.enc` 中缓存的 wrapped DEK** | DEK 不存 OS Keychain 明文 |
+
+> **MVP 实现状态（2026-07-13）**：设置页提供开关与「当前平台暂不支持」提示；全栈 WebAuthn/Windows Hello 集成列为 v1.x Won't。Shadow v2（诱饵库、盲水印等）仍为 v2.0 Won't。
 | 水印防篡改 | **Rust 心跳 + 前端校验 + 锁定** | 前端 alone 不够，但足够威慑普通用户 |
 | 网络 | **Rust 层默认 deny all sockets** | 比前端不请求更可靠 |
 
@@ -570,18 +573,19 @@ Home
 5. **前端栈 Vue 3 + Pinia + TipTap Vue**
 6. **品牌定为狸知知识库 / Lizhi Knowledge**（替代 SecureNote，2026-07-06）
 7. **v1.6+ 增补 AI 助手**（Rust 直连 LLM，与 MCP 并列）
-8. **v1.7+ 增补 Agent 工作台**（Node ai-bridge + Claude SDK，与 AI 助手并列不合并）
+8. **v1.7+ 增补 Agent 工作台**（Node ai-bridge + Claude SDK，与 AI 助手并列不合并）— **已于 2026-07 落地 v1.0.2**
 
 ### 10.3 扩展模块 spec 索引
 
 | 模块 | 文档 | 边界 |
 |------|------|------|
 | AI 助手 | [2026-07-08-lizhi-ai-chat-design.md](./2026-07-08-lizhi-ai-chat-design.md) | Rust `ai/*`；Ollama + 多云；工作区右栏 |
-| Agent 工作台 | [2026-07-10-cc-workbench-design.md](./2026-07-10-cc-workbench-design.md) | ai-bridge + SDK；Anthropic 生态；独立路由 `/cc-workbench` |
+| Agent 工作台 | [2026-07-10-cc-workbench-design.md](./2026-07-10-cc-workbench-design.md) | ai-bridge + SDK；Anthropic 生态；`/cc-workbench`；**v1.0.2 已对齐 CC GUI** |
 | CC 输入栏模型 | [2026-07-10-cc-input-model-provider-design.md](./2026-07-10-cc-input-model-provider-design.md) | 工作台内供应商/模型/1M 切换 |
 | MCP 服务 | [2026-07-08-lizhi-mcp-design.md](./2026-07-08-lizhi-mcp-design.md) | 外部 AI 工具 HTTP Bridge |
 | 备份扩展 | [../design/2026-07-08-backup-extension.md](../design/2026-07-08-backup-extension.md) | `.lizhi` v2 包 |
+| 写作看板动效 | [2026-07-13-insights-dashboard-motion-design.md](./2026-07-13-insights-dashboard-motion-design.md) | 守夜猫主题动效系统 |
 
 ---
 
-**下一步**：持续迭代 v1.5 Network + v1.6/v1.7 AI 与 Agent 工作台；Shadow 功能留 v2.0。
+**下一步**：实现写作看板动效（v1.8）；持续迭代 v1.5 Network + v1.6 AI 助手；Agent 工作台按 [CC Workbench §17](./2026-07-10-cc-workbench-design.md#17-cc-gui-后续对齐流程) 按需对齐 CC GUI 新功能；Shadow 功能留 v2.0。

@@ -52,6 +52,29 @@ function subagentStatusLabel(status: CcSubagentItem["status"]) {
         <div class="cc-split-panel__meta">
           <Bot class="h-3 w-3" />
           <span>{{ subagentStatusLabel(subagent.status) }}</span>
+          <span v-if="subagent.durationMs">· {{ Math.round(subagent.durationMs / 1000) }}s</span>
+        </div>
+
+        <div v-if="subagent.startedAt" class="cc-split-panel__timeline">
+          <p class="cc-split-panel__section-title">时间线</p>
+          <ul class="cc-split-panel__timeline-list">
+            <li>
+              <span class="cc-split-panel__timeline-dot cc-split-panel__timeline-dot--start" />
+              启动子代理
+            </li>
+            <li v-if="subagent.status === 'running'">
+              <span class="cc-split-panel__timeline-dot cc-split-panel__timeline-dot--running" />
+              执行中…
+            </li>
+            <li v-else>
+              <span
+                class="cc-split-panel__timeline-dot"
+                :class="subagent.status === 'error' ? 'cc-split-panel__timeline-dot--error' : 'cc-split-panel__timeline-dot--done'"
+              />
+              {{ subagent.status === "error" ? "失败" : "完成" }}
+              <span v-if="subagent.durationMs">（{{ Math.round(subagent.durationMs / 1000) }}s）</span>
+            </li>
+          </ul>
         </div>
 
         <div v-if="subagent.description" class="cc-split-panel__section">
@@ -205,5 +228,52 @@ function subagentStatusLabel(status: CcSubagentItem["status"]) {
   margin-top: 0.75rem;
   font-size: 0.6875rem;
   color: var(--color-muted);
+}
+
+.cc-split-panel__timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  font-size: 0.6875rem;
+}
+
+.cc-split-panel__timeline-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.cc-split-panel__timeline-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+.cc-split-panel__timeline-dot--start {
+  background: var(--color-link);
+}
+
+.cc-split-panel__timeline-dot--running {
+  background: var(--color-link);
+  animation: cc-timeline-pulse 1.2s ease-in-out infinite;
+}
+
+.cc-split-panel__timeline-dot--done {
+  background: #16a34a;
+}
+
+.cc-split-panel__timeline-dot--error {
+  background: #dc2626;
+}
+
+@keyframes cc-timeline-pulse {
+  50% {
+    opacity: 0.45;
+  }
 }
 </style>

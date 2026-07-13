@@ -1,11 +1,4 @@
-import {
-  Document,
-  HeadingLevel,
-  ImageRun,
-  Packer,
-  Paragraph,
-  TextRun,
-} from "docx";
+import type { Paragraph, TextRun } from "docx";
 import { tauriInvoke } from "../composables/useTauriCommand";
 import { isTauriRuntime } from "../services/vaultService";
 import {
@@ -14,6 +7,15 @@ import {
   readImageDimensionsFromDataUrl,
   scaleImageDimensions,
 } from "./exportAssets";
+
+type DocxModule = typeof import("docx");
+
+let _docx: DocxModule | null = null;
+
+async function ensureDocx(): Promise<DocxModule> {
+  if (!_docx) _docx = await import("docx");
+  return _docx;
+}
 
 type RunStyle = {
   bold?: boolean;
@@ -51,7 +53,7 @@ async function saveDocxViaTauri(filename: string, bytes: Uint8Array): Promise<bo
 function pushText(runs: TextRun[], text: string, style: RunStyle = {}) {
   if (!text) return;
   runs.push(
-    new TextRun({
+    new _docx!.TextRun({
       text,
       bold: style.bold,
       italics: style.italics,
@@ -128,45 +130,46 @@ function parseInlineRuns(text: string, style: RunStyle = {}): TextRun[] {
 
 function paragraphFromMarkdownLine(line: string, options?: { quote?: boolean; code?: boolean }): Paragraph {
   const runs = options?.code
-    ? [new TextRun({ text: line, font: "Consolas", size: 20 })]
+    ? [new _docx!.TextRun({ text: line, font: "Consolas", size: 20 })]
     : parseInlineRuns(line, options?.quote ? { italics: true, color: "64748B" } : {});
 
-  return new Paragraph({
-    children: runs.length > 0 ? runs : [new TextRun("")],
+  return new _docx!.Paragraph({
+    children: runs.length > 0 ? runs : [new _docx!.TextRun("")],
     spacing: { after: 120 },
     indent: options?.quote ? { left: 720 } : undefined,
   });
 }
 
-function headingLevelFromMarkdown(level: number): (typeof HeadingLevel)[keyof typeof HeadingLevel] {
+function headingLevelFromMarkdown(level: number) {
+  const HL = _docx!.HeadingLevel;
   switch (level) {
     case 1:
-      return HeadingLevel.HEADING_1;
+      return HL.HEADING_1;
     case 2:
-      return HeadingLevel.HEADING_2;
+      return HL.HEADING_2;
     case 3:
-      return HeadingLevel.HEADING_3;
+      return HL.HEADING_3;
     case 4:
-      return HeadingLevel.HEADING_4;
+      return HL.HEADING_4;
     case 5:
-      return HeadingLevel.HEADING_5;
+      return HL.HEADING_5;
     default:
-      return HeadingLevel.HEADING_6;
+      return HL.HEADING_6;
   }
 }
 
 async function paragraphFromImageLine(src: string, alt: string): Promise<Paragraph> {
   if (!src.startsWith("data:image/")) {
-    return new Paragraph({
-      children: [new TextRun({ text: `[${alt || "图片"}]`, italics: true, color: "64748B" })],
+    return new _docx!.Paragraph({
+      children: [new _docx!.TextRun({ text: `[${alt || "图片"}]`, italics: true, color: "64748B" })],
       spacing: { after: 120 },
     });
   }
 
   const parsed = parseDataUrlImage(src);
   if (!parsed) {
-    return new Paragraph({
-      children: [new TextRun({ text: `[${alt || "图片"}]`, italics: true, color: "64748B" })],
+    return new _docx!.Paragraph({
+      children: [new _docx!.TextRun({ text: `[${alt || "图片"}]`, italics: true, color: "64748B" })],
       spacing: { after: 120 },
     });
   }
@@ -179,9 +182,9 @@ async function paragraphFromImageLine(src: string, alt: string): Promise<Paragra
     // Fall back to default dimensions
   }
 
-  return new Paragraph({
+  return new _docx!.Paragraph({
     children: [
-      new ImageRun({
+      new _docx!.ImageRun({
         type: parsed.type,
         data: parsed.bytes,
         transformation,
@@ -193,6 +196,7 @@ async function paragraphFromImageLine(src: string, alt: string): Promise<Paragra
 }
 
 export async function markdownToDocxParagraphs(content: string): Promise<Paragraph[]> {
+  await ensureDocx();
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   const paragraphs: Paragraph[] = [];
   let inCode = false;
@@ -230,14 +234,14 @@ export async function markdownToDocxParagraphs(content: string): Promise<Paragra
     }
 
     if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(trimmed)) {
-      paragraphs.push(new Paragraph({ children: [new TextRun("")], spacing: { after: 120 } }));
+      paragraphs.push(new _docx!.Paragraph({ children: [new _docx!.TextRun("")], spacing: { after: 120 } }));
       continue;
     }
 
     const heading = trimmed.match(/^(#{1,6})\s+(.*)$/);
     if (heading) {
       paragraphs.push(
-        new Paragraph({
+        new _docx!.Paragraph({
           heading: headingLevelFromMarkdown(heading[1].length),
           children: parseInlineRuns(heading[2]),
           spacing: { before: 180, after: 120 },
@@ -253,8 +257,8 @@ export async function markdownToDocxParagraphs(content: string): Promise<Paragra
 
     if (/^[-*+]\s/.test(trimmed)) {
       paragraphs.push(
-        new Paragraph({
-          children: [new TextRun("• "), ...parseInlineRuns(trimmed.replace(/^[-*+]\s/, ""))],
+        new _docx!.Paragraph({
+          children: [new _docx!.TextRun("• "), ...parseInlineRuns(trimmed.replace(/^[-*+]\s/, ""))],
           spacing: { after: 80 },
           indent: { left: 360 },
         }),
@@ -265,8 +269,8 @@ export async function markdownToDocxParagraphs(content: string): Promise<Paragra
     const ordered = trimmed.match(/^(\d+)\.\s+(.*)$/);
     if (ordered) {
       paragraphs.push(
-        new Paragraph({
-          children: [new TextRun(`${ordered[1]}. `), ...parseInlineRuns(ordered[2])],
+        new _docx!.Paragraph({
+          children: [new _docx!.TextRun(`${ordered[1]}. `), ...parseInlineRuns(ordered[2])],
           spacing: { after: 80 },
           indent: { left: 360 },
         }),
@@ -282,9 +286,10 @@ export async function markdownToDocxParagraphs(content: string): Promise<Paragra
 }
 
 export async function buildDocxBlob(title: string, content: string): Promise<Blob> {
+  const docx = await ensureDocx();
   const withAssets = await embedAssetsInMarkdown(content);
   const children = await markdownToDocxParagraphs(withAssets);
-  const doc = new Document({
+  const doc = new docx.Document({
     creator: "",
     title,
     description: "",
@@ -292,9 +297,9 @@ export async function buildDocxBlob(title: string, content: string): Promise<Blo
       {
         properties: {},
         children: [
-          new Paragraph({
-            heading: HeadingLevel.TITLE,
-            children: [new TextRun({ text: title, bold: true, size: 36 })],
+          new docx.Paragraph({
+            heading: docx.HeadingLevel.TITLE,
+            children: [new docx.TextRun({ text: title, bold: true, size: 36 })],
             spacing: { after: 240 },
           }),
           ...children,
@@ -302,7 +307,7 @@ export async function buildDocxBlob(title: string, content: string): Promise<Blo
       },
     ],
   });
-  return Packer.toBlob(doc);
+  return docx.Packer.toBlob(doc);
 }
 
 /** 导出 Word（.docx），不叠加水印、不加密，适合办公协作 */

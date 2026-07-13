@@ -26,13 +26,18 @@ const outboundTitles = computed(() => {
 
 const outboundResolved = computed(() => {
 
+  const titleMap = new Map<string, string>();
+  for (const d of documents.tree) {
+    titleMap.set(normalizeTitle(d.title), d.id);
+  }
+
   return outboundTitles.value.map((title) => {
 
     const norm = normalizeTitle(title);
 
-    const doc = documents.tree.find((d) => normalizeTitle(d.title) === norm);
+    const id = titleMap.get(norm);
 
-    return { title, id: doc?.id, exists: !!doc };
+    return { title, id, exists: !!id };
 
   });
 
@@ -85,6 +90,10 @@ async function convertMention(sourceId: string) {
   >
 
     <div class="mb-5">
+
+      <p class="mb-2 text-[10px] leading-relaxed text-muted">
+        在正文输入 <code class="rounded bg-surface-1 px-1">[[</code> 可插入双链；下方列出引用当前文档的笔记。
+      </p>
 
       <h3 class="mb-2 text-[10px] font-medium uppercase tracking-wide text-muted">反向链接</h3>
 

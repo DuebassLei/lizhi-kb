@@ -33,7 +33,7 @@ const exportableCount = computed(
 );
 
 const surfaceLabel = computed(() =>
-  props.surface === "workspace" ? "工作区对话" : "独立页对话",
+  props.surface === "workspace" ? "知识库对话" : "独立页对话",
 );
 
 const summary = computed(() => formatSessionListSummary(sessions.value));

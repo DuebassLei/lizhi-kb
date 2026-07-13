@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/sync-ai-bridge-resources.mjs",
     "build": "pnpm run verify:fe && pnpm run build:mcp",
     "build:mcp": "pnpm --filter @lizhi/mcp build",
     "verify": "node scripts/verify-build.mjs",

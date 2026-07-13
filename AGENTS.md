@@ -72,6 +72,19 @@ tests/e2e/        Playwright
 
 **路由 IA**：`/welcome` → `/unlock` → `/insights`（默认）→ `/workspace`（编辑/图谱为视图切换）→ `/settings`；并列 **`/cc-workbench`**（Agent 工作台，侧栏入口）
 
+### Agent 工作台（Claude Code）
+
+独立路由，与 AI 助手三模式**并列不合并**。SSOT：[2026-07-10-cc-workbench-design.md](./docs/superpowers/specs/2026-07-10-cc-workbench-design.md)（**v1.0.2**，已对齐 jetbrains-cc-gui 截至 2026-07-13）。
+
+| 项 | 说明 |
+|----|------|
+| 运行时 | `packages/ai-bridge` → Tauri spawn → Claude Agent SDK |
+| 配置 | `cc-workbench.json`、`cc-secrets.json`；Claude 生态见 `~/.claude/` |
+| 工作目录 | **vault**（默认，仅 lizhi-mcp）/ **project**（完整文件工具 + Bash） |
+| bridge 同步 | 改 `packages/ai-bridge` 后：`node scripts/sync-ai-bridge-resources.mjs` |
+
+**CC GUI 新功能**：不自动追平；用户点名后按工作台 spec **§17** 做差距分析 → Plan → 实现 → 更新 spec。
+
 ## 编码原则
 
 1. **最小 diff** — 只改任务相关文件

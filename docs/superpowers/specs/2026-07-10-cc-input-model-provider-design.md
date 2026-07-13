@@ -269,43 +269,43 @@ const longContextEnabled: Ref<boolean>
 
 ---
 
-## 9. 验收标准
+## 9. 验收标准（v1.0.2 已实现）
 
 ### 9.1 供应商切换
 
-- [ ] 底栏显示当前激活供应商名称  
-- [ ] 下拉列出全部已配置供应商，当前项有 ✓  
-- [ ] 切换后模型列表、选中模型、测试缓存按新供应商更新  
-- [ ] LOCAL settings 供应商切换仍弹出确认  
-- [ ] 切换过程中下拉禁用，失败有 error toast  
+- [x] 底栏显示当前激活供应商名称  
+- [x] 下拉列出全部已配置供应商，当前项有 ✓  
+- [x] 切换后模型列表、选中模型、测试缓存按新供应商更新  
+- [x] LOCAL settings 供应商切换仍弹出确认  
+- [x] 切换过程中下拉禁用，失败有 error toast  
 
 ### 9.2 模型列表
 
-- [ ] 三槽位同 ID 时仍显示 Sonnet/Opus/Haiku 三行（带角色描述）  
-- [ ] 内置目录模型可见并可选择  
-- [ ] 「+ 添加自定义模型」可添加并在列表「自定义」组展示  
-- [ ] 最近使用最多 5 个，切换模型后更新  
-- [ ] 模型可用性测试与 20s 超时仍正常工作  
+- [x] 三槽位同 ID 时仍显示 Sonnet/Opus/Haiku 三行（带角色描述）  
+- [x] 内置目录模型可见并可选择  
+- [x] 「+ 添加自定义模型」可添加并在列表「自定义」组展示  
+- [x] 最近使用最多 5 个，切换模型后更新  
+- [x] 模型可用性测试与 20s 超时仍正常工作  
 
 ### 9.3 1M 上下文
 
-- [ ] 模型下拉底部有 1M Switch  
-- [ ] Haiku 等不支持模型时 Switch 禁用  
-- [ ] 开启后 `selectedModelId` 带 `[1m]`，context 进度条按 1M 计算  
-- [ ] 关闭后移除后缀，发消息使用 base ID  
-- [ ] 偏好持久化，重启后恢复  
+- [x] 模型下拉底部有 1M Switch  
+- [x] Haiku 等不支持模型时 Switch 禁用  
+- [x] 开启后 `selectedModelId` 带 `[1m]`，context 进度条按 1M 计算  
+- [x] 关闭后移除后缀，发消息使用 base ID  
+- [x] 偏好持久化，重启后恢复  
 
 ### 9.4 设置页同步
 
-- [ ] 设置 → CC 工作台可见当前供应商的自定义模型列表  
-- [ ] 设置页添加/删除与输入栏列表实时同步  
-- [ ] 删除当前选中模型时自动回退默认模型  
+- [x] 设置 → CC 工作台可见当前供应商的自定义模型列表  
+- [x] 设置页添加/删除与输入栏列表实时同步  
+- [x] 删除当前选中模型时自动回退默认模型  
 
 ### 9.5 回归
 
-- [ ] 斜杠命令、@ 补全、权限模式、effort 下拉不受影响  
-- [ ] 输入触发符：`@` 引用文件、`#` 唤起智能体、`!` 插入提示词、`/` 行首斜杠命令（见 [工作台设计 §7.2](./2026-07-10-cc-workbench-design.md#72-输入触发符)）  
-- [ ] `pnpm verify:fe` 零 warning  
+- [x] 斜杠命令、@ 补全、权限模式、effort 下拉不受影响  
+- [x] 输入触发符：`@` 引用文件、`#` 唤起智能体、`!` 插入提示词、`/` 行首斜杠命令（见 [工作台设计 §7.2](./2026-07-10-cc-workbench-design.md#72-输入触发符)）  
+- [x] `pnpm verify:fe` 零 warning  
 
 ---
 
@@ -326,19 +326,19 @@ const longContextEnabled: Ref<boolean>
 - Codex / Gemini 供应商与模型  
 - 远程 API 拉取模型列表  
 - 设置页供应商表单重构  
-- 自定义模型 pricing 同步（CC GUI Java 侧能力）  
-- 按模型独立记忆 1M 开关（v1 用全局 `longContextEnabled`）
+- 按模型独立记忆 1M 开关（v1 用全局 `longContextEnabled`；per-model 1M 已在 v1.0.2 工作台补齐，见 [工作台 spec §14](./2026-07-10-cc-workbench-design.md#14-已实现能力清单v102)）
 
 ---
 
-## 12. 后续（v1.1+）
+## 12. 已在 v1.0.2 补齐（原 v1.1+ 计划）
 
-- 模型搜索框（列表 > 15 项时）  
-- 供应商图标 / 模型 icon  
-- per-model 1M 记忆  
-- 自定义模型导入/导出  
+- [x] 模型搜索框（`CcChatInputBox` 模型下拉）  
+- [x] 供应商 / 模型图标（`ccProviderIcons.ts`）  
+- [x] per-model 1M（`useCcModelCatalog` + `ccWorkbench` store）  
+- [x] 自定义模型 JSON 导入/导出（`CcCustomModelsSection`）  
+- [x] 自定义模型 input/output 单价（用量 Tab 估算）
 
----
+CC GUI 后续新能力对齐流程见 [工作台 spec §17](./2026-07-10-cc-workbench-design.md#17-cc-gui-后续对齐流程)。
 
 ## 附录 A：参考实现
 

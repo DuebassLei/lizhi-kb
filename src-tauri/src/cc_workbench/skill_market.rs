@@ -75,11 +75,10 @@ fn resolve_skill_market_uncached(app: Option<&AppHandle>) -> Option<PathBuf> {
     }
 
     if let Ok(cwd) = std::env::current_dir() {
-        for rel in ["src-tauri/resources/cc-skill-market.json"] {
-            let candidate = cwd.join(rel);
-            if candidate.is_file() {
-                return Some(candidate);
-            }
+        let rel = "src-tauri/resources/cc-skill-market.json";
+        let candidate = cwd.join(rel);
+        if candidate.is_file() {
+            return Some(candidate);
         }
     }
 

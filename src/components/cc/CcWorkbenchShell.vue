@@ -2,31 +2,42 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import {
+  GitCommit,
   History,
   MessageSquarePlus,
   PanelRight,
   Search,
   Settings,
-  SquarePen,
   X,
 } from "@lucide/vue";
 
-import { useDocumentsStore } from "../../stores/documents";
 import { useCcWorkbenchStore } from "../../stores/ccWorkbench";
 import { useUiStore } from "../../stores/ui";
 import CcChatInputBox from "./chat/CcChatInputBox.vue";
 import CcChatMessage from "./chat/CcChatMessage.vue";
 import CcChatWelcome from "./chat/CcChatWelcome.vue";
+import CcModeContextBar from "./chat/CcModeContextBar.vue";
 import CcWorkbenchDrawer from "./CcWorkbenchDrawer.vue";
 import CcWorkbenchSplitPanel from "./CcWorkbenchSplitPanel.vue";
 import CcHistoryPanel from "./chat/CcHistoryPanel.vue";
 import CcSessionTitleEditor from "./chat/CcSessionTitleEditor.vue";
 import CcStatusPanelBar from "./chat/CcStatusPanelBar.vue";
 import CcToolPermissionDialog from "./chat/CcToolPermissionDialog.vue";
+import CcCommitAiDialog from "./settings/CcCommitAiDialog.vue";
+import { ccWorkbenchGitUndoEdits } from "../../services/ccWorkbenchService";
 import type { CcFileChangeItem, CcSubagentItem } from "../../composables/cc/useCcStatusPanel";
+import { resolveMessageBlocks } from "../../utils/ccMessageBlocks";
+import {
+  buildSessionMarkdown,
+  buildCcSessionsMarkdown,
+} from "../../utils/exportCcSessions";
+import { copyToClipboard } from "../../utils/copyToClipboard";
+import {
+  messageHasSuccessfulLizhiQueryTool,
+  vaultKbQueryModelHint,
+} from "../../utils/ccVaultQueryGuard";
 
 const cc = useCcWorkbenchStore();
-const documents = useDocumentsStore();
 const ui = useUiStore();
 const {
   config,
@@ -36,18 +47,21 @@ const {
   loadError,
   statusHint,
   ready,
+  status,
+  sessionId,
+  sessionBoundCwdMode,
   activeProvider,
   providers,
   switchingProvider,
   modelOptions,
   selectedModelId,
-  longContextEnabled,
+  effectiveLongContextEnabled,
+  context1mDisabled,
   permissionMode,
   reasoningEffort,
   statusPanelExpanded,
   statusPanelTab,
   statusPanelData,
-  cwdModeLabelText,
   contextLabel,
   contextPercentage,
   contextUsedTokens,
@@ -71,6 +85,7 @@ const splitOpen = ref(false);
 const selectedFileChange = ref<CcFileChangeItem | null>(null);
 const selectedSubagent = ref<CcSubagentItem | null>(null);
 const exporting = ref(false);
+const commitDialogOpen = ref(false);
 
 const filteredMessages = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
@@ -97,21 +112,36 @@ const displayContextLabel = computed(() => {
   return "";
 });
 
-const activeDocumentPath = computed(() => {
-  const id = documents.activeId;
-  if (!id) return null;
-  return documents.tree.find((d) => d.id === id)?.path ?? null;
+const sessionCwdMismatch = computed(() => {
+  if (!sessionId.value || !config.value) return false;
+  return sessionBoundCwdMode.value !== null && sessionBoundCwdMode.value !== config.value.cwdMode;
 });
+
+const vaultKbModelHint = computed(() => {
+  const historyHasLizhiMcpResult = messages.value.some((msg) => {
+    if (msg.role !== "assistant") return false;
+    const blocks = resolveMessageBlocks(msg);
+    return messageHasSuccessfulLizhiQueryTool(undefined, blocks);
+  });
+  return vaultKbQueryModelHint({
+    cwdMode: config.value?.cwdMode ?? "vault",
+    modelId: selectedModelId.value,
+    inputText: input.value,
+    historyHasLizhiMcpResult,
+  });
+});
+
+function priorUserTextForMessage(index: number): string | null {
+  for (let i = index - 1; i >= 0; i -= 1) {
+    const msg = filteredMessages.value[i];
+    if (msg?.role === "user") return msg.content;
+  }
+  return null;
+}
 
 function renameSessionTitle(title: string) {
   cc.renameCurrentSessionTitle(title);
   ui.showToast("success", "已重命名会话");
-}
-
-function attachCurrentDocument() {
-  const path = activeDocumentPath.value;
-  if (!path) return;
-  cc.attachContextPaths([path]);
 }
 
 function scrollToBottom() {
@@ -137,8 +167,16 @@ function onSettingsSaved() {
   void cc.refresh();
 }
 
-function onAddCustomModel(payload: { id: string; label?: string }) {
-  const ok = cc.addCustomModel(payload.id, payload.label);
+function onAddCustomModel(payload: {
+  id: string;
+  label?: string;
+  inputPrice?: number;
+  outputPrice?: number;
+}) {
+  const ok = cc.addCustomModel(payload.id, payload.label, {
+    inputPrice: payload.inputPrice,
+    outputPrice: payload.outputPrice,
+  });
   if (!ok) {
     ui.showToast("error", "模型 ID 无效或已存在");
   }
@@ -182,6 +220,17 @@ function onSelectSubagent(item: CcSubagentItem) {
   cc.statusPanelExpanded = true;
 }
 
+function onClarifyFill(text: string) {
+  input.value = text;
+  ui.showToast("success", "已填入输入框");
+}
+
+function onClarifySubmit(text: string) {
+  if (streaming.value) return;
+  input.value = text;
+  void cc.send();
+}
+
 function deleteHistoryEntry(id: string) {
   cc.deleteHistorySession(id);
   ui.showToast("success", "已删除会话");
@@ -218,9 +267,64 @@ async function handleExportHistory(format: "md" | "json") {
   }
 }
 
+async function handleCopyCurrent() {
+  if (!messages.value.length) return;
+  const entry = {
+    id: activeHistoryId.value ?? `cc-export-${Date.now()}`,
+    title: sessionTitleText.value,
+    updatedAt: Date.now(),
+    messages: messages.value,
+    sessionId: sessionId.value,
+    openedFiles: [...openedFiles.value],
+    selectedAgent: selectedAgent.value ? { name: selectedAgent.value.name } : null,
+  };
+  try {
+    const md = buildSessionMarkdown(entry);
+    const ok = await copyToClipboard(md);
+    if (ok) ui.showToast("success", "已复制当前会话 Markdown");
+  } catch (e) {
+    ui.showToast("error", e instanceof Error ? e.message : "复制失败");
+  }
+}
+
+async function handleCopyAll() {
+  if (!history.value.length) return;
+  try {
+    const md = buildCcSessionsMarkdown(history.value);
+    const ok = await copyToClipboard(md);
+    if (ok) ui.showToast("success", "已复制全部历史 Markdown");
+  } catch (e) {
+    ui.showToast("error", e instanceof Error ? e.message : "复制失败");
+  }
+}
+
 function clearAllHistory() {
   cc.clearAllHistory();
   ui.showToast("success", "已清空历史会话");
+}
+
+async function onUndoEdits() {
+  const path = config.value?.projectPath;
+  if (!path || config.value?.cwdMode !== "project") {
+    ui.showToast("error", "仅项目模式可撤销文件编辑");
+    return;
+  }
+  const files = statusPanelData.value.fileChanges.map((f) => f.path);
+  if (!files.length) return;
+  try {
+    const count = await ccWorkbenchGitUndoEdits(path, files);
+    ui.showToast("success", `已撤销 ${count} 个文件的编辑`);
+  } catch (e) {
+    ui.showToast("error", e instanceof Error ? e.message : "撤销失败");
+  }
+}
+
+function onKeepAllEdits() {
+  ui.showToast("success", "已保留全部编辑");
+}
+
+function onDiscardAllEdits() {
+  void onUndoEdits();
 }
 </script>
 
@@ -260,6 +364,15 @@ function clearAllHistory() {
             @click="toggleSplit"
           >
             <PanelRight class="h-4 w-4" />
+          </button>
+          <button
+            v-if="config?.cwdMode === 'project' && config?.projectPath"
+            type="button"
+            class="cc-workbench-icon-btn"
+            title="Commit AI"
+            @click="commitDialogOpen = true"
+          >
+            <GitCommit class="h-4 w-4" />
           </button>
           <button
             type="button"
@@ -319,6 +432,8 @@ function clearAllHistory() {
           @rename="renameHistoryEntry"
           @export-current="handleExportCurrent"
           @export-all="handleExportHistory"
+          @copy-current="handleCopyCurrent"
+          @copy-all="handleCopyAll"
           @clear-all="clearAllHistory"
         />
       </div>
@@ -326,24 +441,25 @@ function clearAllHistory() {
 
     <div class="flex min-h-0 flex-1">
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
-    <div
-      v-if="loadError || statusHint || !config?.enabled"
-      class="shrink-0 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-amber-800 dark:text-amber-200"
-    >
-      <template v-if="loadError">{{ loadError }}</template>
-      <template v-else-if="!config?.enabled">
-        工作台未启用，请
-        <button type="button" class="underline" @click="openSettings">打开设置</button>
-        开启。
-      </template>
-      <template v-else-if="statusHint">{{ statusHint }}</template>
-    </div>
+    <CcModeContextBar
+      :cwd-mode="config?.cwdMode ?? 'vault'"
+      :mcp-enabled="status?.mcpEnabled"
+      :runtime-ready="ready"
+      :status-hint="statusHint"
+      :load-error="loadError"
+      :workbench-enabled="config?.enabled"
+      :session-cwd-mismatch="sessionCwdMismatch"
+      @open-settings="openSettings"
+    />
 
     <div ref="listEl" class="cc-workbench-messages min-h-0 flex-1 overflow-y-auto px-5 py-2">
       <CcChatWelcome
         v-if="!messages.length"
         :provider-name="activeProvider?.name"
         :selected-agent="selectedAgent"
+        :cwd-mode="config?.cwdMode ?? 'vault'"
+        :mcp-enabled="status?.mcpEnabled"
+        :runtime-ready="ready"
         @select-agent="cc.setSelectedAgent($event)"
       />
       <div v-else class="mx-auto max-w-3xl">
@@ -354,8 +470,14 @@ function clearAllHistory() {
           :is-last="index === filteredMessages.length - 1"
           :streaming="streaming"
           :is-thinking="isThinking"
+          :clarify-agent-id="selectedAgent?.id ?? null"
+          :cwd-mode="config?.cwdMode ?? 'vault'"
+          :prior-user-text="priorUserTextForMessage(index)"
+          :prev-created-at="index > 0 ? filteredMessages[index - 1]?.createdAt : undefined"
           @select-file-change="onSelectFileChange"
           @select-subagent="onSelectSubagent"
+          @clarify-fill="onClarifyFill"
+          @clarify-submit="onClarifySubmit"
         />
       </div>
     </div>
@@ -367,14 +489,20 @@ function clearAllHistory() {
           :active-tab="statusPanelTab"
           :todo-count="statusPanelData.todoCount"
           :subagent-count="statusPanelData.subagentCount"
+          :subagent-running-count="statusPanelData.subagentRunningCount"
           :file-change-count="statusPanelData.fileChangeCount"
           :todos="statusPanelData.todos"
           :subagents="statusPanelData.subagents"
           :file-changes="statusPanelData.fileChanges"
           :streaming="streaming"
+          :cwd-mode="config?.cwdMode"
+          :project-path="config?.projectPath"
           @toggle-tab="cc.toggleStatusPanelTab"
           @select-file="onSelectFileChange"
           @select-subagent="onSelectSubagent"
+          @keep-all-edits="onKeepAllEdits"
+          @discard-all-edits="onDiscardAllEdits"
+          @undo-edits="onUndoEdits"
         />
         <CcChatInputBox
           v-model="input"
@@ -385,10 +513,10 @@ function clearAllHistory() {
           :providers="providers"
           :active-provider-id="activeProvider?.id"
           :switching-provider="switchingProvider"
-          :long-context-enabled="longContextEnabled"
+          :long-context-enabled="effectiveLongContextEnabled"
+          :context-1m-disabled="context1mDisabled"
           :permission-mode="permissionMode"
           :reasoning-effort="reasoningEffort"
-          :cwd-mode-label="cwdModeLabelText"
           :context-label="displayContextLabel"
           :context-percentage="contextPercentage"
           :context-used-tokens="contextUsedTokens"
@@ -399,9 +527,12 @@ function clearAllHistory() {
           :attachments="attachments"
           :disable-thinking="disableThinking"
           :selected-agent="selectedAgent"
-          :active-document-path="activeDocumentPath"
           :runtime-ready="ready"
           :runtime-hint="statusHint"
+          :prompt-enhancer-enabled="config?.promptEnhancer?.enabled !== false"
+          :session-cwd-mismatch="sessionCwdMismatch"
+          :vault-kb-model-hint="vaultKbModelHint"
+          :mcp-enabled="status?.mcpEnabled"
           @update:selected-model-id="cc.setSelectedModelId($event)"
           @update:long-context-enabled="cc.setLongContextEnabled($event)"
           @switch-provider="cc.switchProvider($event)"
@@ -418,16 +549,11 @@ function clearAllHistory() {
           @remove-attachment="cc.removeAttachment"
           @clear-attachments="cc.clearAttachments"
           @attach-files-from-browser="cc.attachFilesFromBrowser"
-          @attach-current-document="attachCurrentDocument"
+          @set-cwd-mode="cc.setCwdMode($event)"
+          @pick-project="cc.pickProject()"
           @submit="cc.send()"
           @stop="cc.stop()"
         />
-        <p class="mt-2 flex items-center justify-center gap-1 text-[0.625rem] text-muted">
-          <SquarePen class="h-3 w-3" />
-          工作目录在
-          <button type="button" class="text-link underline" @click="openSettings">设置</button>
-          中切换（{{ cwdModeLabelText }}）
-        </p>
       </div>
     </footer>
       </div>
@@ -451,6 +577,12 @@ function clearAllHistory() {
       :pending="pendingToolPermission"
       @allow="cc.respondToolPermission('allow')"
       @deny="cc.respondToolPermission('deny', '用户拒绝')"
+    />
+
+    <CcCommitAiDialog
+      :open="commitDialogOpen"
+      :project-path="config?.projectPath ?? null"
+      @close="commitDialogOpen = false"
     />
   </div>
 </template>

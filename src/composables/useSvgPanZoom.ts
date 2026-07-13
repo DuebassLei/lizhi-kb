@@ -19,6 +19,7 @@ export function useSvgPanZoom(_containerRef: Ref<HTMLElement | null>): PanZoomSt
   zoomIn: () => void;
   zoomOut: () => void;
   resetView: () => void;
+  centerAt: (x: number, y: number) => void;
   transformStyle: Ref<string>;
 } {
   const scale = ref(1);
@@ -47,7 +48,7 @@ export function useSvgPanZoom(_containerRef: Ref<HTMLElement | null>): PanZoomSt
 
   function onPointerDown(e: PointerEvent) {
     const target = e.target as HTMLElement;
-    if (target.closest("[data-graph-node]") || target.closest("[data-mindmap-node]")) return;
+    if (target.closest("[data-graph-node]")) return;
     panning = true;
     panStart = { x: e.clientX, y: e.clientY };
     offsetStart = { x: offsetX.value, y: offsetY.value };
@@ -84,6 +85,14 @@ export function useSvgPanZoom(_containerRef: Ref<HTMLElement | null>): PanZoomSt
     syncTransform();
   }
 
+  function centerAt(x: number, y: number) {
+    // 外层容器已用 translate(-50%, -50%) 将 SVG 原点置于容器中心，
+    // 因此只需将目标坐标反向平移缩放后的距离即可居中。
+    offsetX.value = -x * scale.value;
+    offsetY.value = -y * scale.value;
+    syncTransform();
+  }
+
   onMounted(syncTransform);
 
   return {
@@ -98,6 +107,7 @@ export function useSvgPanZoom(_containerRef: Ref<HTMLElement | null>): PanZoomSt
     zoomIn,
     zoomOut,
     resetView,
+    centerAt,
   };
 }
 

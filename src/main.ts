@@ -6,6 +6,8 @@ import { applyTheme, loadStoredTheme } from "./utils/theme";
 import { useVaultStore } from "./stores/vault";
 import { useFoldersStore } from "./stores/folders";
 import { hydrateVaultUiState, schedulePersistVaultUiState } from "./services/vaultUiStateService";
+import { loadStoredDocumentTemplates } from "./utils/documentTemplateSetting";
+import { useDocumentTemplatesStore } from "./stores/documentTemplates";
 import { setChatSessionPersistHook } from "./utils/chatSessionStorage";
 import { registerSensitiveSessionClear } from "./utils/clearSensitiveSession";
 import { isTauriRuntime } from "./services/vaultService";
@@ -23,6 +25,8 @@ import "@fontsource/jetbrains-mono/400.css";
 
 import "./styles/tokens.css";
 import "./styles/components.css";
+import "./styles/insights-motion.css";
+import "./styles/module-pages.css";
 
 applyTheme(loadStoredTheme());
 setChatSessionPersistHook(schedulePersistVaultUiState);
@@ -43,6 +47,7 @@ async function bootstrap() {
   if (isTauriRuntime()) {
     await hydrateVaultUiState();
     useFoldersStore(pinia).load();
+    useDocumentTemplatesStore(pinia).hydrate(loadStoredDocumentTemplates());
   }
 
   app.use(router);

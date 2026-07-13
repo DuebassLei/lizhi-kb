@@ -9,12 +9,12 @@
 | 类别 | 能力 |
 |------|------|
 | **安全存储** | Argon2id + AES-256-GCM 加密库；主密码解锁；可选启动锁定 |
-| **写作** | CodeMirror 6 Markdown 编辑器；分栏预览；Wiki 双链 `[[标题]]`；剪贴板粘贴图片 |
+| **写作** | CodeMirror 6 Markdown 编辑器；分栏预览；Wiki 双链 `[[标题]]`；图片粘贴/插入；查找替换 |
 | **知识组织** | 文件夹树；文档标签；置顶 / 最近；局部知识图谱 |
-| **看板** | 编辑热力图（贪吃蛇动画）；需求看板；每日小记 |
-| **AI** | 本地 Ollama / 云端 API（含 Agnes AI 等预设）；RAG 检索；Agent 工具调用 |
+| **看板** | 编辑热力图（贪吃蛇动画）；需求看板；每日小记；思维导图 |
+| **AI** | 本地 Ollama / 云端 API（含 小鲸鱼 预设）；RAG 检索；**Agent 工作台**（Claude Code 集成） |
 | **集成** | MCP 服务（`lizhi-mcp`）；凭证库（开发中） |
-| **导出** | Markdown / PDF / HTML；按文件夹导出；微信公众号主题预览 |
+| **导出** | Markdown / PDF / HTML；按文件夹导出；微信公众号主题；**Canvas 水印** |
 | **备份** | `.lizhi` 完整备份；整库恢复 / 合并设置 / 合并文档；Markdown 迁移导出 |
 
 ## 前置要求
@@ -120,9 +120,9 @@ lizhi-kb/
 
 ```
 src/
-├── components/   vault | workspace | editor | graph | insights | common
+├── components/   vault | workspace | editor | graph | insights | cc | ai | common | canvas | credentials | journal | launches | mindmap | requirements | settings | ui | wechat
 ├── views/        Welcome / Unlock / Insights / Workspace / Settings
-├── stores/       vault, documents, editor, links, ui, folders
+├── stores/       vault, documents, editor, links, ui, folders, chat, ccWorkbench, credentials, journal, launchRecords, requirements
 ├── composables/  useTauriCommand, useAutoSave, useWikiSuggest…
 └── extensions/   WikiLink.ts
 ```
@@ -134,8 +134,9 @@ src/
 | `/welcome` | FTUE 首次引导（无 vault 时） |
 | `/unlock` | 解锁层 |
 | `/insights` | **看板**（默认首页） |
-| `/workspace` | 主工作区（编辑 / 图谱为**视图切换**） |
+| `/workspace` | **知识库**（编辑 / 图谱为**视图切换**） |
 | `/settings` | 设置 |
+| `/cc-workbench` | **Agent 工作台**（Claude Code 集成） |
 
 原型 `prototype/index.html` 仅作交互参考；实现以 spec 信息架构为准。
 

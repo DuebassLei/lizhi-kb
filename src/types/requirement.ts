@@ -29,6 +29,8 @@ export interface Requirement {
   owner?: string;
   /** 需求来源 */
   source?: string;
+  /** 关联知识库文档 ID */
+  linkedDocumentIds?: string[];
 }
 
 export const REQUIREMENT_STATUSES: RequirementStatus[] = [

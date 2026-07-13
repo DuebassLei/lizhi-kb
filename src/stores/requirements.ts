@@ -97,6 +97,7 @@ export const useRequirementsStore = defineStore("requirements", () => {
     requester?: string;
     owner?: string;
     source?: string;
+    linkedDocumentIds?: string[];
   }) {
     try {
       const req = await createRequirement(input);
@@ -124,6 +125,7 @@ export const useRequirementsStore = defineStore("requirements", () => {
       requester?: string | null;
       owner?: string | null;
       source?: string | null;
+      linkedDocumentIds?: string[] | null;
     },
   ) {
     try {

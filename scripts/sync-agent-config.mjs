@@ -40,6 +40,16 @@ const REQUIRED = [
 
 const SSOT_LINK = 'docs/agent-workflow';
 
+/** 可选辅助 Agent：--report 列出，不参与 --check 失败 */
+const OPTIONAL_AGENTS = [
+  '.claude/agents/explore.md',
+  '.claude/agents/code-reviewer.md',
+  '.claude/agents/lizhi-kb-assistant.md',
+  '.claude/agents/general-assistant.md',
+  '.claude/agents/guizang-ppt.md',
+  '.claude/agents/wechat-mp-writer.md',
+];
+
 function checkRequired() {
   return REQUIRED.filter((p) => !existsSync(join(ROOT, p)));
 }
@@ -91,6 +101,14 @@ if (mode === 'report') {
   console.log('必需文件:', REQUIRED.length - missing.length, '/', REQUIRED.length);
   console.log('规则对:', PAIRS.length - pairIssues.length / 2, '/', PAIRS.length);
   console.log('模板:', 5 - templateIssues.length, '/ 5');
+  const optionalPresent = OPTIONAL_AGENTS.filter((p) => existsSync(join(ROOT, p)));
+  console.log('可选 Agent:', optionalPresent.length, '/', OPTIONAL_AGENTS.length);
+  if (optionalPresent.length < OPTIONAL_AGENTS.length) {
+    console.log('  缺失:');
+    OPTIONAL_AGENTS.filter((p) => !existsSync(join(ROOT, p))).forEach((p) =>
+      console.log('    -', p),
+    );
+  }
   if (all.length) {
     console.log('\n问题:');
     all.forEach((i) => console.log('  -', i));

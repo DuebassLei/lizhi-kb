@@ -73,7 +73,36 @@ struct ChatCompletionResponse {
 
 #[derive(Debug, Deserialize)]
 struct ChatChoice {
-    message: Option<ChatMessage>,
+    message: Option<ChatResponseMessage>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct ChatResponseMessage {
+    #[serde(default)]
+    content: Option<String>,
+    #[serde(default, alias = "reasoningContent")]
+    reasoning_content: Option<String>,
+    #[serde(default)]
+    reasoning: Option<String>,
+    #[serde(default)]
+    thinking: Option<String>,
+}
+
+fn agent_llm_reply_text(message: &ChatResponseMessage) -> String {
+    let content = message.content.as_deref().unwrap_or("").trim();
+    if !content.is_empty() {
+        return content.to_string();
+    }
+    for extra in [
+        message.reasoning_content.as_deref(),
+        message.reasoning.as_deref(),
+        message.thinking.as_deref(),
+    ] {
+        if let Some(s) = extra.map(str::trim).filter(|s| !s.is_empty()) {
+            return s.to_string();
+        }
+    }
+    String::new()
 }
 
 #[derive(Debug, Deserialize)]
@@ -472,6 +501,6 @@ pub async fn chat_once(
         .into_iter()
         .next()
         .and_then(|c| c.message)
-        .map(|m| m.content)
+        .map(|m| agent_llm_reply_text(&m))
         .unwrap_or_default())
 }

@@ -6,6 +6,7 @@ export const useEditorStore = defineStore("editor", () => {
   const mode = ref<EditorMode>("edit");
   const isDirty = ref(false);
   const isSaving = ref(false);
+  const saveError = ref<string | null>(null);
   const wordCount = ref(0);
 
   let saveHandler: (() => Promise<void>) | null = null;
@@ -23,9 +24,14 @@ export const useEditorStore = defineStore("editor", () => {
     await saveHandler();
   }
 
+  function clearSaveError() {
+    saveError.value = null;
+  }
+
   function clear() {
     isDirty.value = false;
     isSaving.value = false;
+    saveError.value = null;
     wordCount.value = 0;
   }
 
@@ -33,6 +39,8 @@ export const useEditorStore = defineStore("editor", () => {
     mode,
     isDirty,
     isSaving,
+    saveError,
+    clearSaveError,
     wordCount,
     registerSaveHandler,
     unregisterSaveHandler,

@@ -33,8 +33,10 @@ export function useAutoSave(options: AutoSaveOptions) {
     try {
       const result = await saveDocument(id, options.getContent());
       editor.isDirty = false;
+      editor.clearSaveError();
       options.onSaved?.(result.savedAt);
     } catch (e) {
+      editor.saveError = e instanceof Error ? e.message : String(e);
       options.onError?.(e);
     } finally {
       saving = false;

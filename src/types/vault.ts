@@ -53,6 +53,7 @@ export interface LockState {
 export type VaultErrorCode =
   | "VAULT_LOCKED"
   | "WRONG_PASSWORD"
+  | "LOCKOUT"
   | "INVALID_RECOVERY_PHRASE"
   | "IO_ERROR"
   | "VAULT_NOT_FOUND";

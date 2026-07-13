@@ -66,6 +66,21 @@
 **Claude Code**：`.claude/agents/debugger.md`  
 **Cursor**：Debug 模式 + `systematic-debugging` 技能
 
+### 2.5 辅助 Agent（可选）
+
+以下 Agent 与 §2 四角色**互补**，不参与 `--check` 必需列表；定义见 `.claude/agents/`，内置市场见 `src-tauri/resources/cc-agent-market.json`。
+
+| Agent | 文件 | 何时使用 |
+|-------|------|----------|
+| **探索者 Explore** | `explore.md` | 只读摸底：路由、模块位置、调用链 |
+| **代码审查 Code Reviewer** | `code-reviewer.md` | PR 前快速自查（通用维度） |
+| **狸知助手** | `lizhi-kb-assistant.md` | 项目专属：vault/project 边界、IA、委派专职 Agent |
+| **基础助手** | `general-assistant.md` | 日常问答与轻量辅助 |
+| **归藏 PPT** | `guizang-ppt.md` | guizang-ppt-skill 横向翻页 PPT |
+| **公众号创作** | `wechat-mp-writer.md` | 公众号撰写与去 AI 味润色 |
+
+**Cursor 等价**：Explore → `subagent_type=explore`；Code Reviewer → `code-reviewer` / Bugbot subagent。
+
 ## 3. 编排模式
 
 ### 3.1 顺序模式（默认）

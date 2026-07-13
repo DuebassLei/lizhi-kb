@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 
 import { tauriInvoke } from "../composables/useTauriCommand";
 import type { StreamEvent } from "./aiService";
+import { isTauriRuntime } from "./vaultService";
 
 export type CwdMode = "vault" | "project";
 export type CcProviderMode = "official" | "custom";
@@ -63,6 +64,15 @@ export interface CcWorkbenchConfigPublic {
   providers: CcProviderPublic[];
   apiKeyMasked: string;
   apiKey?: string | null;
+  promptEnhancer?: CcPromptEnhancerConfig;
+  agentMarketUrl?: string | null;
+  skillMarketUrl?: string | null;
+}
+
+export interface CcPromptEnhancerConfig {
+  enabled: boolean;
+  autoTrigger: boolean;
+  systemPrompt?: string;
 }
 
 export interface CcWorkbenchConfigUpdate {
@@ -74,6 +84,9 @@ export interface CcWorkbenchConfigUpdate {
   model?: string;
   fastModel?: string;
   anthropicApiKey?: string;
+  promptEnhancer?: CcPromptEnhancerConfig;
+  agentMarketUrl?: string | null;
+  skillMarketUrl?: string | null;
 }
 
 export interface CcProviderInput {
@@ -160,10 +173,6 @@ export interface CcSkillMarketEntry {
   description: string;
   repoUrl: string;
   installHint: string;
-}
-
-function isTauriRuntime(): boolean {
-  return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
 function createStreamChannel(onEvent: (event: StreamEvent) => void): Channel<StreamEvent> {
@@ -429,7 +438,7 @@ export interface CcAgentImportResult {
 export interface CcAgentExportRequest {
   agents: CcAgentDeleteRequest[];
   destDir: string;
-  format: "md" | "json";
+  format: "md" | "json" | "zip";
 }
 
 export interface CcAgentExportResult {
@@ -852,4 +861,134 @@ export async function saveCcHooks(
 ): Promise<CcHooksPreview> {
   if (!isTauriRuntime()) throw new Error("请在 Tauri 应用中保存 Hooks");
   return tauriInvoke<CcHooksPreview>("save_cc_hooks", { scope, hooksJson });
+}
+
+export interface CcImportPreviewItem {
+  id: string;
+  name: string;
+  status: "new" | "conflict" | "error" | string;
+  sourcePath: string;
+  message?: string | null;
+}
+
+export interface CcImportPreview {
+  items: CcImportPreviewItem[];
+  errors: string[];
+}
+
+export async function previewCcAgentsImport(
+  request: CcAgentImportRequest,
+): Promise<CcImportPreview> {
+  return tauriInvoke<CcImportPreview>("preview_cc_agents_import", { request });
+}
+
+export async function previewCcSkillsImport(
+  request: CcSkillImportRequest,
+): Promise<CcImportPreview> {
+  return tauriInvoke<CcImportPreview>("preview_cc_skills_import", { request });
+}
+
+export async function previewCcPromptsImport(
+  request: CcPromptImportRequest,
+): Promise<CcImportPreview> {
+  return tauriInvoke<CcImportPreview>("preview_cc_prompts_import", { request });
+}
+
+export interface CcClaudePermissions {
+  allow: string[];
+  deny: string[];
+  ask: string[];
+}
+
+export interface CcClaudePermissionsPreview {
+  path: string;
+  exists: boolean;
+  permissions: CcClaudePermissions;
+}
+
+export async function getCcClaudePermissions(): Promise<CcClaudePermissionsPreview> {
+  if (!isTauriRuntime()) {
+    return {
+      path: "~/.claude/settings.json",
+      exists: false,
+      permissions: { allow: [], deny: [], ask: [] },
+    };
+  }
+  return tauriInvoke<CcClaudePermissionsPreview>("get_cc_claude_permissions");
+}
+
+export async function saveCcClaudePermissions(
+  permissions: CcClaudePermissions,
+): Promise<CcClaudePermissionsPreview> {
+  return tauriInvoke<CcClaudePermissionsPreview>("save_cc_claude_permissions", { permissions });
+}
+
+export interface CcUsageEntry {
+  timestamp: number;
+  model: string;
+  providerId?: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  durationMs?: number | null;
+  estimatedCost?: number | null;
+}
+
+export async function appendCcUsageEntry(entry: CcUsageEntry): Promise<void> {
+  if (!isTauriRuntime()) return;
+  return tauriInvoke<void>("append_cc_usage_entry", { entry });
+}
+
+export async function getCcUsageStats(): Promise<CcUsageEntry[]> {
+  if (!isTauriRuntime()) return [];
+  return tauriInvoke<CcUsageEntry[]>("get_cc_usage_stats");
+}
+
+export async function fetchCcMarketCatalog(url: string): Promise<unknown[]> {
+  if (!isTauriRuntime()) return [];
+  const result = await tauriInvoke<unknown[]>("fetch_cc_market_catalog", { url });
+  return Array.isArray(result) ? result : [];
+}
+
+export interface CcGitFileStatus {
+  path: string;
+  status: string;
+}
+
+export interface CcGitStatusResult {
+  files: CcGitFileStatus[];
+  isRepo: boolean;
+}
+
+export async function ccWorkbenchGitStatus(projectPath: string): Promise<CcGitStatusResult> {
+  return tauriInvoke<CcGitStatusResult>("cc_workbench_git_status", { projectPath });
+}
+
+export interface CcGitFileDiffContents {
+  path: string;
+  oldContent: string;
+  newContent: string;
+}
+
+export async function ccWorkbenchGitFileDiff(
+  projectPath: string,
+  path: string,
+): Promise<CcGitFileDiffContents> {
+  return tauriInvoke<CcGitFileDiffContents>("cc_workbench_git_file_diff", {
+    projectPath,
+    path,
+  });
+}
+
+export async function ccWorkbenchGitDiff(
+  projectPath: string,
+  paths: string[],
+): Promise<string> {
+  return tauriInvoke<string>("cc_workbench_git_diff", { projectPath, paths });
+}
+
+export async function ccWorkbenchGitUndoEdits(
+  projectPath: string,
+  paths: string[],
+): Promise<number> {
+  return tauriInvoke<number>("cc_workbench_git_undo_edits", { projectPath, paths });
 }

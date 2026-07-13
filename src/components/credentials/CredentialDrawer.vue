@@ -53,6 +53,7 @@ watch(
   (open) => {
     if (!open) {
       showPassword.value = false;
+      password.value = "";
       if (revealTimer) clearTimeout(revealTimer);
     }
   },
@@ -99,16 +100,27 @@ function onKeydown(e: KeyboardEvent) {
 </script>
 
 <template>
-  <Transition name="drawer">
-    <aside
-      v-if="open && draft"
-      class="fixed inset-y-0 right-0 z-[100] flex w-full max-w-md flex-col border-l border-border bg-surface-0 shadow-xl"
-      role="dialog"
-      aria-modal="true"
-      aria-label="凭据编辑"
-      data-testid="credential-drawer"
-      @keydown="onKeydown"
-    >
+  <Teleport to="body">
+    <Transition name="drawer">
+      <div
+        v-if="open && draft"
+        class="fixed inset-0 z-50 flex justify-end"
+        data-testid="credential-drawer"
+      >
+        <button
+          type="button"
+          class="absolute inset-0 bg-overlay backdrop-blur-[2px]"
+          aria-label="关闭"
+          @click="emit('close')"
+        />
+
+        <aside
+          class="relative flex h-full w-full max-w-md flex-col border-l border-border bg-surface-0 shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label="凭据编辑"
+          @keydown="onKeydown"
+        >
       <header class="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
         <div class="min-w-0">
           <h2 class="text-sm font-medium">{{ heading }}</h2>
@@ -246,8 +258,10 @@ function onKeydown(e: KeyboardEvent) {
           </Btn>
         </div>
       </footer>
-    </aside>
-  </Transition>
+        </aside>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

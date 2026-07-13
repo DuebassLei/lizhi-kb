@@ -5,6 +5,8 @@ import { Rocket, X } from "@lucide/vue";
 import Btn from "../ui/Btn.vue";
 import Input from "../ui/Input.vue";
 import { useLaunchRecordsStore } from "../../stores/launchRecords";
+import { useDocumentsStore } from "../../stores/documents";
+import { useRequirementsStore } from "../../stores/requirements";
 import type { Requirement, RequirementPriority, RequirementStatus } from "../../types/requirement";
 import {
   formatRequirementDate,
@@ -34,6 +36,7 @@ const emit = defineEmits<{
       requester?: string | null;
       owner?: string | null;
       source?: string | null;
+      linkedDocumentIds?: string[] | null;
     },
   ];
   delete: [];
@@ -41,6 +44,8 @@ const emit = defineEmits<{
 
 const router = useRouter();
 const launchStore = useLaunchRecordsStore();
+const documents = useDocumentsStore();
+const requirementsStore = useRequirementsStore();
 
 const number = ref("");
 const content = ref("");
@@ -56,6 +61,15 @@ const dueAtLocal = ref("");
 const proposedAtLocal = ref("");
 const expectedLaunchAtLocal = ref("");
 const actualLaunchAtLocal = ref("");
+const linkedDocumentIds = ref<string[]>([]);
+const docPickerOpen = ref(false);
+
+watch(
+  () => props.open,
+  (isOpen) => {
+    if (isOpen) void documents.fetchTree();
+  },
+);
 
 watch(
   () => props.requirement,
@@ -75,6 +89,7 @@ watch(
     proposedAtLocal.value = req.proposedAt ? toLocalInput(req.proposedAt) : "";
     expectedLaunchAtLocal.value = req.expectedLaunchAt ? toLocalInput(req.expectedLaunchAt) : "";
     actualLaunchAtLocal.value = req.actualLaunchAt ? toLocalInput(req.actualLaunchAt) : "";
+    linkedDocumentIds.value = [...(req.linkedDocumentIds ?? [])];
   },
   { immediate: true },
 );
@@ -121,6 +136,7 @@ function handleSave() {
     proposedAt: parseDateTime(proposedAtLocal.value),
     expectedLaunchAt: parseDateTime(expectedLaunchAtLocal.value),
     actualLaunchAt: parseDateTime(actualLaunchAtLocal.value),
+    linkedDocumentIds: linkedDocumentIds.value.length ? [...linkedDocumentIds.value] : null,
   });
 }
 
@@ -134,19 +150,64 @@ function createLaunchRecord() {
   emit("close");
   void router.push("/launches");
 }
+
+function toggleLinkedDoc(id: string) {
+  if (linkedDocumentIds.value.includes(id)) {
+    linkedDocumentIds.value = linkedDocumentIds.value.filter((x) => x !== id);
+  } else {
+    linkedDocumentIds.value = [...linkedDocumentIds.value, id];
+  }
+}
+
+async function createRequirementFromLinkedDoc() {
+  const docId = linkedDocumentIds.value[0];
+  if (!docId) return;
+  await documents.fetchTree();
+  let body = "";
+  try {
+    const { readDocument } = await import("../../services/documentService");
+    body = (await readDocument(docId)).content;
+  } catch {
+    body = "";
+  }
+  const todoLines = body
+    .split(/\r?\n/)
+    .filter((line) => /^\s*[-*]\s*\[[ xX]\]/.test(line))
+    .slice(0, 5)
+    .join("\n");
+  const content = todoLines || body.slice(0, 500) || "来自关联文档的需求";
+  await requirementsStore.add({
+    content,
+    title: documents.tree.find((d) => d.id === docId)?.title ?? "会议纪要待办",
+    source: "会议纪要",
+    linkedDocumentIds: [docId],
+  });
+  emit("close");
+}
 </script>
 
 <template>
-  <Transition name="drawer">
-    <aside
-      v-if="open && requirement"
-      class="fixed inset-y-0 right-0 z-[100] flex w-full max-w-md flex-col border-l border-border bg-surface-0 shadow-xl"
-      role="dialog"
-      aria-modal="true"
-      aria-label="需求详情"
-      data-testid="requirement-drawer"
-      @keydown="onKeydown"
-    >
+  <Teleport to="body">
+    <Transition name="drawer">
+      <div
+        v-if="open && requirement"
+        class="fixed inset-0 z-50 flex justify-end"
+        data-testid="requirement-drawer"
+      >
+        <button
+          type="button"
+          class="absolute inset-0 bg-overlay backdrop-blur-[2px]"
+          aria-label="关闭"
+          @click="emit('close')"
+        />
+
+        <aside
+          class="relative flex h-full w-full max-w-md flex-col border-l border-border bg-surface-0 shadow-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-label="需求详情"
+          @keydown="onKeydown"
+        >
       <header
         class="flex shrink-0 items-center justify-between border-b border-border px-4 py-3"
         :class="STATUS_THEME[status].headerBg"
@@ -223,6 +284,38 @@ function createLaunchRecord() {
             <div>
               <label class="mb-1 block text-xs text-muted">需求来源</label>
               <Input v-model="source" placeholder="如：用户反馈、内部规划" aria-label="需求来源" />
+            </div>
+            <div>
+              <label class="mb-1 block text-xs text-muted">关联文档</label>
+              <button
+                type="button"
+                class="focus-ring w-full rounded-md border border-border px-2 py-1.5 text-left text-xs text-link hover:bg-surface-2"
+                data-testid="requirement-doc-picker"
+                @click="docPickerOpen = !docPickerOpen"
+              >
+                {{ linkedDocumentIds.length ? `已选 ${linkedDocumentIds.length} 篇` : "选择关联文档" }}
+              </button>
+              <ul v-if="docPickerOpen" class="mt-2 max-h-40 space-y-1 overflow-y-auto rounded-md border border-border p-2">
+                <li v-for="doc in documents.tree" :key="doc.id">
+                  <label class="flex cursor-pointer items-center gap-2 text-xs">
+                    <input
+                      type="checkbox"
+                      :checked="linkedDocumentIds.includes(doc.id)"
+                      @change="toggleLinkedDoc(doc.id)"
+                    />
+                    <span class="truncate">{{ doc.title }}</span>
+                  </label>
+                </li>
+              </ul>
+              <button
+                v-if="linkedDocumentIds.length"
+                type="button"
+                class="focus-ring mt-2 text-[11px] text-link hover:underline"
+                data-testid="create-req-from-doc"
+                @click="createRequirementFromLinkedDoc"
+              >
+                从关联文档待办创建新需求
+              </button>
             </div>
           </div>
         </div>
@@ -343,17 +436,10 @@ function createLaunchRecord() {
           <Btn variant="primary" :disabled="!canSave" @click="handleSave">保存</Btn>
         </div>
       </footer>
-    </aside>
-  </Transition>
-
-  <Transition name="fade">
-    <div
-      v-if="open && requirement"
-      class="fixed inset-0 z-[90] bg-black/40"
-      aria-hidden="true"
-      @click="emit('close')"
-    />
-  </Transition>
+        </aside>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped>

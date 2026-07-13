@@ -1,4 +1,5 @@
 import { tauriInvoke } from "../composables/useTauriCommand";
+import { isTauriRuntime } from "./vaultService";
 import type {
   LaunchEnvironment,
   LaunchRecord,
@@ -60,10 +61,6 @@ export type LaunchRecordPatch = {
   linkedDocumentIds?: string[] | null;
   tags?: string[] | null;
 };
-
-function isTauriRuntime(): boolean {
-  return !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
-}
 
 function loadStored(): StoredData {
   try {

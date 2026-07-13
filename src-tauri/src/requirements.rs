@@ -27,6 +27,7 @@ pub struct Requirement {
     pub requester: Option<String>,
     pub owner: Option<String>,
     pub source: Option<String>,
+    pub linked_document_ids: Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -45,6 +46,7 @@ pub struct CreateRequirementInput {
     pub requester: Option<String>,
     pub owner: Option<String>,
     pub source: Option<String>,
+    pub linked_document_ids: Option<Vec<String>>,
     /// 一次性 localStorage 迁移：保留原 id / 单号 / 时间戳
     pub id: Option<String>,
     pub number: Option<String>,
@@ -72,6 +74,7 @@ pub struct UpdateRequirementPatch {
     pub requester: Option<Option<String>>,
     pub owner: Option<Option<String>>,
     pub source: Option<Option<String>>,
+    pub linked_document_ids: Option<Option<Vec<String>>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -84,12 +87,12 @@ pub struct ReorderItem {
 
 const REQ_LIST_SQL: &str = "SELECT id, number, content, status, priority, sort_order, created_at, updated_at, due_at,
      proposed_at, expected_launch_at, actual_launch_at,
-     title, progress_description, remarks, requester, owner, source
+     title, progress_description, remarks, requester, owner, source, linked_document_ids
      FROM requirements ORDER BY status, sort_order";
 
 const REQ_BY_ID_SQL: &str = "SELECT id, number, content, status, priority, sort_order, created_at, updated_at, due_at,
      proposed_at, expected_launch_at, actual_launch_at,
-     title, progress_description, remarks, requester, owner, source
+     title, progress_description, remarks, requester, owner, source, linked_document_ids
      FROM requirements WHERE id = ?1";
 
 impl DocumentService {
@@ -125,8 +128,8 @@ impl DocumentService {
         self.conn()?.execute(
             "INSERT INTO requirements (id, number, content, status, priority, sort_order, created_at, updated_at, due_at,
              proposed_at, expected_launch_at, actual_launch_at,
-             title, progress_description, remarks, requester, owner, source)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)",
+             title, progress_description, remarks, requester, owner, source, linked_document_ids)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
             params![
                 id,
                 number,
@@ -146,6 +149,7 @@ impl DocumentService {
                 normalize_optional_text(input.requester),
                 normalize_optional_text(input.owner),
                 normalize_optional_text(input.source),
+                serialize_json_array(&input.linked_document_ids),
             ],
         )?;
 
@@ -198,12 +202,16 @@ impl DocumentService {
         let requester = patch.requester.unwrap_or(existing.requester);
         let owner = patch.owner.unwrap_or(existing.owner);
         let source = patch.source.unwrap_or(existing.source);
+        let linked_document_ids = patch
+            .linked_document_ids
+            .unwrap_or(existing.linked_document_ids);
 
         let updated = self.conn_mut()?.execute(
             "UPDATE requirements SET number = ?1, content = ?2, status = ?3, priority = ?4, sort_order = ?5,
              updated_at = ?6, due_at = ?7, proposed_at = ?8, expected_launch_at = ?9, actual_launch_at = ?10,
-             title = ?11, progress_description = ?12, remarks = ?13, requester = ?14, owner = ?15, source = ?16
-             WHERE id = ?17",
+             title = ?11, progress_description = ?12, remarks = ?13, requester = ?14, owner = ?15, source = ?16,
+             linked_document_ids = ?17
+             WHERE id = ?18",
             params![
                 number,
                 content,
@@ -221,6 +229,7 @@ impl DocumentService {
                 requester,
                 owner,
                 source,
+                serialize_json_array(&linked_document_ids),
                 id
             ],
         )?;
@@ -290,7 +299,23 @@ fn map_requirement_row(row: &Row<'_>) -> rusqlite::Result<Requirement> {
         requester: row.get(15)?,
         owner: row.get(16)?,
         source: row.get(17)?,
+        linked_document_ids: deserialize_json_array(row.get(18)?),
     })
+}
+
+fn serialize_json_array(value: &Option<Vec<String>>) -> Option<String> {
+    value.as_ref().and_then(|items| {
+        if items.is_empty() {
+            None
+        } else {
+            serde_json::to_string(items).ok()
+        }
+    })
+}
+
+fn deserialize_json_array(raw: Option<String>) -> Option<Vec<String>> {
+    raw.and_then(|json| serde_json::from_str::<Vec<String>>(&json).ok())
+        .filter(|items| !items.is_empty())
 }
 
 fn normalize_optional_text(value: Option<String>) -> Option<String> {

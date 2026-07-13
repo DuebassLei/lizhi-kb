@@ -1,4 +1,5 @@
 import type { CcMessage } from "../../stores/ccWorkbench";
+import { isAgentTool, toolIsComplete, toolIsError } from "../../utils/ccToolGrouping";
 
 export type CcStatusTab = "todo" | "subagent" | "files";
 
@@ -15,6 +16,9 @@ export interface CcSubagentItem {
   description?: string;
   output?: string;
   updatedAt: number;
+  startedAt?: number;
+  durationMs?: number;
+  parentId?: string;
 }
 
 export interface CcFileChangeItem {
@@ -117,25 +121,67 @@ function extractSubagentDescription(input: unknown): string | undefined {
   return undefined;
 }
 
-function extractSubagentOutputFromMessage(
-  tool: { output?: string },
-  msgContent: string,
-): string | undefined {
-  const raw = tool.output?.trim();
-  if (raw) return raw;
-
-  const content = msgContent.trim();
-  if (!content) return undefined;
-  const marker = /(?:子代理|subagent|task)\s*(?:结果|输出|完成)[:：]\s*/i;
-  const match = content.match(marker);
-  if (match?.index != null) {
-    const tail = content.slice(match.index + match[0].length).trim();
-    if (tail) return tail;
+function hasIncompleteNestedTools(
+  toolCalls: NonNullable<CcMessage["toolCalls"]>,
+  subagentIndex: number,
+): boolean {
+  for (let i = subagentIndex + 1; i < toolCalls.length; i += 1) {
+    const next = toolCalls[i]!;
+    if (SUBAGENT_TOOLS.has(normalizeToolName(next.name))) break;
+    if (!toolIsComplete(next)) return true;
   }
-  return undefined;
+  return false;
 }
 
-export function deriveCcStatusPanel(messages: CcMessage[]) {
+function shouldForceRunningSubagent(
+  tool: NonNullable<CcMessage["toolCalls"]>[number],
+  toolIndex: number,
+  msg: CcMessage,
+  options?: { streaming?: boolean },
+): boolean {
+  if (!options?.streaming || !msg.streaming) return false;
+  const toolCalls = msg.toolCalls;
+  if (!toolCalls?.length) return false;
+
+  const hasLaterSubagent = toolCalls
+    .slice(toolIndex + 1)
+    .some((row) => SUBAGENT_TOOLS.has(normalizeToolName(row.name)) || isAgentTool(row.name));
+  if (hasLaterSubagent) return false;
+
+  if (toolIndex !== toolCalls.length - 1) return false;
+  if (!toolIsComplete(tool)) return false;
+
+  const startedAt = tool.startedAt ?? msg.createdAt;
+  const completedAt = tool.completedAt;
+  const durationMs =
+    startedAt != null && completedAt != null ? completedAt - startedAt : Number.POSITIVE_INFINITY;
+  const outputLen = (tool.output ?? "").trim().length;
+  return durationMs < 500 && outputLen < 100;
+}
+
+function resolveSubagentStatus(
+  tool: NonNullable<CcMessage["toolCalls"]>[number],
+  nestedRunning: boolean,
+  forceRunning = false,
+): CcSubagentItem["status"] {
+  if (forceRunning || nestedRunning || !toolIsComplete(tool)) return "running";
+  if (toolIsError(tool.output)) return "error";
+  return "completed";
+}
+
+function sortSubagents(items: CcSubagentItem[]): CcSubagentItem[] {
+  const rank = (status: CcSubagentItem["status"]) => {
+    if (status === "running") return 0;
+    if (status === "error") return 1;
+    return 2;
+  };
+  return [...items].sort((a, b) => rank(a.status) - rank(b.status) || b.updatedAt - a.updatedAt);
+}
+
+export function deriveCcStatusPanel(
+  messages: CcMessage[],
+  options?: { streaming?: boolean },
+) {
   let todos: CcTodoItem[] = [];
   const subagents: CcSubagentItem[] = [];
   const fileChanges: CcFileChangeItem[] = [];
@@ -154,18 +200,26 @@ export function deriveCcStatusPanel(messages: CcMessage[]) {
         if (parsed.length) todos = parsed;
       }
 
-      if (SUBAGENT_TOOLS.has(name)) {
-        const output = extractSubagentOutputFromMessage(tool, msg.content);
-        const hasError = Boolean(
-          tool.output && /error|fail|exception/i.test(tool.output) && !output,
-        );
+      if (SUBAGENT_TOOLS.has(name) || isAgentTool(tool.name)) {
+        const nestedRunning = hasIncompleteNestedTools(msg.toolCalls, toolIndex);
+        const forceRunning = shouldForceRunningSubagent(tool, toolIndex, msg, options);
+        const status = resolveSubagentStatus(tool, nestedRunning, forceRunning);
+        const startedAt = tool.startedAt ?? msg.createdAt;
+        const completedAt = tool.completedAt;
+        const durationMs =
+          status === "completed" && startedAt != null && completedAt != null
+            ? completedAt - startedAt
+            : undefined;
         subagents.push({
           id: `${msg.id}:${tool.name}:${toolIndex}`,
           name: extractSubagentName(input),
-          status: tool.output || output ? (hasError ? "error" : "completed") : "running",
+          status,
           description: extractSubagentDescription(input),
-          output,
-          updatedAt: msgIndex * 1000 + toolIndex,
+          output: tool.output?.trim() || undefined,
+          updatedAt: completedAt ?? startedAt ?? Date.now(),
+          startedAt,
+          durationMs,
+          parentId: msg.id,
         });
       }
 
@@ -185,12 +239,16 @@ export function deriveCcStatusPanel(messages: CcMessage[]) {
     }
   }
 
+  const sortedSubagents = sortSubagents(subagents);
+  const subagentRunningCount = sortedSubagents.filter((s) => s.status === "running").length;
+
   return {
     todos,
-    subagents,
+    subagents: sortedSubagents,
     fileChanges,
     todoCount: todos.length,
-    subagentCount: subagents.length,
+    subagentCount: sortedSubagents.length,
+    subagentRunningCount,
     fileChangeCount: fileChanges.length,
   };
 }

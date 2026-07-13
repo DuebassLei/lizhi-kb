@@ -14,6 +14,10 @@ use super::config::McpConfig;
 use super::runtime::{McpMode, McpRequestSettings};
 use crate::AppState;
 
+type McpHttpError = (StatusCode, &'static str, String);
+type VaultAssetContext = (std::path::PathBuf, bool, Option<[u8; 32]>);
+type McpHttpResponse = Response<std::io::Cursor<Vec<u8>>>;
+
 #[derive(Debug, Serialize)]
 struct ErrorBody {
     error: &'static str,
@@ -116,7 +120,7 @@ fn parse_asset_id(path: &str) -> Result<String, (StatusCode, &'static str, Strin
 
 fn vault_asset_context(
     app_state: &AppState,
-) -> Result<(std::path::PathBuf, bool, Option<[u8; 32]>), (StatusCode, &'static str, String)> {
+) -> Result<VaultAssetContext, McpHttpError> {
     let data_dir = crate::db::data_dir().map_err(map_data_dir_error)?;
     let vault = app_state
         .vault_service
@@ -240,7 +244,7 @@ fn dispatch(
     url: &str,
     request: &mut Request,
     settings: &McpRequestSettings,
-) -> Result<Response<std::io::Cursor<Vec<u8>>>, (StatusCode, &'static str, String)> {
+) -> Result<McpHttpResponse, McpHttpError> {
     if settings.require_bridge_enabled && !settings.bridge_enabled {
         return Err((
             StatusCode(503),

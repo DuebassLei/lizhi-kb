@@ -15,6 +15,9 @@ import CcPromptsSection from "./settings/CcPromptsSection.vue";
 import CcMcpServersSection from "./settings/CcMcpServersSection.vue";
 import CcHooksSection from "./settings/CcHooksSection.vue";
 import CcClaudeMdSection from "./settings/CcClaudeMdSection.vue";
+import CcPermissionsSection from "./settings/CcPermissionsSection.vue";
+import CcUsageStatsSection from "./settings/CcUsageStatsSection.vue";
+import CcEnhancedPromptSection from "./settings/CcEnhancedPromptSection.vue";
 import CcSdkSection from "./settings/CcSdkSection.vue";
 import CcSettingSourcesSection from "./settings/CcSettingSourcesSection.vue";
 
@@ -239,6 +242,18 @@ defineExpose({ refresh: loadAll });
 
         <section v-show="currentTab === 'claude-md'" class="cc-settings-panel cc-settings-panel--flush">
           <CcClaudeMdSection />
+        </section>
+
+        <section v-show="currentTab === 'permissions'" class="cc-settings-panel cc-settings-panel--flush">
+          <CcPermissionsSection />
+        </section>
+
+        <section v-show="currentTab === 'usage'" class="cc-settings-panel cc-settings-panel--flush">
+          <CcUsageStatsSection />
+        </section>
+
+        <section v-show="currentTab === 'enhanced-prompt'" class="cc-settings-panel cc-settings-panel--flush">
+          <CcEnhancedPromptSection />
         </section>
       </template>
     </div>

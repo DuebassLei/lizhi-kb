@@ -1,4 +1,5 @@
 import { tauriInvoke } from "../composables/useTauriCommand";
+import { isTauriRuntime } from "./vaultService";
 import type { JournalEntry } from "../types/journal";
 import { todayDayDate } from "../utils/journalDates";
 
@@ -12,10 +13,6 @@ type CreateInput = {
   content: string;
   dayDate?: string;
 };
-
-function isTauriRuntime(): boolean {
-  return !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
-}
 
 function loadStored(): StoredData {
   try {

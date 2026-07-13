@@ -7,12 +7,14 @@ import {
   LayoutList,
   List,
   Plus,
+  Rocket,
   Search,
   Upload,
   X,
 } from "@lucide/vue";
 import Btn from "../ui/Btn.vue";
 import EmptyState from "../ui/EmptyState.vue";
+import PageHeader from "../common/PageHeader.vue";
 import LaunchRecordDrawer from "./LaunchRecordDrawer.vue";
 import LaunchTimeline from "./LaunchTimeline.vue";
 import LaunchesTable from "./LaunchesTable.vue";
@@ -158,12 +160,14 @@ async function onDownloadTemplate() {
 
 <template>
   <div class="flex h-full flex-col overflow-hidden bg-canvas">
-    <header class="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-0/40 px-4 py-3 backdrop-blur-sm">
-      <div>
-        <h1 class="text-sm font-medium">上线记录</h1>
-        <p class="text-xs text-muted">{{ subtitle }}</p>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
+    <PageHeader
+      title="上线记录"
+      :subtitle="subtitle"
+      :icon="Rocket"
+      icon-accent="link"
+      test-id="launches-page-header"
+    >
+      <template #actions>
         <div
           class="inline-flex rounded-lg border border-border bg-surface-1/50 p-0.5"
           role="tablist"
@@ -231,8 +235,8 @@ async function onDownloadTemplate() {
           <Plus class="mr-1 inline h-3.5 w-3.5" />
           新建上线记录
         </Btn>
-      </div>
-    </header>
+      </template>
+    </PageHeader>
 
     <div
       v-if="!store.loading && store.totalCount > 0"

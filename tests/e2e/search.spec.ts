@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { ensureAppReady } from "./helpers";
+import { cmEditor, ensureAppReady } from "./helpers";
 
 test.describe("Full-text search", () => {
   test.beforeEach(async ({ page }) => {
@@ -12,7 +12,7 @@ test.describe("Full-text search", () => {
     const uniqueToken = `狸知检索${Date.now()}`;
 
     await page.getByTestId("new-doc-btn").click();
-    const editor = page.locator(".ProseMirror");
+    const editor = cmEditor(page);
     await editor.click();
     await editor.press("Control+a");
     await editor.pressSequentially(`# 检索标题\n\n正文包含 ${uniqueToken} 关键词`);
@@ -30,14 +30,14 @@ test.describe("Full-text search", () => {
     await expect(result).toContainText("检索标题");
     await result.click();
 
-    await expect(page.locator(".ProseMirror")).toContainText(uniqueToken, { timeout: 5_000 });
+    await expect(cmEditor(page)).toContainText(uniqueToken, { timeout: 5_000 });
   });
 
   test("sidebar full-text search shows snippet and opens document", async ({ page }) => {
     const uniqueToken = `侧栏检索${Date.now()}`;
 
     await page.getByTestId("new-doc-btn").click();
-    const editor = page.locator(".ProseMirror");
+    const editor = cmEditor(page);
     await editor.click();
     await editor.press("Control+a");
     await editor.pressSequentially(`侧栏搜索正文 ${uniqueToken}`);
@@ -51,6 +51,6 @@ test.describe("Full-text search", () => {
     await expect(result).toContainText(uniqueToken);
     await result.click();
 
-    await expect(page.locator(".ProseMirror")).toContainText(uniqueToken);
+    await expect(cmEditor(page)).toContainText(uniqueToken);
   });
 });

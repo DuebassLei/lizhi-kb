@@ -13,8 +13,12 @@ export class TauriCommandError extends Error {
 function mapError(e: unknown): never {
   const msg = e instanceof Error ? e.message : String(e);
   if (msg.includes("VAULT_LOCKED")) throw new TauriCommandError("VAULT_LOCKED", msg);
-    if (msg.includes("WRONG_PASSWORD")) throw new TauriCommandError("WRONG_PASSWORD", msg);
-    if (msg.includes("PASSWORD_REQUIRED")) throw new TauriCommandError("IO_ERROR", msg);
+  if (msg.startsWith("LOCKOUT:")) {
+    const secs = Number(msg.slice("LOCKOUT:".length)) || 0;
+    throw new TauriCommandError("LOCKOUT", `LOCKOUT:${secs}`);
+  }
+  if (msg.includes("WRONG_PASSWORD")) throw new TauriCommandError("WRONG_PASSWORD", msg);
+  if (msg.includes("PASSWORD_REQUIRED")) throw new TauriCommandError("IO_ERROR", msg);
   if (msg.includes("VAULT_NOT_FOUND")) throw new TauriCommandError("VAULT_NOT_FOUND", msg);
   throw new TauriCommandError("IO_ERROR", msg);
 }

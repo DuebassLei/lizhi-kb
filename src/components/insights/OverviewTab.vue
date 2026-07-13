@@ -1,5 +1,6 @@
 ﻿<script setup lang="ts">
 import { computed, onMounted } from "vue";
+import AnimatedMetric from "./AnimatedMetric.vue";
 import { useDashboardInsights } from "../../composables/useDashboardInsights";
 import { useDocumentsStore } from "../../stores/documents";
 import type { DashboardStats } from "../../types/document";
@@ -9,10 +10,10 @@ const { streak, avgWordsPerDoc, weekTrend, weekTotal } = useDashboardInsights();
 const loading = computed(() => documents.stats === null);
 
 const cards = [
-  { key: "totalDocs" as const, label: "文档数", suffix: "篇", accent: false },
-  { key: "totalWords" as const, label: "总字数", suffix: "字", accent: false },
-  { key: "editsThisWeek" as const, label: "本周编辑", suffix: "次", accent: true },
-  { key: "lastEditDate" as const, label: "最近活跃", suffix: "", accent: false },
+  { key: "totalDocs" as const, label: "文档数", suffix: "篇", accent: "docs", numeric: true },
+  { key: "totalWords" as const, label: "总字数", suffix: "字", accent: "words", numeric: true, locale: true },
+  { key: "editsThisWeek" as const, label: "本周编辑", suffix: "次", accent: "edits", numeric: true },
+  { key: "lastEditDate" as const, label: "最近活跃", suffix: "", accent: "active", numeric: false },
 ];
 
 onMounted(async () => {
@@ -24,6 +25,12 @@ function formatValue(key: keyof DashboardStats): string {
   const val = documents.stats[key];
   if (key === "lastEditDate") return val ? String(val) : "暂无";
   return String(val);
+}
+
+function numericValue(key: keyof DashboardStats): number {
+  if (!documents.stats) return 0;
+  const val = documents.stats[key];
+  return typeof val === "number" ? val : 0;
 }
 
 function subline(key: keyof DashboardStats): string | null {
@@ -43,24 +50,38 @@ function subline(key: keyof DashboardStats): string | null {
   }
   return null;
 }
+
+function trendPositive(key: keyof DashboardStats): boolean {
+  return key === "editsThisWeek" && weekTrend.value > 0;
+}
 </script>
 
 <template>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="overview-cards">
     <template v-if="loading">
-      <article v-for="i in 4" :key="`sk-${i}`" class="h-[96px] animate-pulse rounded-lg bg-surface-1" />
+      <article
+        v-for="i in 4"
+        :key="`sk-${i}`"
+        class="insights-skeleton-shimmer h-[96px] rounded-lg"
+      />
     </template>
     <template v-else>
       <article
-        v-for="card in cards"
+        v-for="(card, idx) in cards"
         :key="card.key"
-        class="rounded-lg border border-border bg-surface-0 px-5 py-4 transition-colors hover:border-border-strong"
+        class="insights-metric-card insights-metric-enter rounded-lg border border-border bg-surface-0 px-5 py-4"
+        :class="[`insights-metric-card--${card.accent}`, `insights-metric-enter--${idx}`]"
       >
         <p class="text-[11px] font-medium uppercase tracking-wide text-text-secondary">
           {{ card.label }}
         </p>
-        <p class="mt-1.5 text-2xl font-semibold tabular-nums text-[var(--color-text)]">
-          {{ formatValue(card.key) }}
+        <p class="mt-1.5 text-2xl font-semibold text-[var(--color-text)]">
+          <AnimatedMetric
+            v-if="card.numeric && documents.stats?.[card.key]"
+            :value="numericValue(card.key)"
+            :locale="card.locale"
+          />
+          <span v-else class="tabular-nums">{{ formatValue(card.key) }}</span>
           <span
             v-if="card.suffix && documents.stats?.[card.key]"
             class="text-sm font-normal text-muted"
@@ -68,7 +89,11 @@ function subline(key: keyof DashboardStats): string | null {
             {{ card.suffix }}
           </span>
         </p>
-        <p v-if="subline(card.key)" class="mt-1 text-[10px] text-paw/90">
+        <p
+          v-if="subline(card.key)"
+          class="insights-subline-enter mt-1 text-[10px]"
+          :class="trendPositive(card.key) ? 'insights-trend-flash text-paw/90' : 'text-paw/90'"
+        >
           {{ subline(card.key) }}
         </p>
       </article>

@@ -6,9 +6,13 @@ import { ExternalLink, History, MessageSquarePlus, Send, Settings2, Square, Spar
 import { useChatStore } from "../../stores/chat";
 import { isRetrievalTarget } from "../../services/aiService";
 import { useDocumentsStore } from "../../stores/documents";
+import { useEditorStore } from "../../stores/editor";
 import { useUiStore } from "../../stores/ui";
 import type { AiChatMode } from "../../services/aiService";
+import { extractH1Title } from "../../utils/documentTitle";
+import { formatCitationInsert } from "../../utils/editorContentInsert";
 import ChatMessage from "./ChatMessage.vue";
+import HintBanner from "../common/HintBanner.vue";
 import LlmModelSelect from "./LlmModelSelect.vue";
 import RagPromptChips from "./RagPromptChips.vue";
 import RagScopeBar from "./RagScopeBar.vue";
@@ -25,6 +29,7 @@ const props = withDefaults(
 
 const chat = useChatStore();
 const documents = useDocumentsStore();
+const editor = useEditorStore();
 const ui = useUiStore();
 const router = useRouter();
 
@@ -86,7 +91,7 @@ const emptyHint = computed(() => {
   if (chat.mode === "rag") {
     return isPage.value
       ? "向全部笔记提问，AI 将检索并引用来源"
-      : "基于工作区上下文检索笔记：可选全库、当前文档或当前文件夹";
+      : "基于知识库上下文检索笔记：可选全库、当前文档或当前文件夹";
   }
   if (chat.mode === "agent") {
     return "用自然语言操作笔记：搜索、阅读、创建或保存。日常聊天请用「闲聊」，查资料请用「知识库」";
@@ -120,6 +125,54 @@ function openCitation(id: string) {
     return;
   }
   void documents.openDocument(id);
+}
+
+function quickSearchKnowledgeBase() {
+  chat.setMode("rag");
+  chat.input = "请搜索知识库中与当前工作相关的笔记，列出最相关的条目与摘要。";
+  void chat.send();
+}
+
+async function insertToEditor(content: string) {
+  if (!documents.activeId) {
+    ui.showToast("error", "请在工作区打开文档后再插入");
+    if (isPage.value) void router.push("/workspace");
+    return;
+  }
+  documents.appendContent(content);
+  await editor.saveNow();
+  ui.showToast("success", "已插入正文");
+}
+
+async function createDocumentFromAi(content: string) {
+  const title = extractH1Title(content) ?? `AI 笔记 ${new Date().toLocaleDateString("zh-CN")}`;
+  const meta = await documents.createFromContent(title, content);
+  ui.showToast("success", "已新建文档");
+  if (isPage.value) {
+    void router.push({ path: "/workspace", query: { doc: meta.id } });
+  }
+}
+
+function insertCitation(titles: string) {
+  if (!documents.activeId) {
+    ui.showToast("error", "请在工作区打开文档后再插入引用");
+    if (!isPage.value) return;
+    void router.push("/workspace");
+    return;
+  }
+  const block = titles
+    .split("、")
+    .map((title) => formatCitationInsert(title))
+    .join("");
+  if (!block) return;
+  documents.appendContent(block);
+  void editor.saveNow();
+  ui.showToast("success", "已插入引用");
+}
+
+function openCcWorkbench() {
+  ui.setChatPanelVisible(false);
+  void router.push("/cc-workbench");
 }
 
 function openFullPage() {
@@ -174,7 +227,9 @@ watch(() => props.variant, syncRagSurface);
       <Sparkles class="h-4 w-4 shrink-0 text-link" aria-hidden="true" />
       <div class="min-w-0 flex-1">
         <p class="truncate text-sm font-medium">AI 助手</p>
-        <p v-if="isPage" class="truncate text-[10px] text-muted">灵狸 · 本地优先的知识库对话</p>
+        <p v-if="isPage" class="truncate text-[10px] text-muted">
+          闲聊 / 知识库 / 笔记助手 — 侧栏可收起，知识库按 Ctrl+Shift+A 打开面板
+        </p>
       </div>
       <button
         v-if="!isPage"
@@ -190,16 +245,6 @@ watch(() => props.variant, syncRagSurface);
       <button
         type="button"
         class="focus-ring rounded p-1 text-muted hover:bg-surface-1 hover:text-text"
-        title="历史会话"
-        aria-label="历史会话"
-        data-testid="chat-history"
-        @click="historyOpen = true"
-      >
-        <History class="h-4 w-4" />
-      </button>
-      <button
-        type="button"
-        class="focus-ring rounded p-1 text-muted hover:bg-surface-1 hover:text-text"
         title="新对话"
         aria-label="新对话"
         data-testid="chat-new-session"
@@ -207,6 +252,16 @@ watch(() => props.variant, syncRagSurface);
         @click="chat.newSession()"
       >
         <MessageSquarePlus class="h-4 w-4" />
+      </button>
+      <button
+        type="button"
+        class="focus-ring rounded p-1 text-muted hover:bg-surface-1 hover:text-text"
+        title="历史会话"
+        aria-label="历史会话"
+        data-testid="chat-history"
+        @click="historyOpen = true"
+      >
+        <History class="h-4 w-4" />
       </button>
       <button
         type="button"
@@ -255,15 +310,58 @@ watch(() => props.variant, syncRagSurface);
       </button>
     </div>
 
-    <div
-      v-if="!(chat.mode === 'rag' && isPage)"
-      class="shrink-0 border-b border-border bg-surface-1/40 px-3 py-2 text-xs text-muted"
-      :class="isPage ? 'ai-chat-page-pad' : ''"
-      data-testid="chat-mode-hint"
+    <HintBanner
+      v-if="chat.writeGuideVisible"
+      variant="warning"
+      title="需要开启写入权限"
+      message="笔记助手要创建或保存文档时，需先在设置中允许 MCP 写入。"
+      test-id="chat-write-guide"
     >
-      <span class="font-medium text-[var(--color-text)]">{{ activeModeMeta.label }}：</span>
-      {{ activeModeMeta.desc }}
-    </div>
+      <template #action>
+        <button
+          type="button"
+          class="focus-ring rounded-md bg-link px-2.5 py-1 text-xs text-white"
+          data-testid="chat-enable-write"
+          @click="void chat.enableWritePermission()"
+        >
+          开启写入
+        </button>
+        <button
+          type="button"
+          class="focus-ring rounded-md px-2 py-1 text-xs text-muted hover:text-[var(--color-text)]"
+          @click="chat.dismissWriteGuide()"
+        >
+          暂不
+        </button>
+      </template>
+    </HintBanner>
+
+    <HintBanner
+      v-if="chat.mode === 'agent' && !isPage"
+      variant="info"
+      title="需要更多工具？"
+      message="文件编辑、Bash 与完整 MCP 能力请使用 Agent 工作台。"
+      test-id="chat-cc-workbench-hint"
+    >
+      <template #action>
+        <button
+          type="button"
+          class="focus-ring rounded-md border border-border px-2.5 py-1 text-xs text-link hover:bg-surface-1"
+          data-testid="chat-open-cc-workbench"
+          @click="openCcWorkbench"
+        >
+          打开工作台
+        </button>
+      </template>
+    </HintBanner>
+
+    <HintBanner
+      v-if="!(chat.mode === 'rag' && isPage)"
+      variant="info"
+      :title="`${activeModeMeta.label}模式`"
+      :message="activeModeMeta.desc"
+      test-id="chat-mode-hint"
+    />
 
     <div
       v-if="chat.mode === 'rag' && isPage"
@@ -280,6 +378,25 @@ watch(() => props.variant, syncRagSurface);
     >
       <RagScopeBar compact surface="workspace" />
     </div>
+
+    <HintBanner
+      v-if="chat.mode === 'rag' && !isPage"
+      variant="info"
+      title="知识库 MCP 快捷"
+      message="一键发起知识库检索，自动使用 lizhi-kb MCP 搜索笔记。"
+      test-id="chat-kb-mcp-hint"
+    >
+      <template #action>
+        <button
+          type="button"
+          class="focus-ring rounded-md bg-link px-2.5 py-1 text-xs text-white"
+          data-testid="chat-quick-kb-search"
+          @click="quickSearchKnowledgeBase"
+        >
+          搜索知识库
+        </button>
+      </template>
+    </HintBanner>
 
     <div
       ref="listEl"
@@ -317,6 +434,9 @@ watch(() => props.variant, syncRagSurface);
         :is-last="index === chat.messages.length - 1"
         :is-thinking="isThinking"
         @open-citation="openCitation"
+        @insert-to-editor="insertToEditor"
+        @create-document="createDocumentFromAi"
+        @insert-citation="insertCitation"
       />
     </div>
 

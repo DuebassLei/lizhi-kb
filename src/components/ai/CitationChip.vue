@@ -7,6 +7,7 @@ defineProps<{
 
 const emit = defineEmits<{
   open: [id: string];
+  insert: [title: string];
 }>();
 </script>
 
@@ -22,6 +23,14 @@ const emit = defineEmits<{
       @click="emit('open', c.id)"
     >
       {{ c.title }}
+    </button>
+    <button
+      type="button"
+      class="focus-ring rounded-md border border-dashed border-border px-2 py-1 text-[10px] text-muted hover:border-link/30 hover:text-link"
+      data-testid="citation-insert"
+      @click="emit('insert', citations.map((c) => c.title).join('、'))"
+    >
+      插入引用
     </button>
   </div>
 </template>

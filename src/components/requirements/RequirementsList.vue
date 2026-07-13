@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { ListFilter, Search, X } from "@lucide/vue";
+import { ListFilter } from "@lucide/vue";
 import type { Requirement, RequirementStatus } from "../../types/requirement";
 import {
   formatRequirementCompactDate,
@@ -13,7 +13,6 @@ import {
   STATUS_LABELS,
   STATUS_THEME,
 } from "../../types/requirement";
-import { useRequirementsStore } from "../../stores/requirements";
 
 const props = defineProps<{
   items: Requirement[];
@@ -23,8 +22,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [id: string];
 }>();
-
-const store = useRequirementsStore();
 
 type SortKey =
   | "number"
@@ -261,36 +258,11 @@ function cellInnerClass(key: SortKey): string | null {
           {{ STATUS_LABELS[s] }}
         </button>
       </div>
-      <span class="text-xs text-muted">（{{ filteredItems.length }} 条）</span>
-      <label
-        class="ml-auto flex min-w-[160px] flex-1 basis-[180px] items-center gap-2 sm:max-w-xs"
-        aria-label="搜索需求"
-      >
-        <Search class="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
-        <input
-          v-model="store.searchQuery"
-          type="search"
-          inputmode="search"
-          enterkeyhint="search"
-          autocomplete="off"
-          placeholder="搜索需求…"
-          class="input-field focus-ring min-w-0 flex-1 text-xs"
-          data-testid="requirements-search-input"
-        />
-        <button
-          v-if="store.searchQuery"
-          type="button"
-          class="focus-ring shrink-0 rounded p-0.5 text-muted hover:text-[var(--color-text)]"
-          aria-label="清除搜索"
-          @click="store.clearSearch()"
-        >
-          <X class="h-3.5 w-3.5" />
-        </button>
-      </label>
+      <span class="ml-auto text-xs text-muted">（{{ filteredItems.length }} 条）</span>
     </div>
 
-    <div class="px-3 pb-3">
-      <table class="w-full table-fixed border-collapse text-left text-sm">
+    <div class="overflow-x-auto px-3 pb-3">
+      <table class="min-w-[960px] w-full border-collapse text-left text-sm">
         <colgroup>
           <col v-for="col in columns" :key="col.key" :style="{ width: col.width }" />
         </colgroup>

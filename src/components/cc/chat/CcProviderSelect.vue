@@ -4,6 +4,7 @@ import { Check, ChevronDown, Loader2 } from "@lucide/vue";
 
 import { providerModeLabel } from "../../../composables/cc/useCcProviderSwitch";
 import type { CcProviderPublic } from "../../../services/ccWorkbenchService";
+import { providerIcon } from "../../../utils/ccProviderIcons";
 
 const props = defineProps<{
   providers: CcProviderPublic[];
@@ -59,6 +60,7 @@ defineExpose({ close: () => { open.value = false; } });
       @click.stop="onToggle"
     >
       <Loader2 v-if="switching" class="h-3 w-3 shrink-0 animate-spin" />
+      <span v-else class="cc-provider-select__icon" aria-hidden="true">{{ providerIcon(activeProvider?.id ?? '', activeProvider?.providerMode) }}</span>
       <span class="truncate">{{ displayName }}</span>
       <ChevronDown class="h-3 w-3 shrink-0" />
     </button>
@@ -72,6 +74,7 @@ defineExpose({ close: () => { open.value = false; } });
         :title="provider.baseUrl || provider.name"
         @click="onSelect(provider.id)"
       >
+        <span class="cc-provider-select__icon" aria-hidden="true">{{ providerIcon(provider.id, provider.providerMode) }}</span>
         <div class="cc-chat-select__item-main">
           <span class="font-medium">{{ provider.name }}</span>
           <span class="cc-chat-select__desc">
@@ -106,6 +109,12 @@ defineExpose({ close: () => { open.value = false; } });
 
 .cc-chat-select__trigger--provider {
   max-width: 9rem;
+}
+
+.cc-provider-select__icon {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  line-height: 1;
 }
 
 .cc-chat-select__trigger:disabled {

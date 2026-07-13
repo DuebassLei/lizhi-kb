@@ -7,8 +7,10 @@ export interface SettingsSection {
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "settings-appearance", label: "外观" },
   { id: "settings-quick-nav", label: "快速导航" },
+  { id: "settings-doc-templates", label: "文档模板" },
   { id: "settings-insights-hero", label: "看板背景" },
   { id: "settings-access", label: "访问控制" },
+  { id: "settings-index", label: "知识库索引" },
   { id: "settings-backup", label: "备份与恢复" },
   { id: "settings-migration", label: "迁移导出" },
   { id: "settings-mcp", label: "AI 集成 / MCP" },

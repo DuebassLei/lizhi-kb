@@ -8,7 +8,7 @@ const props = withDefaults(
     maxTokens?: number;
     size?: number;
   }>(),
-  { size: 16 },
+  { size: 18 },
 );
 
 const clampedPct = computed(() => {
@@ -17,7 +17,10 @@ const clampedPct = computed(() => {
   return Math.max(0, Math.min(100, pct));
 });
 
-const radius = computed(() => (props.size - 3) / 2);
+const isHigh = computed(() => clampedPct.value >= 85);
+const isWarn = computed(() => clampedPct.value >= 60 && !isHigh.value);
+
+const radius = computed(() => (props.size - 4) / 2);
 const center = computed(() => props.size / 2);
 const circumference = computed(() => 2 * Math.PI * radius.value);
 const strokeOffset = computed(() => circumference.value * (1 - clampedPct.value / 100));
@@ -55,6 +58,10 @@ function formatTokens(value?: number): string | undefined {
 <template>
   <div
     class="cc-token-indicator"
+    :class="{
+      'cc-token-indicator--high': isHigh,
+      'cc-token-indicator--warn': isWarn,
+    }"
     :title="tooltip"
     role="status"
     :aria-label="tooltip"
@@ -104,22 +111,50 @@ function formatTokens(value?: number): string | undefined {
 .cc-token-indicator__bg,
 .cc-token-indicator__fill {
   fill: none;
-  stroke-width: 2;
+  stroke-width: 3;
+  stroke-linecap: round;
 }
 
 .cc-token-indicator__bg {
-  stroke: color-mix(in srgb, var(--color-border) 70%, transparent);
+  stroke: color-mix(in srgb, var(--color-text) 12%, transparent);
 }
 
 .cc-token-indicator__fill {
   transition: stroke-dashoffset 0.25s ease, stroke 0.25s ease;
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--color-link) 50%, transparent));
+}
+
+.cc-token-indicator--high .cc-token-indicator__fill {
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--cc-token-danger, #ef4444) 60%, transparent));
+  animation: cc-token-pulse 1.4s ease-in-out infinite;
+}
+
+.cc-token-indicator--warn .cc-token-indicator__fill {
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--cc-token-warn, #f59e0b) 50%, transparent));
 }
 
 .cc-token-indicator__label {
-  font-size: 0.625rem;
-  font-weight: 500;
+  font-size: 0.6875rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--color-text);
+}
+
+.cc-token-indicator--high .cc-token-indicator__label {
+  color: var(--cc-token-danger, #ef4444);
+}
+
+.cc-token-indicator--warn .cc-token-indicator__label {
+  color: var(--cc-token-warn, #f59e0b);
+}
+
+@keyframes cc-token-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.65;
+  }
 }
 </style>

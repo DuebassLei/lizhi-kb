@@ -168,7 +168,7 @@ const showPanel = computed(() => props.open && Boolean(props.anchorEl));
 .cc-input-dropdown__kind-icon {
   height: 0.75rem;
   width: 0.75rem;
-  color: #7c3aed;
+  color: var(--color-link);
 }
 
 .cc-input-dropdown__desc {

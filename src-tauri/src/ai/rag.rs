@@ -72,16 +72,14 @@ pub fn build_rag_context(
         }
     }
 
-    if hits.is_empty() {
-        if matches!(request.scope, RagScope::CurrentDocument) {
-            if let Some(doc_id) = request.document_id.as_ref().filter(|id| !id.is_empty()) {
-                if let Some(meta) = all_docs.iter().find(|d| d.id == *doc_id) {
-                    if let Ok(DecryptedContent { content, .. }) = doc_service.read_document(doc_id, dek) {
-                        if !content.trim().is_empty() {
-                            citations.push((doc_id.clone(), meta.title.clone()));
-                            let excerpt = excerpt_around_terms(&content, &query_terms, 4000);
-                            chunks.push(format!("【{}】\n{excerpt}", meta.title));
-                        }
+    if hits.is_empty() && matches!(request.scope, RagScope::CurrentDocument) {
+        if let Some(doc_id) = request.document_id.as_ref().filter(|id| !id.is_empty()) {
+            if let Some(meta) = all_docs.iter().find(|d| d.id == *doc_id) {
+                if let Ok(DecryptedContent { content, .. }) = doc_service.read_document(doc_id, dek) {
+                    if !content.trim().is_empty() {
+                        citations.push((doc_id.clone(), meta.title.clone()));
+                        let excerpt = excerpt_around_terms(&content, &query_terms, 4000);
+                        chunks.push(format!("【{}】\n{excerpt}", meta.title));
                     }
                 }
             }
@@ -215,7 +213,7 @@ pub async fn rag_query_stream(
 #[allow(dead_code)]
 pub fn format_hits_for_agent(hits: &[SearchHit]) -> String {
     if hits.is_empty() {
-        return "（知识库搜索无匹配。若用户问题不依赖笔记，请直接用 finish 基于通用知识回答。）".into();
+        return "（知识库搜索无匹配。请尝试用不同关键词或拆分后的关键词重新搜索。若已尝试多次仍无结果，用 finish 告知用户笔记库中未找到相关内容。）".into();
     }
     hits.iter()
         .map(|h| format!("- {} (id={}): {}", h.title, h.id, h.snippet))

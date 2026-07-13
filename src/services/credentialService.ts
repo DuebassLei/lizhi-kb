@@ -1,4 +1,5 @@
 import { tauriInvoke } from "../composables/useTauriCommand";
+import { isTauriRuntime } from "./vaultService";
 import type {
   CreateCredentialInput,
   CredentialCategory,
@@ -18,10 +19,6 @@ export interface CredentialListFilter {
   category?: string;
   environment?: string;
   favoritesOnly?: boolean;
-}
-
-function isTauriRuntime(): boolean {
-  return !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 }
 
 function loadStored(): StoredData {

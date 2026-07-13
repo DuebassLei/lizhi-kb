@@ -1,4 +1,5 @@
 import { tauriInvoke } from "../composables/useTauriCommand";
+import { isTauriRuntime } from "./vaultService";
 import type { Requirement, RequirementPriority, RequirementStatus } from "../types/requirement";
 
 const STORAGE_KEY = "lizhi-kb-requirements";
@@ -20,6 +21,7 @@ type RequirementPatch = Partial<
   requester?: string | null;
   owner?: string | null;
   source?: string | null;
+  linkedDocumentIds?: string[] | null;
 };
 
 type CreateInput = {
@@ -36,11 +38,8 @@ type CreateInput = {
   requester?: string;
   owner?: string;
   source?: string;
+  linkedDocumentIds?: string[];
 };
-
-function isTauriRuntime(): boolean {
-  return !!(window as unknown as { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
-}
 
 function loadStored(): StoredData {
   try {

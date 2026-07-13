@@ -365,6 +365,10 @@ impl DocumentService {
     }
 
     pub fn rebuild_indexes(&self, dek: Option<&[u8; DEK_LEN]>) -> Result<(), AppError> {
+        {
+            let conn = self.conn()?;
+            search_index::rebuild_fts_table(conn)?;
+        }
         let metas = self.list_documents()?;
         let title_map = link_index::build_title_map(&metas);
         for meta in &metas {
@@ -531,6 +535,16 @@ impl DocumentService {
 
         self.increment_edit_activity_today()?;
         self.index_document(id, &title, content, &[])?;
+
+        let data_dir = self.data_dir.clone();
+        let encryption_enabled = dek.is_some();
+        let _ = crate::revisions::save_revision(
+            &data_dir,
+            id,
+            content,
+            encryption_enabled,
+            dek,
+        );
 
         Ok(SaveResult {
             id: id.to_string(),

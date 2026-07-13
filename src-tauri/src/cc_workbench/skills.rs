@@ -188,10 +188,10 @@ fn description_from_frontmatter(content: &str) -> Option<String> {
 
 fn parse_yaml_scalar(raw: &str) -> String {
     let s = raw.trim();
-    if s.len() >= 2 {
-        if (s.starts_with('\'') && s.ends_with('\'')) || (s.starts_with('"') && s.ends_with('"')) {
-            return s[1..s.len() - 1].to_string();
-        }
+    if s.len() >= 2
+        && ((s.starts_with('\'') && s.ends_with('\'')) || (s.starts_with('"') && s.ends_with('"')))
+    {
+        return s[1..s.len() - 1].to_string();
     }
     s.to_string()
 }
@@ -326,6 +326,49 @@ pub fn import_skills(
         }
     }
     CcSkillImportResult { imported, errors }
+}
+
+pub fn preview_skills_import(
+    _data_dir: &Path,
+    project_path: Option<&str>,
+    scope: &str,
+    source_paths: &[String],
+) -> super::chat_input::CcImportPreview {
+    use super::chat_input::{CcImportPreview, CcImportPreviewItem};
+    let mut items = Vec::new();
+    let mut errors = Vec::new();
+    let target = match active_skills_dir(scope, project_path) {
+        Ok(p) => p,
+        Err(e) => {
+            errors.push(e);
+            return CcImportPreview { items, errors };
+        }
+    };
+
+    for source in source_paths {
+        let src = PathBuf::from(source.trim());
+        if !src.exists() {
+            errors.push(format!("路径不存在: {source}"));
+            continue;
+        }
+        let name = src
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "skill".to_string());
+        let status = if target.join(&name).exists() {
+            "conflict"
+        } else {
+            "new"
+        };
+        items.push(CcImportPreviewItem {
+            id: name.clone(),
+            name: name.clone(),
+            status: status.to_string(),
+            source_path: source.clone(),
+            message: None,
+        });
+    }
+    CcImportPreview { items, errors }
 }
 
 fn copy_recursive(src: &Path, dest: &Path) -> Result<(), String> {

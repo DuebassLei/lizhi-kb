@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import {
+  BarChart3,
   BookOpen,
   Bot,
   Cpu,
@@ -9,10 +10,25 @@ import {
   Plug,
   Server,
   Settings2,
+  Shield,
+  Sparkles,
   Zap,
 } from "@lucide/vue";
 
-export type CcSettingsTab = "basic" | "providers" | "runtime" | "cwd" | "agents" | "skills" | "prompts" | "mcp" | "hooks" | "claude-md";
+export type CcSettingsTab =
+  | "basic"
+  | "providers"
+  | "runtime"
+  | "cwd"
+  | "agents"
+  | "skills"
+  | "prompts"
+  | "mcp"
+  | "hooks"
+  | "claude-md"
+  | "permissions"
+  | "usage"
+  | "enhanced-prompt";
 
 const props = defineProps<{
   current: CcSettingsTab;
@@ -33,6 +49,9 @@ const items: { key: CcSettingsTab; label: string; icon: typeof Settings2 }[] = [
   { key: "mcp", label: "MCP 服务器", icon: Server },
   { key: "hooks", label: "Hooks", icon: Zap },
   { key: "claude-md", label: "CLAUDE.md", icon: FileText },
+  { key: "permissions", label: "权限", icon: Shield },
+  { key: "usage", label: "用量", icon: BarChart3 },
+  { key: "enhanced-prompt", label: "增强", icon: Sparkles },
 ];
 </script>
 

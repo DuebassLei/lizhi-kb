@@ -359,7 +359,7 @@ fn build_mcp_servers(
                     data_dir.display().to_string(),
                 );
 
-                let node = if cfg!(windows) { "node" } else { "node" };
+                let node = "node";
                 servers.insert(
                     "lizhi-kb".into(),
                     BridgeMcpServer {
@@ -597,7 +597,7 @@ pub fn run_stream(
     let status = child.wait().map_err(|e| e.to_string())?;
     let stderr_lines: Vec<String> = stderr_reader
         .lines()
-        .filter_map(|line| line.ok())
+        .map_while(Result::ok)
         .map(|line| line.trim().to_string())
         .filter(|line| !line.is_empty())
         .collect();
@@ -792,6 +792,18 @@ pub fn run_enhance_prompt(
     );
     if let Some(obj) = payload.as_object_mut() {
         obj.insert("prompt".to_string(), serde_json::Value::String(prompt.to_string()));
+        if let Some(custom) = config
+            .prompt_enhancer
+            .system_prompt
+            .as_ref()
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+        {
+            obj.insert(
+                "enhanceSystemPrompt".to_string(),
+                serde_json::Value::String(custom.to_string()),
+            );
+        }
     }
 
     let output = run_bridge_sidecar_timed(
@@ -853,7 +865,7 @@ pub fn run_enhance_prompt(
                         ))
                     }
                 })
-                .unwrap(),
+                .unwrap_or_else(|| "增强失败：未知错误".to_string()),
         ),
     })
 }
@@ -1068,11 +1080,11 @@ fn parse_bridge_line(line: &str) -> Result<StreamEvent, ()> {
                 .to_string(),
             input: value
                 .get("input")
-                .and_then(|v| {
+                .map(|v| {
                     if let Some(s) = v.as_str() {
-                        Some(s.to_string())
+                        s.to_string()
                     } else {
-                        Some(v.to_string())
+                        v.to_string()
                     }
                 })
                 .unwrap_or_else(|| "{}".to_string()),

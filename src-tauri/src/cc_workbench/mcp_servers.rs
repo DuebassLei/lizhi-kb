@@ -166,13 +166,15 @@ fn mcp_servers_parent<'a>(
         }
         let project = projects
             .as_object_mut()
-            .unwrap()
+            .ok_or_else(|| "配置格式无效".to_string())?
             .entry(key)
             .or_insert_with(|| json!({}));
         if !project.is_object() {
             *project = json!({});
         }
-        Ok(project.as_object_mut().unwrap())
+        Ok(project
+            .as_object_mut()
+            .ok_or_else(|| "配置格式无效".to_string())?)
     } else {
         Ok(root)
     }
@@ -456,7 +458,7 @@ pub fn delete_cc_mcp_server(id: &str, project_path: Option<&str>) -> Result<(), 
     }
 
     let mut removed = false;
-    if let Some(parent) = mcp_servers_parent(&mut config, project_path).ok() {
+    if let Ok(parent) = mcp_servers_parent(&mut config, project_path) {
         if let Some(map) = parent.get_mut("mcpServers").and_then(Value::as_object_mut) {
             removed = map.remove(id).is_some();
         }
@@ -484,7 +486,9 @@ pub fn delete_cc_mcp_server(id: &str, project_path: Option<&str>) -> Result<(), 
         return Err(format!("未找到 MCP 服务器: {id}"));
     }
 
-    let root = config.as_object_mut().unwrap();
+    let root = config
+        .as_object_mut()
+        .ok_or_else(|| "配置格式无效".to_string())?;
     if let Some(disabled) = root.get_mut("disabledMcpServers").and_then(Value::as_array_mut) {
         disabled.retain(|v| v.as_str() != Some(id));
     }

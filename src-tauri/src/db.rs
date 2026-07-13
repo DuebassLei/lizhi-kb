@@ -242,5 +242,12 @@ fn migrate_requirements_columns(conn: &Connection) -> SqliteResult<()> {
     add_text("requester")?;
     add_text("owner")?;
     add_text("source")?;
+
+    if !cols.iter().any(|c| c == "linked_document_ids") {
+        conn.execute(
+            "ALTER TABLE requirements ADD COLUMN linked_document_ids TEXT",
+            [],
+        )?;
+    }
     Ok(())
 }

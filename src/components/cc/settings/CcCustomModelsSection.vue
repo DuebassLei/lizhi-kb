@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Plus, Trash2 } from "@lucide/vue";
+import { Download, Plus, Trash2, Upload } from "@lucide/vue";
+import { open, save } from "@tauri-apps/plugin-dialog";
 
 import { useCcModelCatalog } from "../../../composables/cc/useCcModelCatalog";
+import { tauriInvoke } from "../../../composables/useTauriCommand";
 import type { CcProviderPublic } from "../../../services/ccWorkbenchService";
+import { isTauriRuntime } from "../../../services/vaultService";
 import { strip1mSuffix } from "../../../utils/ccChatModels";
 import Btn from "../../ui/Btn.vue";
 import CcAddModelDialog from "../chat/CcAddModelDialog.vue";
@@ -27,9 +30,12 @@ const providerId = computed(
 
 const customModels = computed(() => catalog.getCustomModels(providerId.value));
 
-function onAdd(payload: { id: string; label?: string }) {
+function onAdd(payload: { id: string; label?: string; inputPrice?: number; outputPrice?: number }) {
   if (!providerId.value) return;
-  const ok = catalog.addCustomModel(providerId.value, payload.id, payload.label);
+  const ok = catalog.addCustomModel(providerId.value, payload.id, payload.label, {
+    inputPrice: payload.inputPrice,
+    outputPrice: payload.outputPrice,
+  });
   if (!ok) {
     window.alert("模型 ID 无效或已存在");
   }
@@ -48,6 +54,49 @@ function syncProviderSelect() {
   }
 }
 
+async function exportModels() {
+  const json = catalog.exportCustomModelsJson();
+  if (!isTauriRuntime()) {
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "cc-custom-models.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+  const path = await save({
+    title: "导出自定义模型",
+    defaultPath: "cc-custom-models.json",
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+  if (!path) return;
+  await tauriInvoke<void>("write_export_file", { path, content: json });
+}
+
+async function importModels() {
+  if (!isTauriRuntime()) {
+    window.alert("请在 Tauri 桌面应用中导入");
+    return;
+  }
+  const path = await open({
+    title: "导入自定义模型",
+    multiple: false,
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+  if (!path || typeof path !== "string") return;
+  const merge = confirm("确定导入？\n确定 = 合并到现有列表\n取消 = 放弃");
+  if (!merge) return;
+  try {
+    const raw = await tauriInvoke<string>("read_text_file", { path });
+    const result = catalog.importCustomModelsJson(raw, "merge");
+    window.alert(`导入完成：新增 ${result.added}，跳过 ${result.skipped}`);
+  } catch (e) {
+    window.alert(e instanceof Error ? e.message : "导入失败");
+  }
+}
+
 syncProviderSelect();
 </script>
 
@@ -60,10 +109,20 @@ syncProviderSelect();
           与会话输入栏共享，按供应商分别管理
         </p>
       </div>
-      <Btn variant="secondary" size="sm" @click="addDialogOpen = true">
-        <Plus class="mr-1 h-3.5 w-3.5" />
-        添加
-      </Btn>
+      <div class="flex flex-wrap gap-2">
+        <Btn variant="secondary" size="sm" @click="exportModels">
+          <Download class="mr-1 h-3.5 w-3.5" />
+          导出
+        </Btn>
+        <Btn variant="secondary" size="sm" @click="importModels">
+          <Upload class="mr-1 h-3.5 w-3.5" />
+          导入
+        </Btn>
+        <Btn variant="secondary" size="sm" @click="addDialogOpen = true">
+          <Plus class="mr-1 h-3.5 w-3.5" />
+          添加
+        </Btn>
+      </div>
     </div>
 
     <label v-if="providers.length > 1" class="cc-custom-models__provider-select">

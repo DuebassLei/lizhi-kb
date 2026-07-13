@@ -14,17 +14,23 @@ const props = defineProps<{
   activeTab?: CcStatusTab | null;
   todoCount?: number;
   subagentCount?: number;
+  subagentRunningCount?: number;
   fileChangeCount?: number;
   todos?: CcTodoItem[];
   subagents?: CcSubagentItem[];
   fileChanges?: CcFileChangeItem[];
   streaming?: boolean;
+  projectPath?: string | null;
+  cwdMode?: "vault" | "project";
 }>();
 
 const emit = defineEmits<{
   toggleTab: [tab: CcStatusTab];
   selectFile: [item: CcFileChangeItem];
   selectSubagent: [item: CcSubagentItem];
+  discardAllEdits: [];
+  keepAllEdits: [];
+  undoEdits: [];
 }>();
 
 const panelRef = ref<HTMLElement | null>(null);
@@ -45,6 +51,21 @@ const hasInProgressTodo = computed(
 const hasRunningSubagent = computed(
   () => props.subagents?.some((s) => s.status === "running") ?? false,
 );
+const runningSubagentCount = computed(
+  () => props.subagentRunningCount ?? props.subagents?.filter((s) => s.status === "running").length ?? 0,
+);
+const runningSubagentNames = computed(() =>
+  (props.subagents ?? [])
+    .filter((s) => s.status === "running")
+    .map((s) => s.name)
+    .slice(0, 2),
+);
+const runningSubagentHint = computed(() => {
+  if (!runningSubagentNames.value.length) return "";
+  const names = runningSubagentNames.value.join("、");
+  const extra = runningSubagentCount.value - runningSubagentNames.value.length;
+  return extra > 0 ? `${names} 等 ${runningSubagentCount.value} 个运行中` : `${names} 运行中`;
+});
 
 function statusIcon(status: CcTodoItem["status"]) {
   if (status === "completed") return Check;
@@ -69,6 +90,16 @@ function subagentStatusClass(status: CcSubagentItem["status"]): string {
   if (status === "error") return "cc-status-panel__status--error";
   return "cc-status-panel__status--ok";
 }
+
+function formatDuration(ms?: number) {
+  if (!ms || !Number.isFinite(ms)) return "";
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
+const canBatchEdit = computed(
+  () => props.cwdMode === "project" && Boolean(props.projectPath) && (props.fileChanges?.length ?? 0) > 0,
+);
 </script>
 
 <template>
@@ -81,7 +112,7 @@ function subagentStatusClass(status: CcSubagentItem["status"]): string {
             <span>{{ todo.content }}</span>
           </li>
         </ul>
-        <p v-else class="cc-status-panel__empty">暂无任务，Agent 使用 TodoWrite 后会显示在这里</p>
+        <p v-else class="cc-status-panel__empty">暂无任务，多步任务执行时进度会显示在这里</p>
       </template>
 
       <template v-else-if="activeTab === 'subagent'">
@@ -100,7 +131,10 @@ function subagentStatusClass(status: CcSubagentItem["status"]): string {
               />
               <div class="min-w-0">
                 <p class="truncate">{{ item.name }}</p>
-                <p class="cc-status-panel__meta">{{ subagentStatusLabel(item.status) }}</p>
+                <p class="cc-status-panel__meta">
+                  {{ subagentStatusLabel(item.status) }}
+                  <span v-if="item.durationMs"> · {{ formatDuration(item.durationMs) }}</span>
+                </p>
               </div>
             </button>
           </li>
@@ -125,9 +159,26 @@ function subagentStatusClass(status: CcSubagentItem["status"]): string {
           </li>
         </ul>
         <p v-else class="cc-status-panel__empty">暂无文件编辑记录</p>
+        <div v-if="canBatchEdit && activeTab === 'files'" class="cc-status-panel__batch">
+          <button type="button" class="cc-status-panel__batch-btn" @click="emit('keepAllEdits')">
+            全部保留
+          </button>
+          <button type="button" class="cc-status-panel__batch-btn" @click="emit('discardAllEdits')">
+            全部丢弃
+          </button>
+          <button type="button" class="cc-status-panel__batch-btn cc-status-panel__batch-btn--primary" @click="emit('undoEdits')">
+            撤销编辑
+          </button>
+        </div>
       </template>
 
-      <p v-if="streaming" class="cc-status-panel__streaming">会话进行中…</p>
+      <p v-if="streaming" class="cc-status-panel__streaming">
+        <template v-if="hasRunningSubagent">
+          <LoaderCircle class="cc-status-panel__inline-spin h-3 w-3" />
+          {{ runningSubagentHint }}
+        </template>
+        <template v-else>会话进行中…</template>
+      </p>
     </div>
 
     <div class="cc-status-panel__tabs">
@@ -155,11 +206,14 @@ function subagentStatusClass(status: CcSubagentItem["status"]): string {
       >
         <Bot class="h-3.5 w-3.5" />
         <span>子代理</span>
-        <span v-if="hasSubagents" class="cc-status-panel__progress">
+        <span v-if="hasRunningSubagent" class="cc-status-panel__progress cc-status-panel__progress--running">
+          {{ runningSubagentCount }} 运行中
+        </span>
+        <span v-else-if="hasSubagents" class="cc-status-panel__progress">
           {{ subagentCompleted }}/{{ subagentCount }}
         </span>
         <LoaderCircle
-          v-if="streaming && hasRunningSubagent"
+          v-if="hasRunningSubagent"
           class="h-3 w-3 animate-spin text-link"
         />
       </button>
@@ -231,6 +285,10 @@ function subagentStatusClass(status: CcSubagentItem["status"]): string {
   color: var(--color-text);
 }
 
+.cc-status-panel__tab--active .cc-status-panel__progress--running {
+  color: var(--color-link);
+}
+
 .cc-status-panel__popover {
   position: absolute;
   right: 0;
@@ -292,6 +350,41 @@ function subagentStatusClass(status: CcSubagentItem["status"]): string {
 
 .cc-status-panel__streaming {
   margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.cc-status-panel__inline-spin {
+  flex-shrink: 0;
+  animation: cc-status-spin 1s linear infinite;
+  color: var(--color-link);
+}
+
+.cc-status-panel__progress--running {
+  color: var(--color-link);
+}
+
+.cc-status-panel__batch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.625rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.cc-status-panel__batch-btn {
+  border-radius: 0.375rem;
+  border: 1px solid var(--color-border);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.625rem;
+  color: var(--color-muted);
+}
+
+.cc-status-panel__batch-btn--primary {
+  border-color: var(--color-link);
+  color: var(--color-link);
 }
 
 .cc-status-panel__status {

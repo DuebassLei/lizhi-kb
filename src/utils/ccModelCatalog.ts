@@ -1,6 +1,7 @@
 import type { CcProviderPublic } from "../services/ccWorkbenchService";
 import type { CcChatModelOption, CcModelSlot } from "./ccChatModels";
 import { strip1mSuffix } from "./ccChatModels";
+import { is1mContextDisabled, providerUsesOfficialModelCatalog } from "./ccProviderEnv";
 
 import type { CcModelSource } from "./ccChatModels";
 
@@ -14,6 +15,10 @@ export interface CcCatalogModel {
 export interface CcCustomModelEntry {
   id: string;
   label?: string;
+  /** USD per 1M input tokens */
+  inputPrice?: number;
+  /** USD per 1M output tokens */
+  outputPrice?: number;
 }
 
 const SLOT_META: Record<CcModelSlot, { label: string; description: string }> = {
@@ -129,8 +134,10 @@ export function buildCcModelCatalog(
   recentIds: string[],
   longContextEnabled: boolean,
 ): CcChatModelOption[] {
+  const use1m = effectiveLongContextEnabled(provider, longContextEnabled);
   const options: CcChatModelOption[] = [];
   const seen = new Set<string>();
+  const seenSlotBaseIds = new Set<string>();
 
   function push(opt: CcChatModelOption | null) {
     if (!opt) return;
@@ -144,9 +151,10 @@ export function buildCcModelCatalog(
     const baseId = strip1mSuffix(entry.id.trim());
     if (!baseId) continue;
     push(
-      makeOption(baseId, "custom", longContextEnabled, {
+      makeOption(baseId, "custom", use1m, {
         label: entry.label?.trim() || baseId,
         description: "自定义模型",
+        supports1m: !is1mContextDisabled(provider),
       }),
     );
   }
@@ -156,44 +164,50 @@ export function buildCcModelCatalog(
     if (!baseId) continue;
     const catalogHit = CLAUDE_MODEL_CATALOG.find((m) => m.id === baseId);
     push(
-      makeOption(baseId, "recent", longContextEnabled, {
+      makeOption(baseId, "recent", use1m, {
         label: catalogHit?.label ?? baseId,
         description: catalogHit?.description ?? "最近使用",
-        supports1m: catalogHit?.supports1m,
+        supports1m: catalogHit?.supports1m && !is1mContextDisabled(provider),
       }),
     );
   }
 
-  for (const model of CLAUDE_MODEL_CATALOG) {
-    push(
-      makeOption(model.id, "catalog", longContextEnabled, {
-        label: model.label,
-        description: model.description ?? model.label,
-        supports1m: model.supports1m,
-      }),
-    );
+  if (providerUsesOfficialModelCatalog(provider)) {
+    for (const model of CLAUDE_MODEL_CATALOG) {
+      push(
+        makeOption(model.id, "catalog", use1m, {
+          label: model.label,
+          description: model.description ?? model.label,
+          supports1m: model.supports1m,
+        }),
+      );
+    }
   }
 
   const slots: CcModelSlot[] = ["sonnet", "opus", "haiku"];
   for (const slot of slots) {
-    const baseId = resolveSlotModel(provider, slot);
-    if (!baseId) continue;
+    const baseId = strip1mSuffix(resolveSlotModel(provider, slot).trim());
+    if (!baseId || seenSlotBaseIds.has(baseId)) continue;
+    seenSlotBaseIds.add(baseId);
     const meta = SLOT_META[slot];
     push(
-      makeOption(baseId, "slot", longContextEnabled, {
+      makeOption(baseId, "slot", use1m, {
         slot,
         label: baseId,
         description: `${meta.label} · ${meta.description}`,
+        supports1m: modelSupports1mContext(baseId) && !is1mContextDisabled(provider),
       }),
     );
   }
 
   if (!options.length && provider?.model?.trim()) {
+    const baseId = strip1mSuffix(provider.model.trim());
     push(
-      makeOption(provider.model.trim(), "slot", longContextEnabled, {
+      makeOption(baseId, "slot", use1m, {
         slot: "sonnet",
-        label: provider.model.trim(),
+        label: baseId,
         description: "默认模型",
+        supports1m: modelSupports1mContext(baseId) && !is1mContextDisabled(provider),
       }),
     );
   }
@@ -201,19 +215,31 @@ export function buildCcModelCatalog(
   return options;
 }
 
+function effectiveLongContextEnabled(
+  provider: CcProviderPublic | null | undefined,
+  longContextEnabled: boolean,
+): boolean {
+  if (is1mContextDisabled(provider)) return false;
+  return longContextEnabled;
+}
+
 export function defaultCatalogModelId(
   provider: CcProviderPublic | null | undefined,
   longContextEnabled: boolean,
 ): string {
+  const use1m = effectiveLongContextEnabled(provider, longContextEnabled);
   const slots: CcModelSlot[] = ["sonnet", "opus", "haiku"];
   for (const slot of slots) {
-    const baseId = resolveSlotModel(provider, slot);
+    const baseId = strip1mSuffix(resolveSlotModel(provider, slot).trim());
     if (baseId) {
-      return apply1mSuffix(baseId, longContextEnabled);
+      return apply1mSuffix(baseId, use1m && modelSupports1mContext(baseId));
     }
   }
-  const fallback = provider?.model?.trim() || "claude-sonnet-4-6";
-  return apply1mSuffix(fallback, longContextEnabled);
+  const fallback =
+    strip1mSuffix(provider?.sonnetModel?.trim() ?? "")
+    || strip1mSuffix(provider?.model?.trim() ?? "")
+    || "claude-sonnet-4-6";
+  return apply1mSuffix(fallback, use1m && modelSupports1mContext(fallback));
 }
 
 export const MODEL_GROUP_LABELS: Record<CcModelSource, string> = {

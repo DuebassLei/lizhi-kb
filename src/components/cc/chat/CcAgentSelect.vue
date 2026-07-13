@@ -7,7 +7,9 @@ import {
   type CcAgentEntry,
 } from "../../../services/ccWorkbenchService";
 import {
+  BUILTIN_DEFAULT_AGENT_ID,
   loadDefaultAgentId,
+  getEffectiveDefaultAgentId,
   loadRecentAgentIds,
   saveDefaultAgentId,
   sortAgentsWithRecent,
@@ -25,7 +27,7 @@ const emit = defineEmits<{
 const open = ref(false);
 const loading = ref(false);
 const agents = ref<CcAgentEntry[]>([]);
-const defaultAgentId = ref(loadDefaultAgentId());
+const defaultAgentId = ref(getEffectiveDefaultAgentId());
 
 const displayName = computed(() => props.selectedAgent?.name ?? "智能体");
 
@@ -49,7 +51,7 @@ function agentKey(agent: CcAgentEntry): string {
 }
 
 function isDefault(agent: CcAgentEntry): boolean {
-  return Boolean(defaultAgentId.value && agent.id === defaultAgentId.value);
+  return agent.id === getEffectiveDefaultAgentId();
 }
 
 async function loadAgents() {
@@ -79,11 +81,12 @@ function onSelect(agent: CcAgentEntry | null) {
 
 function onSetDefault(event: MouseEvent, agent: CcAgentEntry) {
   event.stopPropagation();
-  if (isDefault(agent)) {
-    defaultAgentId.value = null;
+  if (isDefault(agent) && loadDefaultAgentId()) {
+    defaultAgentId.value = BUILTIN_DEFAULT_AGENT_ID;
     saveDefaultAgentId(null);
     return;
   }
+  if (isDefault(agent)) return;
   defaultAgentId.value = agent.id;
   saveDefaultAgentId(agent.id);
 }
@@ -91,7 +94,7 @@ function onSetDefault(event: MouseEvent, agent: CcAgentEntry) {
 watch(
   () => props.selectedAgent?.id,
   () => {
-    defaultAgentId.value = loadDefaultAgentId();
+    defaultAgentId.value = getEffectiveDefaultAgentId();
   },
 );
 
@@ -198,9 +201,9 @@ defineExpose({
 }
 
 .cc-chat-select__trigger--agent.cc-chat-select__trigger--active {
-  border-color: color-mix(in srgb, #8b5cf6 45%, var(--color-border));
-  background: color-mix(in srgb, #8b5cf6 8%, var(--color-surface-0));
-  color: #7c3aed;
+  border-color: color-mix(in srgb, var(--color-link) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-link) 8%, var(--color-surface-0));
+  color: var(--color-link);
 }
 
 .cc-chat-select__trigger:disabled {

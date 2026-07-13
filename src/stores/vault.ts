@@ -4,6 +4,7 @@ import {
   createVault,
   enableEncryption as enableEncryptionCmd,
   getVaultStatus,
+  getVaultLockoutStatus,
   isTauriRuntime,
   lockVault,
   resetPasswordWithRecovery,
@@ -81,6 +82,8 @@ export const useVaultStore = defineStore("vault", () => {
     try {
       const status = await getVaultStatus();
       applyStatus(status);
+      const secs = await getVaultLockoutStatus();
+      if (secs > 0) startLockCountdown(secs);
     } catch (e) {
       initError.value = e instanceof Error ? e.message : "无法读取库状态";
       setupComplete.value = false;
@@ -105,6 +108,12 @@ export const useVaultStore = defineStore("vault", () => {
 
     loading.value = true;
     try {
+      const existing = await getVaultStatus();
+      if (existing.exists) {
+        applyStatus(existing);
+        return;
+      }
+
       const password = options?.withPassword ? (options.password ?? "") : "";
       const lock = options?.withPassword ? (options.lockOnStartup ?? false) : false;
       const result = await createVault(password, undefined, lock);
@@ -148,6 +157,12 @@ export const useVaultStore = defineStore("vault", () => {
     } catch (e) {
       if (e instanceof TauriCommandError && e.code === "WRONG_PASSWORD") {
         recordUnlockFailure();
+        throw e;
+      }
+      if (e instanceof TauriCommandError && e.code === "LOCKOUT") {
+        const secs = Number(e.message.replace("LOCKOUT:", "")) || 0;
+        if (secs > 0) startLockCountdown(secs);
+        throw new Error(`请等待 ${secs} 秒后再试`);
       }
       throw e;
     } finally {

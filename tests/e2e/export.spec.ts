@@ -1,10 +1,6 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
-import { ensureAppReady } from "./helpers";
-
-function cmEditor(page: import("@playwright/test").Page) {
-  return page.locator('[data-testid="markdown-codemirror"]');
-}
+import { cmEditor, ensureAppReady } from "./helpers";
 
 test.describe("Document export", () => {
   test.beforeEach(async ({ page }) => {
@@ -45,6 +41,7 @@ test.describe("Document export", () => {
     await page.getByTestId("export-menu-trigger").click();
     const downloadPromise = page.waitForEvent("download");
     await page.getByTestId("export-format-docx").click();
+    await page.getByTestId("export-confirm-action").click();
     const download = await downloadPromise;
 
     expect(download.suggestedFilename()).toMatch(/\.docx$/i);

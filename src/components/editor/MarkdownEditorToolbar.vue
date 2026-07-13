@@ -99,6 +99,16 @@
       @confirm="onImageUrlConfirm"
       @cancel="imageUrlDialogOpen = false"
     />
+
+    <button
+      v-if="pendingImageFile"
+      type="button"
+      class="editor-toolbar__retry focus-ring rounded px-2 py-0.5 text-[10px] text-danger"
+      data-testid="editor-image-retry"
+      @click="retryImageUpload"
+    >
+      重试上传
+    </button>
   </div>
 </template>
 
@@ -123,6 +133,7 @@ import {
 } from "@lucide/vue";
 import { insertImageFromFile } from "../../utils/editorImageInsert";
 import { insertAtCursor, insertTableAtCursor, prefixLines, wrapSelection } from "../../utils/markdownInsert";
+import { useUiStore } from "../../stores/ui";
 import InputDialog from "../common/InputDialog.vue";
 import BtnIcon from "../ui/BtnIcon.vue";
 import EmojiPicker from "./EmojiPicker.vue";
@@ -132,8 +143,10 @@ const props = defineProps<{
   view: EditorView;
 }>();
 
+const ui = useUiStore();
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const savingImage = ref(false);
+const pendingImageFile = ref<File | null>(null);
 const linkDialogOpen = ref(false);
 const imageUrlDialogOpen = ref(false);
 const wikiLinkPickerOpen = ref(false);
@@ -168,21 +181,31 @@ function onImageUrlConfirm(url: string) {
   insertAtCursor(props.view, `![图片](${url})`);
 }
 
+async function uploadImageFile(file: File) {
+  savingImage.value = true;
+  try {
+    await insertImageFromFile(props.view, file);
+    pendingImageFile.value = null;
+  } catch (e) {
+    pendingImageFile.value = file;
+    ui.showToast("error", e instanceof Error ? e.message : "图片上传失败，请重试");
+  } finally {
+    savingImage.value = false;
+  }
+}
+
 async function onImageFileSelected(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = "";
   if (!file || savingImage.value) return;
   if (!file.type.startsWith("image/")) return;
+  await uploadImageFile(file);
+}
 
-  savingImage.value = true;
-  try {
-    await insertImageFromFile(props.view, file);
-  } catch (e) {
-    window.alert(e instanceof Error ? e.message : "图片保存失败，请重试");
-  } finally {
-    savingImage.value = false;
-  }
+async function retryImageUpload() {
+  if (!pendingImageFile.value || savingImage.value) return;
+  await uploadImageFile(pendingImageFile.value);
 }
 
 function insertLink() {
