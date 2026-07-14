@@ -18,9 +18,26 @@ export interface CcWorkbenchStatus {
   bridgePath: string | null;
   sdkInstalled: boolean;
   sdkPath: string;
+  /** App-locked target SDK version */
   sdkVersion: string;
+  /** Actually installed package version, if any */
+  installedSdkVersion: string | null;
   mcpEnabled: boolean;
   mcpAdapterPath: string | null;
+}
+
+export interface CcBridgeProcessEntry {
+  pid: number;
+  kind: "session" | "enhance" | "modelTest" | string;
+  role: "tracked" | "orphan" | string;
+  startedAtMs: number | null;
+  commandHint?: string | null;
+}
+
+export interface CcBridgeProcessList {
+  processes: CcBridgeProcessEntry[];
+  trackedCount: number;
+  orphanCount: number;
 }
 
 export interface CcProviderPublic {
@@ -191,6 +208,7 @@ export async function getCcWorkbenchStatus(): Promise<CcWorkbenchStatus> {
       sdkInstalled: false,
       sdkPath: "",
       sdkVersion: "",
+      installedSdkVersion: null,
       mcpEnabled: false,
       mcpAdapterPath: null,
     };
@@ -747,6 +765,18 @@ export async function streamCcWorkbench(
 export async function abortCcWorkbenchStream(): Promise<void> {
   if (!isTauriRuntime()) return;
   await tauriInvoke<void>("cc_workbench_abort");
+}
+
+export async function listCcBridgeProcesses(): Promise<CcBridgeProcessList> {
+  if (!isTauriRuntime()) {
+    return { processes: [], trackedCount: 0, orphanCount: 0 };
+  }
+  return tauriInvoke<CcBridgeProcessList>("list_cc_bridge_processes");
+}
+
+export async function killCcBridgeProcess(pid: number): Promise<void> {
+  if (!isTauriRuntime()) return;
+  await tauriInvoke<void>("kill_cc_bridge_process", { pid });
 }
 
 export async function respondCcToolPermission(

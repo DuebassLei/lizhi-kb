@@ -93,6 +93,18 @@ pub fn is_sdk_installed(data_dir: &Path) -> bool {
     sdk_package_dir(data_dir).is_dir()
 }
 
+/// 读取已安装 `@anthropic-ai/claude-agent-sdk` 的 package.json version。
+pub fn read_installed_sdk_version(data_dir: &Path) -> Option<String> {
+    let pkg_json = sdk_package_dir(data_dir).join("package.json");
+    let raw = std::fs::read_to_string(pkg_json).ok()?;
+    let value: serde_json::Value = serde_json::from_str(&raw).ok()?;
+    value
+        .get("version")
+        .and_then(|v| v.as_str())
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
 fn canonical_display(path: &Path) -> Option<String> {
     path.canonicalize()
         .ok()

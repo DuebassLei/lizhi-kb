@@ -33,15 +33,24 @@ export interface CcCompletionState {
   triggerEnd: number;
 }
 
-function detectSlashTrigger(value: string, cursor: number): Omit<CcCompletionState, "items" | "activeIndex"> | null {
+/**
+ * 斜杠命令触发：行首，或行内空白后（支持 `/skill-a /skill-b` 叠技能）。
+ * 导出供单测使用。
+ */
+export function detectSlashTrigger(
+  value: string,
+  cursor: number,
+): Omit<CcCompletionState, "items" | "activeIndex"> | null {
   let start = cursor - 1;
   while (start >= 0) {
     const ch = value[start];
     if (ch === "\n") return null;
     if (/\s/.test(ch)) return null;
     if (ch === "/") {
-      const isLineStart = start === 0 || value[start - 1] === "\n";
-      if (!isLineStart) return null;
+      const prev = start === 0 ? "\n" : value[start - 1];
+      // 行首，或空白后（Claude Code ≥ 2.1.199 支持同消息叠多个 skills）
+      const allowed = start === 0 || prev === "\n" || /\s/.test(prev);
+      if (!allowed) return null;
       const query = value.slice(start + 1, cursor);
       return {
         open: true,

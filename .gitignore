@@ -58,6 +58,9 @@ Desktop.ini
 .superpowers/
 .worktrees/
 
+# --- 代码图谱 ---
+.codegraph/
+
 # --- Claude Code / Agent 本地配置（含 API Token，勿提交）---
 .claude/settings.json
 .claude/settings.local.json

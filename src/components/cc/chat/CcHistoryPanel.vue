@@ -271,12 +271,11 @@ function confirmClearAll() {
 <style scoped>
 .cc-history-panel {
   display: flex;
+  height: 100%;
+  min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 0.75rem;
-  border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface-1) 55%, var(--color-surface-0));
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+  background: var(--color-surface-0);
 }
 
 .cc-history-panel__head {
@@ -371,8 +370,8 @@ function confirmClearAll() {
 }
 
 .cc-history-panel__list {
-  min-height: 6rem;
-  max-height: min(18rem, 42vh);
+  min-height: 0;
+  flex: 1;
   overflow-y: auto;
   padding: 0.375rem;
 }
@@ -522,11 +521,12 @@ function confirmClearAll() {
 
 .cc-history-panel__foot {
   display: flex;
+  flex-shrink: 0;
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.625rem 0.875rem 0.75rem;
   border-top: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
-  background: color-mix(in srgb, var(--color-surface-0) 60%, transparent);
+  background: color-mix(in srgb, var(--color-surface-1) 40%, var(--color-surface-0));
 }
 
 .cc-history-panel__export {

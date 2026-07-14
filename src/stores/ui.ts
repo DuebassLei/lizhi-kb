@@ -62,6 +62,8 @@ export const useUiStore = defineStore("ui", () => {
   const previewOnlyMode = ref(false);
   const toast = ref<{ type: "success" | "error"; message: string } | null>(null);
   const pendingHeadingScroll = ref<string | null>(null);
+  /** 侧栏等非编辑器区域请求在光标处插入 markdown */
+  const pendingEditorInsert = ref<string | null>(null);
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   watch(theme, (t) => applyTheme(t), { immediate: false });
@@ -213,6 +215,16 @@ export const useUiStore = defineStore("ui", () => {
     pendingHeadingScroll.value = null;
   }
 
+  function requestEditorInsert(markdown: string) {
+    const trimmed = markdown.trim();
+    if (!trimmed) return;
+    pendingEditorInsert.value = trimmed;
+  }
+
+  function clearEditorInsert() {
+    pendingEditorInsert.value = null;
+  }
+
   return {
     theme,
     previewTheme,
@@ -261,5 +273,8 @@ export const useUiStore = defineStore("ui", () => {
     pendingHeadingScroll,
     requestHeadingScroll,
     clearHeadingScroll,
+    pendingEditorInsert,
+    requestEditorInsert,
+    clearEditorInsert,
   };
 });

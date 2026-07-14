@@ -8,6 +8,7 @@ import { useJournalStore } from "../../stores/journal";
 import { useFolderActions } from "../../composables/useFolderActions";
 import { useDocumentDelete } from "../../composables/useDocumentDelete";
 import { useFolderNameDialog } from "../../composables/useFolderNameDialog";
+import { useMoveToFolderDialog } from "../../composables/useMoveToFolderDialog";
 import { useUiStore } from "../../stores/ui";
 import { useLinksStore } from "../../stores/links";
 import { searchKnowledgeBase } from "../../services/knowledgeIndexService";
@@ -30,6 +31,7 @@ const links = useLinksStore();
 const { createSubfolder } = useFolderActions();
 const { requestDelete } = useDocumentDelete();
 const folderDialog = useFolderNameDialog();
+const moveDialog = useMoveToFolderDialog();
 const router = useRouter();
 
 const query = ref("");
@@ -102,38 +104,38 @@ const moveActions = computed((): Action[] => {
   if (!documents.activeId) return [];
   const q = query.value.trim().toLowerCase();
   const doc = documents.tree.find((d) => d.id === documents.activeId);
-  const currentFolder = doc ? folders.normalizeFolder(doc.folder) : "";
+  if (!doc) return [];
+
+  const currentFolder = folders.normalizeFolder(doc.folder);
+  const hasTargets = folders.flatFolders.some((f) => f.id !== currentFolder);
+  if (!hasTargets) return [];
+
   const showMove =
-    !q || q.includes("移动") || q.startsWith(">") || q.startsWith("到");
+    !q ||
+    q.includes("移动") ||
+    q.includes("move") ||
+    q.startsWith(">") ||
+    q.startsWith("到");
+  if (!showMove) return [];
 
-  if (!showMove && q) {
-    const pathMatch = folders.flatFolders.some(
-      (f) =>
-        f.id !== currentFolder &&
-        (matchesDocQuery(f.label, q) || folders.pathLabel(f.id).toLowerCase().includes(q)),
-    );
-    if (!pathMatch) return [];
-  }
-
-  return folders.flatFolders
-    .filter((f) => f.id !== currentFolder)
-    .filter((f) => {
-      if (!q || q.includes("移动") || q.startsWith(">")) return true;
-      return (
-        matchesDocQuery(f.label, q) || folders.pathLabel(f.id).toLowerCase().includes(q)
-      );
-    })
-    .map(
-      (f): Action => ({
-        id: `move-${f.id}`,
-        label: `移动到 › ${folders.pathLabel(f.id)}`,
-        hint: doc?.title ?? "当前文档",
-        run: async () => {
-          await router.push("/workspace");
-          await documents.moveToFolder(documents.activeId!, f.id);
-        },
-      }),
-    );
+  return [
+    {
+      id: "move-to-folder",
+      label: "移动到…",
+      hint: doc.title,
+      run: async () => {
+        await router.push("/workspace");
+        const folderId = await moveDialog.promptMove({
+          docId: doc.id,
+          docTitle: doc.title,
+          currentFolderId: currentFolder,
+        });
+        if (folderId != null) {
+          await documents.moveToFolder(doc.id, folderId);
+        }
+      },
+    },
+  ];
 });
 
 const fullTextActions = computed(() => {
@@ -411,7 +413,7 @@ function onKeydown(e: KeyboardEvent) {
           </li>
           <li v-if="!items.length" class="px-4 py-8 text-center text-xs text-muted" role="status">
             <p>无匹配结果</p>
-            <p class="mt-1 text-[10px]">试试其他关键词，或输入「移动」归类文档</p>
+            <p class="mt-1 text-[10px]">试试其他关键词，或输入「移动」打开目录选择</p>
           </li>
         </ul>
         <p class="border-t border-border px-4 py-2 text-[10px] text-muted">

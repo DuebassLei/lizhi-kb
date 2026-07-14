@@ -68,7 +68,7 @@ async function exportHtmlToFolder() {
       test-id="workspace-wechat-theme-select"
     />
     <WechatModuleSelect
-      class="w-[4.5rem] shrink-0"
+      class="w-[6rem] shrink-0"
       :menu-align="isPreview ? 'left' : 'right'"
       test-id="workspace-wechat-module-select"
       @insert="emit('insert', $event)"

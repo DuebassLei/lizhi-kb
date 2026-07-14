@@ -44,6 +44,18 @@ fn encrypted_asset_path(dir: &Path, id: &str) -> PathBuf {
     dir.join(format!("{id}.enc"))
 }
 
+fn file_mtime(path: &Path) -> Option<std::time::SystemTime> {
+    fs::metadata(path).and_then(|m| m.modified()).ok()
+}
+
+/// True when plaintext cache exists and is at least as new as the ciphertext source.
+fn asset_cache_is_fresh(cached: &Path, enc_path: &Path) -> bool {
+    match (file_mtime(cached), file_mtime(enc_path)) {
+        (Some(cache_t), Some(enc_t)) => cache_t >= enc_t,
+        _ => false,
+    }
+}
+
 fn write_encrypted_bytes(path: &Path, dek: &[u8; DEK_LEN], plaintext: &[u8]) -> Result<(), AppError> {
     let (nonce, ciphertext) = encrypt(dek, plaintext).map_err(AppError::Crypto)?;
     let mut payload = Vec::with_capacity(NONCE_LEN + ciphertext.len());
@@ -107,10 +119,13 @@ pub fn get_asset_path(
         if !enc_path.is_file() {
             return Err(AppError::AssetNotFound(id.to_string()));
         }
-        let plaintext = read_encrypted_bytes(&enc_path, dek)?;
         let cache_dir = asset_cache_dir(data_dir);
         fs::create_dir_all(&cache_dir)?;
         let cached = cache_dir.join(id);
+        if cached.is_file() && asset_cache_is_fresh(&cached, &enc_path) {
+            return Ok(cached);
+        }
+        let plaintext = read_encrypted_bytes(&enc_path, dek)?;
         fs::write(&cached, plaintext)?;
         return Ok(cached);
     }
@@ -275,7 +290,10 @@ pub fn delete_asset(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::crypto::generate_dek;
     use std::fs;
+    use std::thread;
+    use std::time::Duration;
 
     #[test]
     fn save_and_read_asset_roundtrip() {
@@ -286,6 +304,69 @@ mod tests {
         let bytes = read_asset_bytes(&dir, &id, false, None).unwrap();
         assert_eq!(bytes, png);
         assert_eq!(mime_for_asset_id(&id), "image/png");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn encrypted_get_asset_path_reuses_fresh_cache() {
+        let dir = std::env::temp_dir().join(format!("lizhi-asset-cache-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let dek = generate_dek();
+        let png = b"\x89PNG\r\n\x1a\ncache-test";
+        let id = save_asset(&dir, png.to_vec(), "png", true, Some(&dek)).unwrap();
+
+        let first = get_asset_path(&dir, &id, true, Some(&dek)).unwrap();
+        let first_meta = fs::metadata(&first).unwrap();
+        let first_mtime = first_meta.modified().unwrap();
+        let first_len = first_meta.len();
+
+        // Second resolve must hit cache (same path, no overwrite with different mtime forced).
+        thread::sleep(Duration::from_millis(30));
+        let second = get_asset_path(&dir, &id, true, Some(&dek)).unwrap();
+        assert_eq!(first, second);
+        let second_meta = fs::metadata(&second).unwrap();
+        assert_eq!(second_meta.len(), first_len);
+        assert_eq!(second_meta.modified().unwrap(), first_mtime);
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn encrypted_get_asset_path_refreshes_stale_cache() {
+        let dir = std::env::temp_dir().join(format!("lizhi-asset-stale-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let dek = generate_dek();
+        let id = save_asset(&dir, b"v1".to_vec(), "bin", true, Some(&dek)).unwrap();
+        let cached = get_asset_path(&dir, &id, true, Some(&dek)).unwrap();
+        assert_eq!(fs::read(&cached).unwrap(), b"v1");
+
+        // Overwrite ciphertext with newer plaintext (same id).
+        thread::sleep(Duration::from_millis(40));
+        let enc_path = encrypted_asset_path(&assets_dir(&dir), &id);
+        write_encrypted_bytes(&enc_path, &dek, b"v2").unwrap();
+
+        let refreshed = get_asset_path(&dir, &id, true, Some(&dek)).unwrap();
+        assert_eq!(refreshed, cached);
+        assert_eq!(fs::read(&refreshed).unwrap(), b"v2");
+
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn asset_cache_freshness_helper() {
+        let dir = std::env::temp_dir().join(format!("lizhi-asset-fresh-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let enc = dir.join("a.enc");
+        let cache = dir.join("a");
+        fs::write(&enc, b"enc").unwrap();
+        thread::sleep(Duration::from_millis(20));
+        fs::write(&cache, b"plain").unwrap();
+        assert!(asset_cache_is_fresh(&cache, &enc));
+
+        thread::sleep(Duration::from_millis(20));
+        fs::write(&enc, b"enc2").unwrap();
+        assert!(!asset_cache_is_fresh(&cache, &enc));
+
         let _ = fs::remove_dir_all(dir);
     }
 }

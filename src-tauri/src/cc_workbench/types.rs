@@ -11,7 +11,10 @@ pub struct CcWorkbenchStatus {
     pub bridge_path: Option<String>,
     pub sdk_installed: bool,
     pub sdk_path: String,
+    /// 应用锁定的目标 SDK 版本（`npm install` 使用此版本）
     pub sdk_version: String,
+    /// 本地已安装包的实际版本（未安装时为 None）
+    pub installed_sdk_version: Option<String>,
     pub mcp_enabled: bool,
     pub mcp_adapter_path: Option<String>,
 }

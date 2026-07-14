@@ -196,7 +196,11 @@ fn migrate_legacy_config(value: &mut serde_json::Value, secrets: &mut super::sec
     true
 }
 
-pub fn load_config(data_dir: &Path) -> Result<AiConfig, String> {
+pub fn load_config(
+    data_dir: &Path,
+    encryption_enabled: bool,
+    dek: Option<&[u8; crate::crypto::DEK_LEN]>,
+) -> Result<AiConfig, String> {
     let path = config_path(data_dir);
     if !path.is_file() {
         let config = AiConfig::default();
@@ -208,20 +212,23 @@ pub fn load_config(data_dir: &Path) -> Result<AiConfig, String> {
     let mut value: serde_json::Value =
         serde_json::from_str(&raw).map_err(|e| e.to_string())?;
 
-    let mut secrets = super::secrets::load_secrets(data_dir)?;
-    let secrets_dirty = super::secrets::migrate_legacy_secrets(&mut secrets);
-    let config_migrated = migrate_legacy_config(&mut value, &mut secrets);
+    // Secrets may be sealed; when vault is locked skip migration still return config.
+    if let Ok(mut secrets) = super::secrets::load_secrets(data_dir, encryption_enabled, dek) {
+        let secrets_dirty = super::secrets::migrate_legacy_secrets(&mut secrets);
+        let config_migrated = migrate_legacy_config(&mut value, &mut secrets);
 
-    if secrets_dirty || config_migrated {
-        super::secrets::save_secrets(data_dir, &secrets)?;
+        if secrets_dirty || config_migrated {
+            let _ = super::secrets::save_secrets(data_dir, &secrets, encryption_enabled, dek);
+        }
+
+        let config: AiConfig = serde_json::from_value(value).map_err(|e| e.to_string())?;
+        if config_migrated {
+            save_config(data_dir, &config)?;
+        }
+        return Ok(config);
     }
 
     let config: AiConfig = serde_json::from_value(value).map_err(|e| e.to_string())?;
-
-    if config_migrated {
-        save_config(data_dir, &config)?;
-    }
-
     Ok(config)
 }
 

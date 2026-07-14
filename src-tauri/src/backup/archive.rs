@@ -8,9 +8,11 @@ use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
 
 use crate::db;
+use crate::crypto::DEK_LEN;
 use crate::prefs::{
-    load_ui_state, merge_ui_state, save_ui_state, AI_CONFIG_FILENAME, AI_SECRETS_FILENAME,
-    MCP_CONFIG_FILENAME, OPTIONAL_BACKUP_FILES, UI_STATE_FILENAME,
+    load_ui_state, merge_ui_state, save_ui_state, AI_CONFIG_FILENAME, AI_SECRETS_ENC_FILENAME,
+    AI_SECRETS_FILENAME, CC_SECRETS_ENC_FILENAME, CC_SECRETS_FILENAME,
+    CC_WORKBENCH_CONFIG_FILENAME, MCP_CONFIG_FILENAME, OPTIONAL_BACKUP_FILES, UI_STATE_FILENAME,
 };
 use crate::vault::{meta_path, mnemonic_to_dek, read_keys, verify_password_verifier, VaultError, VaultMeta, META_FILENAME, KEYS_FILENAME};
 
@@ -94,6 +96,7 @@ pub fn export_vault(
 
     collect_dir(&mut files, data_dir, "workspace")?;
     collect_dir(&mut files, data_dir, "assets")?;
+    collect_dir(&mut files, data_dir, "revisions")?;
 
     for name in OPTIONAL_BACKUP_FILES {
         collect_file_optional(&mut files, data_dir, name)?;
@@ -193,11 +196,20 @@ pub fn import_vault(
     password: &str,
     recovery_phrase: Option<&str>,
     mode: &str,
+    current_dek: Option<[u8; DEK_LEN]>,
 ) -> Result<ImportResult, VaultError> {
     match mode {
         "replace" => import_vault_replace(data_dir, src_path, password, recovery_phrase),
-        "merge" => import_vault_merge_settings(data_dir, src_path, password, recovery_phrase),
-        "merge-documents" => import_vault_merge_documents(data_dir, src_path, password, recovery_phrase),
+        "merge" => {
+            import_vault_merge_settings(data_dir, src_path, password, recovery_phrase, current_dek)
+        }
+        "merge-documents" => import_vault_merge_documents(
+            data_dir,
+            src_path,
+            password,
+            recovery_phrase,
+            current_dek,
+        ),
         _ => Err(VaultError::InvalidData),
     }
 }
@@ -278,13 +290,22 @@ fn import_vault_replace(
 fn import_vault_merge_settings(
     data_dir: &Path,
     src_path: &Path,
-    _password: &str,
-    _recovery_phrase: Option<&str>,
+    password: &str,
+    recovery_phrase: Option<&str>,
+    current_dek: Option<[u8; DEK_LEN]>,
 ) -> Result<ImportResult, VaultError> {
     let (manifest, staging) = read_manifest_and_extract(src_path, data_dir)?;
 
     let result = (|| -> Result<ImportResult, VaultError> {
-        apply_settings_merge(data_dir, &staging)?;
+        if staging.join(KEYS_FILENAME).is_file() {
+            let meta = read_meta(&staging)?;
+            let has_sealed_secrets = staging.join(AI_SECRETS_ENC_FILENAME).is_file()
+                || staging.join(CC_SECRETS_ENC_FILENAME).is_file();
+            if meta.encryption_enabled && has_sealed_secrets {
+                verify_import_access(&staging, password, recovery_phrase)?;
+            }
+        }
+        apply_settings_merge(data_dir, &staging, password, recovery_phrase, current_dek)?;
 
         Ok(ImportResult {
             success: true,
@@ -304,6 +325,7 @@ fn import_vault_merge_documents(
     src_path: &Path,
     password: &str,
     recovery_phrase: Option<&str>,
+    current_dek: Option<[u8; DEK_LEN]>,
 ) -> Result<ImportResult, VaultError> {
     let (manifest, staging) = read_manifest_and_extract(src_path, data_dir)?;
 
@@ -312,7 +334,7 @@ fn import_vault_merge_documents(
             verify_import_access(&staging, password, recovery_phrase)?;
         }
 
-        apply_settings_merge(data_dir, &staging)?;
+        apply_settings_merge(data_dir, &staging, password, recovery_phrase, current_dek)?;
 
         let stats = super::merge_docs::merge_documents_from_staging(
             data_dir,
@@ -334,11 +356,17 @@ fn import_vault_merge_documents(
     result
 }
 
-fn apply_settings_merge(data_dir: &Path, staging: &Path) -> Result<(), VaultError> {
+fn apply_settings_merge(
+    data_dir: &Path,
+    staging: &Path,
+    password: &str,
+    recovery_phrase: Option<&str>,
+    current_dek: Option<[u8; DEK_LEN]>,
+) -> Result<(), VaultError> {
     let settings_files = [
         AI_CONFIG_FILENAME,
-        AI_SECRETS_FILENAME,
         MCP_CONFIG_FILENAME,
+        CC_WORKBENCH_CONFIG_FILENAME,
     ];
     for name in settings_files {
         let src = staging.join(name);
@@ -346,6 +374,36 @@ fn apply_settings_merge(data_dir: &Path, staging: &Path) -> Result<(), VaultErro
             fs::copy(&src, data_dir.join(name))?;
         }
     }
+
+    merge_secrets_file(
+        data_dir,
+        staging,
+        AI_SECRETS_FILENAME,
+        AI_SECRETS_ENC_FILENAME,
+        password,
+        recovery_phrase,
+        current_dek,
+        |dir, enc, dek, bytes| {
+            let secrets: crate::ai::AiSecrets =
+                serde_json::from_slice(bytes).map_err(|_| VaultError::InvalidData)?;
+            crate::ai::save_secrets(dir, &secrets, enc, dek).map_err(|_| VaultError::InvalidData)
+        },
+    )?;
+    merge_secrets_file(
+        data_dir,
+        staging,
+        CC_SECRETS_FILENAME,
+        CC_SECRETS_ENC_FILENAME,
+        password,
+        recovery_phrase,
+        current_dek,
+        |dir, enc, dek, bytes| {
+            let secrets: crate::cc_workbench::secrets::CcWorkbenchSecrets =
+                serde_json::from_slice(bytes).map_err(|_| VaultError::InvalidData)?;
+            crate::cc_workbench::save_secrets(dir, &secrets, enc, dek)
+                .map_err(|_| VaultError::InvalidData)
+        },
+    )?;
 
     let incoming_ui = staging.join(UI_STATE_FILENAME);
     if incoming_ui.is_file() {
@@ -355,6 +413,74 @@ fn apply_settings_merge(data_dir: &Path, staging: &Path) -> Result<(), VaultErro
         save_ui_state(data_dir, &merged).map_err(|_| VaultError::InvalidData)?;
     }
     Ok(())
+}
+
+fn merge_secrets_file<F>(
+    data_dir: &Path,
+    staging: &Path,
+    plain_name: &str,
+    enc_name: &str,
+    password: &str,
+    recovery_phrase: Option<&str>,
+    current_session_dek: Option<[u8; DEK_LEN]>,
+    write_target: F,
+) -> Result<(), VaultError>
+where
+    F: FnOnce(&Path, bool, Option<&[u8; DEK_LEN]>, &[u8]) -> Result<(), VaultError>,
+{
+    let staging_enc = staging.join(enc_name);
+    let staging_plain = staging.join(plain_name);
+    if !staging_enc.is_file() && !staging_plain.is_file() {
+        return Ok(());
+    }
+
+    let current_meta = read_meta(data_dir)?;
+    let bytes = if staging_enc.is_file() {
+        let backup_dek = resolve_merge_dek(staging, password, recovery_phrase)?
+            .ok_or(VaultError::Locked)?;
+        crate::crypto::read_sealed(&staging_enc, &backup_dek).map_err(|_| VaultError::InvalidData)?
+    } else {
+        fs::read(&staging_plain)?
+    };
+
+    let current_dek = if current_meta.encryption_enabled {
+        Some(match current_session_dek {
+            Some(dek) => dek,
+            None => resolve_merge_dek(data_dir, password, recovery_phrase)?
+                .ok_or(VaultError::Locked)?,
+        })
+    } else {
+        None
+    };
+
+    write_target(
+        data_dir,
+        current_meta.encryption_enabled,
+        current_dek.as_ref(),
+        &bytes,
+    )?;
+    Ok(())
+}
+
+fn resolve_merge_dek(
+    data_dir: &Path,
+    password: &str,
+    recovery_phrase: Option<&str>,
+) -> Result<Option<[u8; DEK_LEN]>, VaultError> {
+    let meta = read_meta(data_dir)?;
+    let keys_path = data_dir.join(KEYS_FILENAME);
+    if !keys_path.is_file() {
+        return Ok(None);
+    }
+    let keys = read_keys(&keys_path)?;
+    if !(meta.encryption_enabled || keys.encryption_enabled) {
+        return Ok(None);
+    }
+    if !password.is_empty() {
+        return Ok(Some(keys.unwrap_dek(password.as_bytes())?));
+    }
+    let phrase = recovery_phrase.ok_or(VaultError::Locked)?;
+    Ok(Some(mnemonic_to_dek(phrase)?))
 }
 
 fn verify_import_access(
@@ -594,6 +720,16 @@ mod tests {
             },
         )
         .unwrap();
+        fs::write(
+            source.join(CC_WORKBENCH_CONFIG_FILENAME),
+            r#"{"schemaVersion":1,"projectPath":"/from-backup"}"#,
+        )
+        .unwrap();
+        fs::write(
+            source.join(CC_SECRETS_FILENAME),
+            r#"{"anthropicApiKey":"sk-backup-key","providerKeys":{}}"#,
+        )
+        .unwrap();
 
         let backup_path = source.join("settings.lizhi");
         export_vault(&source, &backup_path, None).unwrap();
@@ -606,7 +742,7 @@ mod tests {
         fs::create_dir_all(target_ws.join("inbox")).unwrap();
         fs::write(target_ws.join("inbox/keep-me.md"), "# keep").unwrap();
 
-        let result = import_vault(&target, &backup_path, "", None, "merge").unwrap();
+        let result = import_vault(&target, &backup_path, "", None, "merge", None).unwrap();
         assert!(result.success);
         assert!(!result.requires_restart);
         assert!(target_ws.join("inbox/keep-me.md").is_file());
@@ -614,6 +750,9 @@ mod tests {
         let ui = load_ui_state(&target).unwrap();
         let tags = ui.document_tags.unwrap();
         assert_eq!(tags["doc-a"], json!(["备份标签"]));
+        assert!(target.join(CC_WORKBENCH_CONFIG_FILENAME).is_file());
+        let cc_secrets = fs::read_to_string(target.join(CC_SECRETS_FILENAME)).unwrap();
+        assert!(cc_secrets.contains("sk-backup-key"));
 
         let _ = fs::remove_dir_all(source);
         let _ = fs::remove_dir_all(target);
@@ -630,18 +769,29 @@ mod tests {
         fs::create_dir_all(ws.join("inbox")).unwrap();
         fs::write(ws.join("inbox/test.md"), "# hello").unwrap();
 
+        let rev_dir = dir.join("revisions").join("doc-1");
+        fs::create_dir_all(&rev_dir).unwrap();
+        fs::write(rev_dir.join("1000.md"), "# old").unwrap();
+
         let backup_path = dir.join("test.lizhi");
         export_vault(&dir, &backup_path, None).unwrap();
 
         let validation = validate_vault_backup(&backup_path);
         assert!(validation.valid);
 
+        {
+            let file = File::open(&backup_path).unwrap();
+            let mut archive = ZipArchive::new(file).unwrap();
+            assert!(archive.by_name("revisions/doc-1/1000.md").is_ok());
+        }
+
         let restore_dir = temp_dir();
-        let result = import_vault(&restore_dir, &backup_path, "", None, "replace").unwrap();
+        let result = import_vault(&restore_dir, &backup_path, "", None, "replace", None).unwrap();
         assert!(result.success);
         assert!(result.requires_restart);
         assert!(meta_path(&restore_dir).is_file());
         assert!(keys_path(&restore_dir).is_file());
+        assert!(restore_dir.join("revisions/doc-1/1000.md").is_file());
 
         let _ = fs::remove_dir_all(dir);
         let _ = fs::remove_dir_all(restore_dir);
@@ -652,17 +802,33 @@ mod tests {
         let dir = temp_dir();
         let mut svc = VaultService::new(dir.clone());
         svc.create_vault("secret".into(), None, None).unwrap();
+        let dek = svc.session_dek().unwrap();
+        let mut secrets = crate::ai::AiSecrets::default();
+        secrets
+            .cloud_api_keys
+            .insert("p1".into(), "sk-enc-test".into());
+        crate::ai::save_secrets(&dir, &secrets, true, Some(&dek)).unwrap();
 
         let backup_path = dir.join("encrypted.lizhi");
         export_vault(&dir, &backup_path, Some("secret")).unwrap();
 
+        {
+            let file = File::open(&backup_path).unwrap();
+            let mut archive = ZipArchive::new(file).unwrap();
+            assert!(archive.by_name(AI_SECRETS_ENC_FILENAME).is_ok());
+            assert!(archive.by_name(AI_SECRETS_FILENAME).is_err());
+        }
+
         let restore_dir = temp_dir();
-        let result = import_vault(&restore_dir, &backup_path, "secret", None, "replace").unwrap();
+        let result = import_vault(&restore_dir, &backup_path, "secret", None, "replace", None).unwrap();
         assert!(result.success);
 
         let mut svc2 = VaultService::new(restore_dir.clone());
         let status = svc2.unlock_vault("secret".into()).unwrap();
         assert!(!status.is_locked);
+        let dek2 = svc2.session_dek().unwrap();
+        let restored = crate::ai::load_secrets(&restore_dir, true, Some(&dek2)).unwrap();
+        assert_eq!(restored.cloud_api_keys.get("p1").unwrap(), "sk-enc-test");
 
         let _ = fs::remove_dir_all(dir);
         let _ = fs::remove_dir_all(restore_dir);

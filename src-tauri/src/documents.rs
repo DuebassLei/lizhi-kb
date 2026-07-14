@@ -562,7 +562,14 @@ impl DocumentService {
         })
     }
 
-    pub fn rename_document(&mut self, id: &str, title: &str) -> Result<(), AppError> {
+    /// Rename a document and refresh only its search/link index rows.
+    /// Does **not** rebuild the full-library FTS/link indexes (that was the title-save lag).
+    pub fn rename_document(
+        &mut self,
+        id: &str,
+        title: &str,
+        dek: Option<&[u8; DEK_LEN]>,
+    ) -> Result<(), AppError> {
         let now = now_millis();
         let updated = self.conn_mut()?.execute(
             "UPDATE documents SET title = ?1, updated_at = ?2 WHERE id = ?3",
@@ -573,11 +580,18 @@ impl DocumentService {
             return Err(AppError::DocumentNotFound(id.to_string()));
         }
 
-        if let Ok(doc) = self.get_document_meta(id) {
-            let content = self.read_document(id, None).map(|d| d.content).unwrap_or_default();
-            let _ = self.index_document(id, title, &content, &[]);
-            let _ = doc;
+        // Keep inbound wiki-link rows' display title in sync (queries join id, but
+        // outbound title lists still read target_title).
+        {
+            let conn = self.conn()?;
+            let _ = link_index::update_inbound_link_titles(conn, id, title);
         }
+
+        let content = self
+            .read_document(id, dek)
+            .map(|d| d.content)
+            .unwrap_or_default();
+        self.index_document(id, title, &content, &[])?;
 
         Ok(())
     }
@@ -599,7 +613,7 @@ impl DocumentService {
             });
         }
 
-        self.rename_document(id, new_title)?;
+        self.rename_document(id, new_title, dek)?;
 
         let mut propagated = Vec::new();
         if propagate_wiki_links {

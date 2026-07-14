@@ -21,7 +21,8 @@
 ### 数据目录要点
 
 - **vault 核心**：`workspace/`、`assets/`、`vault.db`（或明文 `lizhi-kb.db`）、`vault.meta.json`、`keys.enc`
-- **配置**：`ai-config.json`、`ai-secrets.json`、`mcp-config.json`、`cc-workbench.json`、`cc-secrets.json`（敏感，纳入 `.lizhi` v2 备份）
+- **配置**：`ai-config.json`、`ai-secrets.json(.enc)`、`mcp-config.json`、`cc-workbench.json`、`cc-secrets.json(.enc)`（敏感，纳入 `.lizhi` v2 备份；加密库下 secrets 为 DEK 密封）
+- **历史版本**：`revisions/`（纳入 `.lizhi` 备份与 `merge-documents`）
 - **Claude Code 生态**（Agent 工作台）：`~/.claude/`（agents、prompts、skills）、`~/.claude.json`（MCP）；项目级 `{project}/.claude/`
 - **UI 状态 SSOT**：`vault-ui-state.json`（文件夹树、标签、对话记录等；Tauri 下双写 localStorage）
 - **恢复模式**：`replace`（整库）| `merge`（仅设置）| `merge-documents`（文档+设置合并）
@@ -80,6 +81,7 @@ tests/e2e/        Playwright
 | 项 | 说明 |
 |----|------|
 | 运行时 | `packages/ai-bridge` → Tauri spawn → Claude Agent SDK |
+| 进程管理 | 顶栏「Node 进程」：登记 + 孤立扫描；见 [进程管理 spec](./docs/superpowers/specs/2026-07-14-cc-bridge-process-manager-design.md) |
 | 配置 | `cc-workbench.json`、`cc-secrets.json`；Claude 生态见 `~/.claude/` |
 | 工作目录 | **vault**（默认，仅 lizhi-mcp）/ **project**（完整文件工具 + Bash） |
 | bridge 同步 | 改 `packages/ai-bridge` 后：`node scripts/sync-ai-bridge-resources.mjs` |

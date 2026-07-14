@@ -87,6 +87,15 @@ pub fn merge_documents_from_staging(
         current_dek.as_ref(),
     )?;
 
+    merge_revisions(
+        staging,
+        data_dir,
+        backup_meta.encryption_enabled,
+        current_meta.encryption_enabled,
+        backup_dek.as_ref(),
+        current_dek.as_ref(),
+    )?;
+
     Ok(MergeDocumentsStats {
         documents: doc_merged,
         assets: asset_merged,
@@ -590,6 +599,101 @@ fn relative_doc_path(folder: &str, id: &str, encrypted: bool) -> String {
     } else {
         format!("{folder}/{name}")
     }
+}
+
+/// Union-merge revision snapshots by doc_id + revision id. Existing local revisions are kept;
+/// missing ones are imported (re-sealed with the current vault DEK when encryption differs).
+fn merge_revisions(
+    staging: &Path,
+    data_dir: &Path,
+    backup_encrypted: bool,
+    current_encrypted: bool,
+    backup_dek: Option<&[u8; DEK_LEN]>,
+    current_dek: Option<&[u8; DEK_LEN]>,
+) -> Result<u32, VaultError> {
+    let src_root = staging.join("revisions");
+    if !src_root.is_dir() {
+        return Ok(0);
+    }
+
+    let mut merged = 0u32;
+    for doc_entry in fs::read_dir(&src_root)? {
+        let doc_entry = doc_entry?;
+        if !doc_entry.file_type()?.is_dir() {
+            continue;
+        }
+        let doc_id = doc_entry.file_name();
+        let dest_dir = data_dir.join("revisions").join(&doc_id);
+        fs::create_dir_all(&dest_dir)?;
+
+        for rev_entry in fs::read_dir(doc_entry.path())? {
+            let rev_entry = rev_entry?;
+            if !rev_entry.file_type()?.is_file() {
+                continue;
+            }
+            let name = rev_entry.file_name();
+            let name_str = name.to_string_lossy();
+            let revision_id = name_str
+                .strip_suffix(".md.enc")
+                .or_else(|| name_str.strip_suffix(".md"))
+                .unwrap_or(&name_str);
+            if revision_id.is_empty() {
+                continue;
+            }
+
+            let dest_plain = dest_dir.join(format!("{revision_id}.md"));
+            let dest_enc = dest_dir.join(format!("{revision_id}.md.enc"));
+            if dest_plain.is_file() || dest_enc.is_file() {
+                continue;
+            }
+
+            let content = read_revision_file(
+                &rev_entry.path(),
+                backup_encrypted,
+                backup_dek,
+            )?;
+            write_revision_file(
+                &dest_dir,
+                revision_id,
+                &content,
+                current_encrypted,
+                current_dek,
+            )?;
+            merged += 1;
+        }
+    }
+    Ok(merged)
+}
+
+fn read_revision_file(
+    path: &Path,
+    encrypted: bool,
+    dek: Option<&[u8; DEK_LEN]>,
+) -> Result<Vec<u8>, VaultError> {
+    let name = path.file_name().and_then(|s| s.to_str()).unwrap_or_default();
+    let looks_enc = name.ends_with(".md.enc");
+    if encrypted || looks_enc {
+        let dek = dek.ok_or(VaultError::Locked)?;
+        return read_encrypted_bytes(path, dek);
+    }
+    fs::read(path).map_err(VaultError::from)
+}
+
+fn write_revision_file(
+    dest_dir: &Path,
+    revision_id: &str,
+    content: &[u8],
+    encrypted: bool,
+    dek: Option<&[u8; DEK_LEN]>,
+) -> Result<(), VaultError> {
+    if encrypted {
+        let dek = dek.ok_or(VaultError::Locked)?;
+        let path = dest_dir.join(format!("{revision_id}.md.enc"));
+        write_encrypted_bytes(&path, dek, content)?;
+    } else {
+        fs::write(dest_dir.join(format!("{revision_id}.md")), content)?;
+    }
+    Ok(())
 }
 
 fn read_encrypted_bytes(path: &Path, dek: &[u8; DEK_LEN]) -> Result<Vec<u8>, VaultError> {

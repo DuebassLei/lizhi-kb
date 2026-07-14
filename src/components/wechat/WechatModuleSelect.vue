@@ -74,7 +74,7 @@ onUnmounted(() => {
 
     <div
       v-if="open"
-      class="scrollbar-thin absolute top-full z-50 mt-1 w-[11rem] max-h-[280px] overflow-y-auto rounded-lg border border-border bg-surface-1 p-1"
+      class="scrollbar-thin absolute top-full z-50 mt-1 w-[13rem] max-h-[280px] overflow-y-auto rounded-lg border border-border bg-surface-1 p-1"
       :class="menuAlign === 'right' ? 'right-0' : 'left-0'"
       :style="{ boxShadow: 'var(--shadow-float)' }"
       role="menu"

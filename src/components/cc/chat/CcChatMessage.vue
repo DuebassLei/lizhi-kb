@@ -126,16 +126,26 @@ const metaInputTokens = computed(() => Math.max(0, props.message.inputTokens ?? 
 const metaOutputTokens = computed(() => Math.max(0, props.message.outputTokens ?? 0));
 const metaTotalTokens = computed(() => metaInputTokens.value + metaOutputTokens.value);
 const metaContextMax = computed(() => Math.max(0, props.message.contextMaxTokens ?? 0));
-const metaContextUsed = computed(() => metaTotalTokens.value);
+const metaContextUsed = computed(() => {
+  const fromCtx = props.message.contextTotalTokens;
+  if (typeof fromCtx === "number" && Number.isFinite(fromCtx) && fromCtx > 0) {
+    return fromCtx;
+  }
+  return metaTotalTokens.value;
+});
 const showMetaTokens = computed(
   () => metaInputTokens.value > 0 || metaOutputTokens.value > 0,
 );
 const showMetaContext = computed(
   () => metaContextMax.value > 0 && metaContextUsed.value > 0,
 );
+/** 用量已超过假设窗口（常见于自定义网关 / DeepSeek 等，默认仍按 200K 估计） */
+const metaContextExceeded = computed(
+  () => showMetaContext.value && metaContextUsed.value > metaContextMax.value,
+);
 const metaContextPct = computed(() => {
-  if (!showMetaContext.value) return 0;
-  return Math.min(99, Math.round((metaContextUsed.value / metaContextMax.value) * 100));
+  if (!showMetaContext.value || metaContextExceeded.value) return 0;
+  return Math.min(100, Math.round((metaContextUsed.value / metaContextMax.value) * 100));
 });
 const showMetaDuration = computed(
   () => typeof props.message.durationMs === "number" && props.message.durationMs >= 0,
@@ -161,11 +171,19 @@ const metaLineItems = computed((): MetaLineItem[] => {
     });
   }
   if (showMetaContext.value) {
-    items.push({
-      key: "context",
-      text: `上下文 ${metaContextPct.value}% (${formatTokenCount(metaContextUsed.value)}/${formatTokenCount(metaContextMax.value)})`,
-      mono: true,
-    });
+    if (metaContextExceeded.value) {
+      items.push({
+        key: "context",
+        text: `上下文 已用 ${formatTokenCount(metaContextUsed.value)}（假设窗口 ${formatTokenCount(metaContextMax.value)}，已超出）`,
+        mono: true,
+      });
+    } else {
+      items.push({
+        key: "context",
+        text: `上下文 ${metaContextPct.value}% (${formatTokenCount(metaContextUsed.value)}/${formatTokenCount(metaContextMax.value)})`,
+        mono: true,
+      });
+    }
   }
   if (showMetaTokens.value) {
     items.push({

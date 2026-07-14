@@ -51,7 +51,7 @@ function clearFindState() {
   view.dispatch({ effects: [setFindConfig.of(null), setFindActiveMatch.of(-1)] });
 }
 
-function goToMatch(index: number) {
+function goToMatch(index: number, options?: { focusEditor?: boolean }) {
   const view = props.view;
   const config = currentConfig();
   if (!view || !config) return;
@@ -68,7 +68,8 @@ function goToMatch(index: number) {
     selection: { anchor: match.from, head: match.to },
     effects: [setFindActiveMatch.of(normalized), CMEditorView.scrollIntoView(match.from, { y: "center" })],
   });
-  view.focus();
+  // Keep focus in the find bar while typing / navigating; only steal it when requested.
+  if (options?.focusEditor) view.focus();
 }
 
 function findRelativeIndex(next: boolean): number {
@@ -140,7 +141,6 @@ function runReplace() {
   });
   refreshFind(false);
   runFind(true);
-  view.focus();
 }
 
 function runReplaceAll() {
@@ -156,7 +156,6 @@ function runReplaceAll() {
     changes: { from: 0, to: doc.length, insert: replaced },
   });
   refreshFind(false);
-  view.focus();
 }
 
 function onFindMeta(event: Event) {

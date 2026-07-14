@@ -30,10 +30,11 @@
 | **文件夹树 + 文档排序** | `localStorage` `lizhi-kb-folders` | → `vault-ui-state.json` |
 | **文档标签** | `localStorage` `lizhi-kb-doc-tags` | → `vault-ui-state.json` |
 | **AI 配置** | `ai-config.json` | 纳入备份（可选文件） |
-| **AI 密钥** | `ai-secrets.json` | 纳入备份（可选文件） |
+| **AI 密钥** | `ai-secrets.json(.enc)` | 纳入备份（可选；加密库密封） |
 | **CC 工作台配置** | `cc-workbench.json` | 纳入备份（可选文件） |
-| **CC 工作台密钥** | `cc-secrets.json` | 纳入备份（可选文件；含 API Key） |
-| **MCP 配置** | `mcp-config.json` | 纳入备份（可选文件） |
+| **CC 工作台密钥** | `cc-secrets.json(.enc)` | 纳入备份（可选；加密库密封） |
+| **MCP 配置** | `mcp-config.json` | 纳入备份（可选文件；token 仍为明文） |
+| **文档历史版本** | `revisions/` | 纳入备份 |
 
 ### Tier 2 — 建议纳入（体验连续）
 
@@ -62,12 +63,15 @@
 
 ```
 ai-config.json
-ai-secrets.json
+ai-secrets.json / ai-secrets.json.enc
 mcp-config.json
+cc-workbench.json
+cc-secrets.json / cc-secrets.json.enc
 vault-ui-state.json
+revisions/
 ```
 
-收集规则：文件存在则打包并写入 manifest；不存在则跳过（兼容旧库）。
+收集规则：文件/目录存在则打包并写入 manifest；不存在则跳过（兼容旧库）。
 
 ### `vault-ui-state.json` 结构
 
@@ -102,13 +106,15 @@ Tauri 运行时双写：`localStorage`（即时 UI）+ 磁盘文件（备份 SSO
 **不修改** `workspace/`、数据库、密钥；仅从备份解压并合并：
 
 - `ai-config.json` — 备份覆盖（提供商列表以备份为准）
-- `ai-secrets.json` — 备份覆盖
+- `ai-secrets.json` / `ai-secrets.json.enc` — 备份覆盖（加密库为 AES-GCM 密封文件）
 - `mcp-config.json` — 备份覆盖（token 以备份为准，注意 MCP 端口冲突）
+- `cc-workbench.json` — 备份覆盖
+- `cc-secrets.json` / `cc-secrets.json.enc` — 备份覆盖
 - `vault-ui-state.json` — 字段级合并（见下）
 
 成功后 **无需重启**；前端重新 hydrate UI 状态即可。
 
-适用：从旧设备备份恢复 AI/文件夹/标签，保留当前机器上的文档。
+适用：从旧设备备份恢复 AI/CC 工作台/文件夹/标签，保留当前机器上的文档。
 
 #### `vault-ui-state.json` 合并规则
 
@@ -124,7 +130,10 @@ Tauri 运行时双写：`localStorage`（即时 UI）+ 磁盘文件（备份 SSO
 
 文档级合并：按 `documents.id` 并集；`updated_at` 较新者胜；缺失资源按文件名去重复制。  
 同时执行与 `merge` 相同的设置合并，并按 `updated_at` 合并 DB 表 `requirements`、`journal_entries`、`edit_activity`、`credential_entries`、`launch_records`（后两者若备份中不存在则跳过）。  
+`revisions/` 按文档 id + 版本 id 并集合并：本地已有同 id 快照则保留，缺失则导入（必要时用当前库 DEK 重密封）。  
 加密备份需输入主密码以读取备份内容。成功后刷新文档列表，无需重启。
+
+> 注意：历史版本无本地条数上限，频繁编辑的库导出体积可能显著增大。
 
 #### `vault-ui-state.json` 结构（schema v2）
 
@@ -148,9 +157,9 @@ Tauri 运行时双写：`localStorage`（即时 UI）+ 磁盘文件（备份 SSO
 
 ## 安全注意
 
-- `ai-secrets.json`、`mcp-config.json`（含 token）进入 `.lizhi` 后，备份文件敏感度等同密钥文件。
-- 加密库导出的 `.lizhi` 内上述 JSON 仍为 **明文**（仅 DB/workspace 加密）。用户应妥善保管备份文件。
-- UI 文案需提示：加密备份不加密配置文件明文。
+- 加密库下 `ai-secrets.json.enc` / `cc-secrets.json.enc` 使用与文档相同的 DEK（AES-256-GCM）密封，导出进 `.lizhi` 后仍为密文；合并加密备份需主密码以解封并重密封到目标库。
+- `mcp-config.json`（含 token）、`ai-config.json`、`cc-workbench.json` 仍为 **明文**。用户应妥善保管备份文件。
+- 未启用主密码时，AI/CC 密钥在备份内为明文 JSON。
 
 ## 验收标准
 
@@ -162,6 +171,9 @@ Tauri 运行时双写：`localStorage`（即时 UI）+ 磁盘文件（备份 SSO
 - [x] Tier 2：对话历史、看板背景、图谱坐标、置顶/最近文档纳入 `vault-ui-state.json`
 - [x] `merge-documents`：按 `updated_at` 合并文档与资源，并合并设置及密码本/上线记录
 - [x] `launch_records` 合并时若 `record_number` 与本地冲突则跳过该条（不覆盖已有单号）
+- [x] 导出含 `revisions/`（若存在）；`merge-documents` 并集合并历史快照
+- [x] `merge` 含 `cc-workbench.json` / `cc-secrets.json`
+- [x] 加密库下 AI/CC secrets 本地与备份均为 DEK 密封（`.enc`）；MCP config 仍明文并在 UI 提示
 
 ## 实现文件
 

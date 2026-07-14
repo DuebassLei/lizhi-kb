@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Folder, Search, Star } from "@lucide/vue";
+import { Folder, Images, Search, Star } from "@lucide/vue";
 import { computed, provide, ref } from "vue";
 
 import { useDocumentsStore } from "../../stores/documents";
@@ -116,26 +116,72 @@ function openSearch() {
       <FolderTree :nodes="folderTreeNodes" />
     </nav>
 
-    <div class="shrink-0 border-t border-border p-2">
+    <div class="sidebar-assets shrink-0 border-t border-border p-2">
       <button
         type="button"
-        class="focus-ring mb-2 w-full rounded-md px-2 py-1 text-left text-[11px] text-muted hover:bg-surface-2 hover:text-[var(--color-text)]"
+        class="sidebar-assets__toggle focus-ring"
+        :class="{ 'sidebar-assets__toggle--open': assetLibraryOpen }"
         data-testid="sidebar-asset-library-toggle"
+        :aria-expanded="assetLibraryOpen"
         @click="assetLibraryOpen = !assetLibraryOpen"
       >
-        {{ assetLibraryOpen ? "收起资产库" : "资产库" }}
+        <Images class="sidebar-assets__icon" aria-hidden="true" />
+        <span class="sidebar-assets__label">{{ assetLibraryOpen ? "收起资产库" : "资产库" }}</span>
       </button>
       <AssetLibraryPanel
         v-if="assetLibraryOpen"
-        class="max-h-48"
-        @insert="
-          (md) => {
-            documents.updateContent(
-              documents.content + (documents.content.endsWith('\n') ? '' : '\n') + md + '\n',
-            );
-          }
-        "
+        class="max-h-[min(50vh,22rem)]"
+        @insert="(md) => ui.requestEditorInsert(md)"
       />
     </div>
   </div>
 </template>
+
+<style scoped>
+.sidebar-assets__toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-1);
+  padding: 0.375rem 0.5rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.sidebar-assets__toggle:hover {
+  background: var(--color-surface-2);
+  border-color: var(--color-border-strong);
+}
+
+.sidebar-assets__toggle--open {
+  border-color: color-mix(in srgb, var(--color-link) 40%, var(--color-border));
+  background: color-mix(in srgb, var(--color-link) 10%, var(--color-surface-1));
+}
+
+.sidebar-assets__icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+  color: var(--color-link);
+}
+
+.sidebar-assets__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: 0.01em;
+}
+
+.sidebar-assets__toggle:hover .sidebar-assets__label,
+.sidebar-assets__toggle--open .sidebar-assets__label {
+  color: var(--color-text);
+}
+</style>

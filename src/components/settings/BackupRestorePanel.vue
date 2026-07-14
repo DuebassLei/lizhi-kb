@@ -24,6 +24,7 @@ import { useChatStore } from "../../stores/chat";
 import { useCredentialsStore } from "../../stores/credentials";
 import { useLaunchRecordsStore } from "../../stores/launchRecords";
 import { useDocumentTemplatesStore } from "../../stores/documentTemplates";
+import { useCcWorkbenchStore } from "../../stores/ccWorkbench";
 import { loadStoredDocumentTemplates } from "../../utils/documentTemplateSetting";
 import { TauriCommandError } from "../../composables/useTauriCommand";
 import type { ImportResult } from "../../types/vault";
@@ -35,6 +36,7 @@ const vault = useVaultStore();
 const chat = useChatStore();
 const credentials = useCredentialsStore();
 const launchRecords = useLaunchRecordsStore();
+const ccWorkbench = useCcWorkbenchStore();
 
 const exporting = ref(false);
 const exportingMd = ref(false);
@@ -44,7 +46,7 @@ const importPassword = ref("");
 const importRecoveryPhrase = ref("");
 const importUseRecovery = ref(false);
 const pendingImportPath = ref<string | null>(null);
-const pendingImportMode = ref<"replace" | "merge-documents">("replace");
+const pendingImportMode = ref<"replace" | "merge" | "merge-documents">("replace");
 const pendingImportEncrypted = ref(false);
 const pendingExportPath = ref<string | null>(null);
 const exportPassword = ref("");
@@ -164,14 +166,9 @@ async function handlePickImport(mode: "replace" | "merge" | "merge-documents") {
       return;
     }
 
-    if (mode === "merge") {
-      await runImport(picked, "merge");
-      return;
-    }
-
-    if (mode === "merge-documents") {
+    if (mode === "merge" || mode === "merge-documents") {
       if (validation.encryptionEnabled) {
-        pendingImportMode.value = "merge-documents";
+        pendingImportMode.value = mode;
         pendingImportPath.value = picked;
         pendingImportEncrypted.value = true;
         importUseRecovery.value = false;
@@ -179,7 +176,7 @@ async function handlePickImport(mode: "replace" | "merge" | "merge-documents") {
         importRecoveryPhrase.value = "";
         return;
       }
-      await runImport(picked, "merge-documents");
+      await runImport(picked, mode);
       return;
     }
 
@@ -207,6 +204,7 @@ async function refreshAfterMerge(mode: "merge" | "merge-documents", result?: Imp
   documents.reloadLocalDocPrefs();
   ui.insightsHeroBackground = loadInsightsHeroBackground();
   chat.reloadSessionsFromStorage();
+  await Promise.all([chat.loadAiEnabled(), ccWorkbench.refresh()]);
   if (mode === "merge-documents") {
     await documents.fetchTree();
     credentials.closeDrawer();
@@ -222,7 +220,7 @@ async function refreshAfterMerge(mode: "merge" | "merge-documents", result?: Imp
       `已合并 ${docCount} 篇文档${assetCount ? `、${assetCount} 个资源` : ""}、密码本、上线记录及设置`,
     );
   } else {
-    ui.showToast("success", "已合并 AI、文件夹、标签与对话记录等设置");
+    ui.showToast("success", "已合并 AI、CC 工作台、文件夹、标签与对话记录等设置");
   }
 }
 
@@ -444,13 +442,14 @@ const busy = () => exporting.value || exportingMd.value || exportingMdFolder.val
     <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">备份与恢复</h2>
 
     <p class="mb-3 text-sm text-muted">
-      导出完整备份（.lizhi）含文档、资源、需求/小记、密码本、上线记录、文件夹与标签、AI/MCP 配置。
+      导出完整备份（.lizhi）含文档、资源、历史版本、需求/小记、密码本、上线记录、文件夹与标签、AI/CC/MCP 配置。历史版本较多时备份体积会增大。
       换机请用「从备份恢复」整库替换；「合并备份设置」或「合并备份文档」可保留当前库并导入备份内容。
       <template v-if="vault.encryptionEnabled">
-        已启用主密码时，整库恢复需验证主密码；文档与数据库在备份内保持加密。AI 配置文件在包内为明文，请妥善保管备份文件。
+        已启用主密码时，整库恢复与合并加密备份需验证主密码；文档、数据库与 AI/CC 密钥（ai-secrets / cc-secrets）在备份内保持加密。
+        ai-config、cc-workbench、mcp-config（含 MCP token）仍为明文，请妥善保管备份文件。
       </template>
       <template v-else>
-        当前未启用主密码，整库恢复时无需输入密码。
+        当前未启用主密码，整库恢复时无需输入密码；AI/CC 密钥与 MCP token 在备份内为明文，请妥善保管。
       </template>
     </p>
 
@@ -569,7 +568,9 @@ const busy = () => exporting.value || exportingMd.value || exportingMdFolder.val
         {{
           pendingImportMode === "merge-documents"
             ? "该备份已加密，合并文档时需输入备份对应的主密码"
-            : "该备份已加密，恢复时需输入创建该备份时使用的主密码"
+            : pendingImportMode === "merge"
+              ? "该备份已加密，合并设置（含 AI/CC 密钥）时需输入备份对应的主密码"
+              : "该备份已加密，恢复时需输入创建该备份时使用的主密码"
         }}
       </p>
 

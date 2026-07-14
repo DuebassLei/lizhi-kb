@@ -317,6 +317,21 @@ pub fn remove_links_for_document(conn: &Connection, source_id: &str) -> Result<(
     remove_unlinked_for_document(conn, source_id)
 }
 
+/// After a title rename, refresh `target_title` on inbound wiki-link rows
+/// without rebuilding the whole link index.
+pub fn update_inbound_link_titles(
+    conn: &Connection,
+    target_id: &str,
+    new_title: &str,
+) -> Result<(), AppError> {
+    ensure_links_schema(conn)?;
+    conn.execute(
+        "UPDATE document_links SET target_title = ?1 WHERE target_id = ?2",
+        params![new_title, target_id],
+    )?;
+    Ok(())
+}
+
 pub fn needs_rebuild(conn: &Connection) -> Result<bool, AppError> {
     ensure_links_schema(conn)?;
     let doc_count: i64 = conn.query_row("SELECT count(*) FROM documents", [], |row| row.get(0))?;
@@ -652,5 +667,47 @@ mod tests {
         let mentions = get_unlinked_mentions(&conn, "b").unwrap();
         assert_eq!(mentions.len(), 1);
         assert_eq!(mentions[0].id, "a");
+    }
+
+    #[test]
+    fn update_inbound_link_titles_keeps_target_id() {
+        let conn = mem_conn();
+        conn.execute_batch(
+            "CREATE TABLE documents (
+                id TEXT PRIMARY KEY, title TEXT, path TEXT UNIQUE, folder TEXT,
+                created_at INTEGER, updated_at INTEGER, word_count INTEGER DEFAULT 0
+            );",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO documents VALUES ('a','Alpha','a.md','',0,0,0),('b','Beta','b.md','',0,0,0)",
+            [],
+        )
+        .unwrap();
+        let metas = vec![
+            DocumentMeta {
+                id: "a".into(),
+                title: "Alpha".into(),
+                path: "a.md".into(),
+                folder: String::new(),
+                created_at: 0,
+                updated_at: 0,
+            },
+            DocumentMeta {
+                id: "b".into(),
+                title: "Beta".into(),
+                path: "b.md".into(),
+                folder: String::new(),
+                created_at: 0,
+                updated_at: 0,
+            },
+        ];
+        let map = build_title_map(&metas);
+        upsert_links_for_document(&conn, "a", "see [[Beta]]", &map).unwrap();
+        update_inbound_link_titles(&conn, "b", "Beta Renamed").unwrap();
+        let titles = get_outbound_titles(&conn, "a").unwrap();
+        assert_eq!(titles, vec!["Beta Renamed".to_string()]);
+        let backlinks = get_backlinks(&conn, "b").unwrap();
+        assert_eq!(backlinks.len(), 1);
     }
 }

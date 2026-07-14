@@ -101,6 +101,8 @@ export interface CcMessage {
   durationMs?: number;
   inputTokens?: number;
   outputTokens?: number;
+  /** SDK/网关上报的上下文占用（优先于 input+output 估算） */
+  contextTotalTokens?: number;
   contextMaxTokens?: number;
   modelLabel?: string;
 }
@@ -316,7 +318,12 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
 
   const effectiveContextMax = computed(() => {
     const fromStream = finiteTokenCount(contextMaxFromStream.value);
-    return fromStream > 0 ? fromStream : contextWindow.value;
+    if (fromStream > 0) return fromStream;
+    const assumed = contextWindow.value;
+    const used = contextUsedTokens.value;
+    // 自定义网关实际可用窗口可能 > 默认 200K；已用量超过假设时不要再用 200K 当分母
+    if (used > assumed) return used;
+    return assumed;
   });
 
   const contextLabel = computed(() => {
@@ -342,15 +349,12 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
   const contextPercentage = computed(() => {
     const pctFromStream = contextPercentFromStream.value;
     if (typeof pctFromStream === "number" && Number.isFinite(pctFromStream) && pctFromStream > 0) {
-      return Math.min(99, Math.round(pctFromStream));
+      return Math.min(100, Math.round(pctFromStream));
     }
     const total = contextUsedTokens.value;
-    const max =
-      finiteTokenCount(contextMaxFromStream.value) > 0
-        ? finiteTokenCount(contextMaxFromStream.value)
-        : contextWindow.value;
+    const max = effectiveContextMax.value;
     if (!Number.isFinite(total) || !Number.isFinite(max) || total <= 0 || max <= 0) return 0;
-    return Math.min(99, Math.round((total / max) * 100));
+    return Math.min(100, Math.round((total / max) * 100));
   });
 
   const sessionTitleText = computed(() => {
@@ -715,18 +719,26 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
   function finalizeAssistantMeta(messageId: string, startedAt: number) {
     const current = messages.value.find((m) => m.id === messageId);
     if (!current) return;
-    const contextMax =
-      finiteTokenCount(contextMaxFromStream.value) > 0
-        ? finiteTokenCount(contextMaxFromStream.value)
-        : current.contextMaxTokens ?? contextWindow.value;
+    const assumedWindow = contextWindow.value;
+    const streamMax = finiteTokenCount(contextMaxFromStream.value);
+    const streamTotal = finiteTokenCount(contextTotalFromStream.value);
     const inputTok = Math.max(finiteTokenCount(current.inputTokens), finiteTokenCount(inputTokens.value));
     const outputTok = Math.max(finiteTokenCount(current.outputTokens), finiteTokenCount(outputTokens.value));
+    const usedApprox = streamTotal > 0 ? streamTotal : inputTok + outputTok;
+    // 有网关窗口用网关；否则保留假设窗口（哪怕 used>max，留给 UI 标明「已超出」）
+    const contextMax =
+      streamMax > 0
+        ? streamMax
+        : current.contextMaxTokens && current.contextMaxTokens > 0
+          ? current.contextMaxTokens
+          : assumedWindow;
     const durationMs = current.durationMs ?? Date.now() - startedAt;
     patchMessage(messageId, {
       streaming: false,
       durationMs,
       inputTokens: inputTok,
       outputTokens: outputTok,
+      contextTotalTokens: usedApprox > 0 ? usedApprox : current.contextTotalTokens,
       contextMaxTokens: contextMax,
     });
     const modelId = selectedModelId.value || config.value?.model || "unknown";
@@ -810,6 +822,14 @@ export const useCcWorkbenchStore = defineStore("ccWorkbench", () => {
         patchMessage(messageId, {
           inputTokens: Math.max(finiteTokenCount(current.inputTokens), nextInput),
           outputTokens: Math.max(finiteTokenCount(current.outputTokens), nextOutput),
+          ...(nextContextTotal > 0
+            ? {
+                contextTotalTokens: Math.max(
+                  finiteTokenCount(current.contextTotalTokens),
+                  nextContextTotal,
+                ),
+              }
+            : {}),
           ...(nextContextMax > 0 ? { contextMaxTokens: nextContextMax } : {}),
         });
         break;

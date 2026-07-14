@@ -21,6 +21,8 @@ import { useSplitPreviewResize } from "../../composables/useSplitPreviewResize";
 import { useEditorPreviewScrollSync } from "../../composables/useEditorPreviewScrollSync";
 import { useWechatTheme } from "../../composables/useWechatTheme";
 import { insertModuleSnippet } from "../../services/wechatExport";
+import { appendToMarkdownContent } from "../../utils/editorContentInsert";
+import { insertAtCursor } from "../../utils/markdownInsert";
 import { PenLine } from "@lucide/vue";
 
 const documents = useDocumentsStore();
@@ -203,6 +205,26 @@ const cmView = computed(() => {
   const exposed = cmRef.value as { editorView?: import("@codemirror/view").EditorView | null } | null;
   return exposed?.editorView ?? null;
 });
+
+watch(
+  () => ui.pendingEditorInsert,
+  (md) => {
+    if (!md) return;
+    const view = cmView.value;
+    if (view && documents.activeId) {
+      insertAtCursor(view, md.endsWith("\n") ? md : `${md}\n`);
+      void editor.saveNow();
+      ui.showToast("success", "已插入到光标位置");
+    } else if (documents.activeId) {
+      documents.updateContent(appendToMarkdownContent(documents.content, md));
+      void editor.saveNow();
+      ui.showToast("success", "已追加到文档末尾");
+    } else {
+      ui.showToast("error", "请先打开一篇文档");
+    }
+    ui.clearEditorInsert();
+  },
+);
 
 const scrollSyncEnabled = computed(() => showSplitPreview.value);
 const scrollSyncContent = computed(() => documents.content);

@@ -272,6 +272,13 @@ impl VaultService {
 
         document_service.migrate_to_encrypted(&dek)?;
         assets::encrypt_all_assets(&self.data_dir, &dek)?;
+        // Migrate plaintext AI/CC secrets into DEK-sealed files.
+        if let Ok(ai) = crate::ai::load_secrets(&self.data_dir, false, None) {
+            let _ = crate::ai::save_secrets(&self.data_dir, &ai, true, Some(&dek));
+        }
+        if let Ok(cc) = crate::cc_workbench::load_secrets(&self.data_dir, false, None) {
+            let _ = crate::cc_workbench::save_secrets(&self.data_dir, &cc, true, Some(&dek));
+        }
 
         let keys = if lock {
             KeysFile::wrap_dek(&dek, password.as_bytes())?

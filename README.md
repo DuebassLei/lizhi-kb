@@ -151,25 +151,28 @@ src/
 ├── vault.db / lizhi-kb.db   # SQLite（文档索引、需求、小记、热力图、链接索引）
 ├── workspace/           # Markdown 正文（.md 或 .md.enc）
 ├── assets/              # 图片等资源
+├── revisions/           # 文档历史版本快照（随备份迁移）
 ├── vault-ui-state.json  # 文件夹树、标签、对话记录等 UI 状态（备份 SSOT）
 ├── ai-config.json       # AI 提供商配置
-├── ai-secrets.json      # API Key（敏感）
-└── mcp-config.json      # MCP 服务配置
+├── ai-secrets.json(.enc)# API Key（敏感；加密库为密封文件）
+├── cc-workbench.json    # Claude Code 工作台配置
+├── cc-secrets.json(.enc)# CC API Key（敏感；加密库为密封文件）
+└── mcp-config.json      # MCP 服务配置（含 token，明文）
 ```
 
 ### 备份与恢复（`.lizhi`）
 
-设置 → **备份与恢复**。桌面版导出 `.lizhi` 压缩包（format v2），含文档、资源、需求/小记、文件夹与标签、AI/MCP 配置等。
+设置 → **备份与恢复**。桌面版导出 `.lizhi` 压缩包（format v2），含文档、资源、历史版本、需求/小记、文件夹与标签、AI/CC/MCP 配置等。历史版本可能使备份体积明显增大。
 
 | 操作 | 说明 |
 |------|------|
 | **导出备份** | 打包当前库；加密库导出需验证主密码 |
 | **从备份恢复** | 整库替换，换机 / 灾难恢复；完成后自动重启 |
-| **合并备份设置** | 仅合并 AI、文件夹、标签、对话记录等；**不改动现有文档** |
-| **合并备份文档** | 按 `updated_at` 合并文档与资源，并合并设置；较新者胜 |
+| **合并备份设置** | 仅合并 AI、CC 工作台、文件夹、标签、对话记录等；**不改动现有文档** |
+| **合并备份文档** | 按 `updated_at` 合并文档与资源，并合并设置与历史版本；较新者胜 |
 | **导出 Markdown** | 迁移到 Obsidian 等；单文件或按文件夹结构 |
 
-> 加密库中文档与数据库在备份内保持加密；`ai-config.json` 等配置文件在包内为明文，请妥善保管 `.lizhi` 文件。  
+> 加密库中文档、数据库与 AI/CC 密钥在备份内保持加密；`ai-config.json`、`cc-workbench.json`、`mcp-config.json`（含 MCP token）等仍为明文，请妥善保管 `.lizhi` 文件。  
 > 详细设计：[docs/design/2026-07-08-backup-extension.md](./docs/design/2026-07-08-backup-extension.md)
 
 ## 文档

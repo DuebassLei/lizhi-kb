@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import {
   GitCommit,
@@ -13,6 +13,7 @@ import {
 
 import { useCcWorkbenchStore } from "../../stores/ccWorkbench";
 import { useUiStore } from "../../stores/ui";
+import CcBridgeProcessMenu from "./chat/CcBridgeProcessMenu.vue";
 import CcChatInputBox from "./chat/CcChatInputBox.vue";
 import CcChatMessage from "./chat/CcChatMessage.vue";
 import CcChatWelcome from "./chat/CcChatWelcome.vue";
@@ -190,6 +191,25 @@ function toggleSearch() {
 function toggleHistory() {
   historyOpen.value = !historyOpen.value;
 }
+
+function onHistoryDrawerKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape" && historyOpen.value) {
+    event.preventDefault();
+    historyOpen.value = false;
+  }
+}
+
+watch(historyOpen, (open) => {
+  if (open) {
+    window.addEventListener("keydown", onHistoryDrawerKeydown);
+  } else {
+    window.removeEventListener("keydown", onHistoryDrawerKeydown);
+  }
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", onHistoryDrawerKeydown);
+});
 
 function loadHistoryEntry(id: string) {
   cc.loadHistorySession(id);
@@ -383,6 +403,7 @@ function onDiscardAllEdits() {
           >
             <History class="h-4 w-4" />
           </button>
+          <CcBridgeProcessMenu />
           <button
             type="button"
             class="cc-workbench-icon-btn"
@@ -413,29 +434,6 @@ function onDiscardAllEdits() {
         <button type="button" class="cc-workbench-icon-btn" title="关闭搜索" @click="toggleSearch">
           <X class="h-4 w-4" />
         </button>
-      </div>
-    </div>
-
-    <div
-      v-if="historyOpen"
-      class="shrink-0 border-b border-border bg-surface-0 px-4 py-3"
-    >
-      <div class="mx-auto max-w-3xl">
-        <CcHistoryPanel
-          :history="history"
-          :active-id="activeHistoryId"
-          :exporting="exporting"
-          :has-current-messages="messages.length > 0"
-          @close="historyOpen = false"
-          @load="loadHistoryEntry"
-          @delete="deleteHistoryEntry"
-          @rename="renameHistoryEntry"
-          @export-current="handleExportCurrent"
-          @export-all="handleExportHistory"
-          @copy-current="handleCopyCurrent"
-          @copy-all="handleCopyAll"
-          @clear-all="clearAllHistory"
-        />
       </div>
     </div>
 
@@ -567,6 +565,43 @@ function onDiscardAllEdits() {
       />
     </div>
 
+    <Teleport to="body">
+      <div
+        v-if="historyOpen"
+        class="cc-history-drawer"
+        data-testid="cc-history-drawer"
+      >
+        <button
+          type="button"
+          class="cc-history-drawer__backdrop"
+          aria-label="关闭历史会话"
+          @click="historyOpen = false"
+        />
+        <aside
+          class="cc-history-drawer__panel"
+          role="dialog"
+          aria-label="历史会话"
+          @click.stop
+        >
+          <CcHistoryPanel
+            :history="history"
+            :active-id="activeHistoryId"
+            :exporting="exporting"
+            :has-current-messages="messages.length > 0"
+            @close="historyOpen = false"
+            @load="loadHistoryEntry"
+            @delete="deleteHistoryEntry"
+            @rename="renameHistoryEntry"
+            @export-current="handleExportCurrent"
+            @export-all="handleExportHistory"
+            @copy-current="handleCopyCurrent"
+            @copy-all="handleCopyAll"
+            @clear-all="clearAllHistory"
+          />
+        </aside>
+      </div>
+    </Teleport>
+
     <CcWorkbenchDrawer
       :open="settingsOpen"
       @close="settingsOpen = false"
@@ -631,5 +666,46 @@ function onDiscardAllEdits() {
   padding: 0.375rem 0.625rem;
   font-size: 0.8125rem;
   outline: none;
+}
+
+.cc-history-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cc-history-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: color-mix(in srgb, var(--color-base) 55%, transparent);
+  backdrop-filter: blur(1px);
+  cursor: default;
+}
+
+.cc-history-drawer__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  width: min(22rem, 92vw);
+  flex-direction: column;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+  box-shadow: -12px 0 32px rgb(0 0 0 / 0.18);
+  animation: cc-history-drawer-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes cc-history-drawer-in {
+  from {
+    opacity: 0.7;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 </style>

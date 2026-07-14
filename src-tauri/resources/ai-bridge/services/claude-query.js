@@ -296,7 +296,8 @@ export function formatBridgeError(error) {
   ) {
     return (
       "网关兼容性错误：Claude Code 向 API 发送了 system 角色消息，但当前 vLLM 代理不支持。" +
-      "请在 Agent 工作台设置中重新安装 SDK（已锁定兼容版本 0.3.153），或联系网关管理员升级 vLLM 至 0.23.0+。"
+      "请联系网关管理员升级 vLLM 至 0.23.0+（或启用 Anthropic messages 的 system 角色），" +
+      "再在 Agent 工作台设置中重新安装/升级 Claude Agent SDK。"
     );
   }
   return raw;

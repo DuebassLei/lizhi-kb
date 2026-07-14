@@ -523,7 +523,6 @@ watch(() => props.variant, syncRagSurface);
     <ChatSessionPanel
       :surface="ragSurface"
       :open="historyOpen"
-      :compact="!isPage"
       @close="historyOpen = false"
     />
 

@@ -542,6 +542,8 @@ pub fn run() {
 
             commands::cc_workbench_send,
             commands::cc_workbench_abort,
+            commands::list_cc_bridge_processes,
+            commands::kill_cc_bridge_process,
             commands::cc_workbench_tool_permission_response,
 
             commands::get_vault_ui_state,

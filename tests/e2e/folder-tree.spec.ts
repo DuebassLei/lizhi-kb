@@ -41,7 +41,12 @@ test.describe("Folder tree", () => {
 
     await page.keyboard.press("Control+k");
     await page.getByTestId("command-palette").locator("input").fill("移动");
-    await page.getByTestId("command-palette").getByText("移动到 › 知识库").click();
+    await page.getByTestId("command-palette").getByText("移动到…").click();
+
+    const moveDialog = page.getByTestId("move-to-folder-dialog");
+    await expect(moveDialog).toBeVisible();
+    await moveDialog.getByLabel("搜索目录").fill("知识库");
+    await moveDialog.getByRole("button").filter({ hasText: "知识库" }).first().click();
 
     await page.getByTestId("folder-row").filter({ hasText: "知识库" }).locator("..").click();
     await expect(page.getByTestId("folder-row").filter({ hasText: "知识库" })).toBeVisible();

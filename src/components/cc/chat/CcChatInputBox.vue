@@ -298,7 +298,7 @@ const activeTriggerHint = computed(() => {
       file: "选择文件后将加入 @ 上下文",
       agent: "选择后将绑定 # 智能体",
       prompt: "选择后将插入 ! 提示词",
-      slash: "选择后将执行斜杠命令",
+      slash: "选择技能/命令；可空格后再输 / 叠第二个技能",
     };
     return map[completionState.value.kind] ?? null;
   }

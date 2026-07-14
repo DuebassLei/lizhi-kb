@@ -57,6 +57,15 @@ fn session_dek(state: &State<Arc<AppState>>) -> Result<Option<[u8; 32]>, String>
 
 }
 
+/// `(encryption_enabled, session_dek)` for reading/writing sealed secrets.
+fn vault_secrets_crypto(
+    state: &State<Arc<AppState>>,
+) -> Result<(bool, Option<[u8; 32]>), String> {
+    let (_initialized, encryption_enabled) = vault_meta(state)?;
+    let dek = session_dek(state)?;
+    Ok((encryption_enabled, dek))
+}
+
 
 
 fn vault_meta(state: &State<Arc<AppState>>) -> Result<(bool, bool), String> {
@@ -236,33 +245,13 @@ pub fn save_document(
 #[tauri::command]
 
 pub fn rename_document(state: State<Arc<AppState>>, id: String, title: String) -> Result<(), String> {
-
     let dek = session_dek(&state)?;
-
     state
-
         .document_service
-
         .lock()
-
         .map_err(|_| "document service lock poisoned".to_string())?
-
-        .rename_document(&id, &title)
-
-        .map_err(|e| e.to_string())?;
-
-    state
-
-        .document_service
-
-        .lock()
-
-        .map_err(|_| "document service lock poisoned".to_string())?
-
-        .rebuild_indexes(dek.as_ref())
-
+        .rename_document(&id, &title, dek.as_ref())
         .map_err(|e| e.to_string())
-
 }
 
 
@@ -1104,12 +1093,14 @@ pub fn import_vault(
         *guard = None;
     }
 
+    let current_dek = session_dek(&state).ok().flatten();
     let result = backup::import_vault(
         &data_dir,
         std::path::Path::new(&src_path),
         &password,
         recovery_phrase.as_deref(),
         &mode,
+        current_dek,
     )
     .map_err(map_backup_vault_error);
 
@@ -1576,31 +1567,42 @@ pub fn regenerate_mcp_token(
 }
 
 #[tauri::command]
-pub fn get_ai_config(reveal_key: Option<bool>) -> Result<crate::ai::AiConfigPublic, String> {
+pub fn get_ai_config(
+    state: State<'_, Arc<AppState>>,
+    reveal_key: Option<bool>,
+) -> Result<crate::ai::AiConfigPublic, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
-    let config = crate::ai::load_config(&data_dir)?;
-    let secrets = crate::ai::load_secrets(&data_dir)?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
+    let config = crate::ai::load_config(&data_dir, enc, dek.as_ref())?;
+    let secrets = crate::ai::load_secrets(&data_dir, enc, dek.as_ref())
+        .unwrap_or_default();
     Ok(crate::ai::to_public(&config, &secrets, reveal_key.unwrap_or(false)))
 }
 
 #[tauri::command]
-pub fn set_ai_config(update: crate::ai::AiConfigUpdate) -> Result<crate::ai::AiConfigPublic, String> {
+pub fn set_ai_config(
+    state: State<'_, Arc<AppState>>,
+    update: crate::ai::AiConfigUpdate,
+) -> Result<crate::ai::AiConfigPublic, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
-    let mut config = crate::ai::load_config(&data_dir)?;
-    let mut secrets = crate::ai::load_secrets(&data_dir)?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
+    let mut config = crate::ai::load_config(&data_dir, enc, dek.as_ref())?;
+    let mut secrets = crate::ai::load_secrets(&data_dir, enc, dek.as_ref())?;
     crate::ai::apply_update(&mut config, &mut secrets, &update);
     crate::ai::save_config(&data_dir, &config)?;
-    crate::ai::save_secrets(&data_dir, &secrets)?;
+    crate::ai::save_secrets(&data_dir, &secrets, enc, dek.as_ref())?;
     Ok(crate::ai::to_public(&config, &secrets, false))
 }
 
 #[tauri::command]
 pub async fn test_ai_connection(
+    state: State<'_, Arc<AppState>>,
     request: crate::ai::TestConnectionRequest,
 ) -> Result<crate::ai::ConnectionResult, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
-    let config = crate::ai::load_config(&data_dir)?;
-    let secrets = crate::ai::load_secrets(&data_dir)?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
+    let config = crate::ai::load_config(&data_dir, enc, dek.as_ref())?;
+    let secrets = crate::ai::load_secrets(&data_dir, enc, dek.as_ref())?;
     Ok(
         crate::ai::llm_client::test_connection(
             &config,
@@ -1631,8 +1633,9 @@ pub async fn ai_chat_stream(
     ensure_vault_unlocked(&state)?;
 
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
-    let config = std::sync::Arc::new(crate::ai::load_config(&data_dir)?);
-    let secrets = std::sync::Arc::new(crate::ai::load_secrets(&data_dir)?);
+    let (enc, dek) = vault_secrets_crypto(&state)?;
+    let config = std::sync::Arc::new(crate::ai::load_config(&data_dir, enc, dek.as_ref())?);
+    let secrets = std::sync::Arc::new(crate::ai::load_secrets(&data_dir, enc, dek.as_ref())?);
 
     let provider_id = crate::ai::resolve_cloud_provider_id(
         request.cloud_provider_id.clone(),
@@ -1659,9 +1662,9 @@ pub async fn ai_rag_query(
     ensure_vault_unlocked(&state)?;
 
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
-    let config = std::sync::Arc::new(crate::ai::load_config(&data_dir)?);
-    let secrets = std::sync::Arc::new(crate::ai::load_secrets(&data_dir)?);
-    let dek = session_dek(&state)?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
+    let config = std::sync::Arc::new(crate::ai::load_config(&data_dir, enc, dek.as_ref())?);
+    let secrets = std::sync::Arc::new(crate::ai::load_secrets(&data_dir, enc, dek.as_ref())?);
     let app_state = state.inner().clone();
 
     crate::ai::rag::rag_query_stream(
@@ -1684,9 +1687,9 @@ pub async fn ai_agent_run(
     ensure_vault_unlocked(&state)?;
 
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
-    let config = std::sync::Arc::new(crate::ai::load_config(&data_dir)?);
-    let secrets = std::sync::Arc::new(crate::ai::load_secrets(&data_dir)?);
-    let dek = session_dek(&state)?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
+    let config = std::sync::Arc::new(crate::ai::load_config(&data_dir, enc, dek.as_ref())?);
+    let secrets = std::sync::Arc::new(crate::ai::load_secrets(&data_dir, enc, dek.as_ref())?);
     let app_state = state.inner().clone();
 
     crate::ai::agent::agent_run_stream(app_state, config, secrets, request, dek, on_event).await
@@ -1700,12 +1703,15 @@ pub fn get_cc_workbench_status() -> Result<crate::cc_workbench::CcWorkbenchStatu
 
 #[tauri::command]
 pub fn get_cc_workbench_config(
+    state: State<'_, Arc<AppState>>,
     reveal_key: Option<bool>,
     reveal_provider_id: Option<String>,
 ) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
     let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())
+        .unwrap_or_default();
     Ok(crate::cc_workbench::to_public_with_reveal(
         &config,
         &secrets,
@@ -1716,46 +1722,58 @@ pub fn get_cc_workbench_config(
 
 #[tauri::command]
 pub fn set_cc_workbench_config(
+    state: State<'_, Arc<AppState>>,
     update: crate::cc_workbench::CcWorkbenchConfigUpdate,
 ) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
     let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())?;
     crate::cc_workbench::apply_update(&mut config, &mut secrets, &update)?;
     crate::cc_workbench::save_config(&data_dir, &config)?;
-    crate::cc_workbench::save_secrets(&data_dir, &secrets)?;
+    crate::cc_workbench::save_secrets(&data_dir, &secrets, enc, dek.as_ref())?;
     Ok(crate::cc_workbench::to_public(&config, &secrets, None))
 }
 
 #[tauri::command]
 pub fn upsert_cc_provider(
+    state: State<'_, Arc<AppState>>,
     input: crate::cc_workbench::CcProviderInput,
 ) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
     let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())?;
     crate::cc_workbench::providers::upsert_provider(&mut config, &mut secrets, &input)?;
     crate::cc_workbench::save_config(&data_dir, &config)?;
-    crate::cc_workbench::save_secrets(&data_dir, &secrets)?;
+    crate::cc_workbench::save_secrets(&data_dir, &secrets, enc, dek.as_ref())?;
     Ok(crate::cc_workbench::to_public(&config, &secrets, None))
 }
 
 #[tauri::command]
-pub fn delete_cc_provider(id: String) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
+pub fn delete_cc_provider(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
     let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())?;
     crate::cc_workbench::providers::delete_provider(&mut config, &mut secrets, &id)?;
     crate::cc_workbench::save_config(&data_dir, &config)?;
-    crate::cc_workbench::save_secrets(&data_dir, &secrets)?;
+    crate::cc_workbench::save_secrets(&data_dir, &secrets, enc, dek.as_ref())?;
     Ok(crate::cc_workbench::to_public(&config, &secrets, None))
 }
 
 #[tauri::command]
-pub fn switch_cc_provider(id: String) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
+pub fn switch_cc_provider(
+    state: State<'_, Arc<AppState>>,
+    id: String,
+) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
     let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())?;
     crate::cc_workbench::providers::switch_provider(&mut config, &mut secrets, &id)?;
     crate::cc_workbench::save_config(&data_dir, &config)?;
     Ok(crate::cc_workbench::to_public(&config, &secrets, None))
@@ -1788,11 +1806,13 @@ pub fn preview_cc_switch_import(
 
 #[tauri::command]
 pub fn save_cc_switch_import(
+    state: State<'_, Arc<AppState>>,
     request: crate::cc_workbench::CcSwitchSaveRequest,
 ) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
     let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let mut secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let mut secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())?;
     let imports = crate::cc_workbench::cc_switch::build_import_inputs(
         request.db_path.as_deref(),
         &request.provider_ids,
@@ -1805,17 +1825,19 @@ pub fn save_cc_switch_import(
         }
     }
     crate::cc_workbench::save_config(&data_dir, &config)?;
-    crate::cc_workbench::save_secrets(&data_dir, &secrets)?;
+    crate::cc_workbench::save_secrets(&data_dir, &secrets, enc, dek.as_ref())?;
     Ok(crate::cc_workbench::to_public(&config, &secrets, None))
 }
 
 #[tauri::command]
 pub fn sort_cc_providers(
+    state: State<'_, Arc<AppState>>,
     ordered_ids: Vec<String>,
 ) -> Result<crate::cc_workbench::CcWorkbenchConfigPublic, String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
     let mut config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())?;
     crate::cc_workbench::providers::sort_providers(&mut config, ordered_ids);
     crate::cc_workbench::save_config(&data_dir, &config)?;
     Ok(crate::cc_workbench::to_public(&config, &secrets, None))
@@ -2164,7 +2186,8 @@ pub fn cc_workbench_enhance_prompt(
     ensure_vault_unlocked(&state)?;
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
     let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())?;
     if !config.enabled {
         return Err("Claude Agent 工作台未启用".into());
     }
@@ -2190,7 +2213,8 @@ pub fn cc_workbench_test_model(
     ensure_vault_unlocked(&state)?;
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
     let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())?;
     if !config.enabled {
         return Err("Claude Agent 工作台未启用".into());
     }
@@ -2217,7 +2241,8 @@ pub async fn cc_workbench_send(
 
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
     let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
-    let secrets = crate::cc_workbench::load_secrets(&data_dir)?;
+    let (enc, dek) = vault_secrets_crypto(&state)?;
+    let secrets = crate::cc_workbench::load_secrets(&data_dir, enc, dek.as_ref())?;
 
     if !config.enabled {
         return Err("Claude Agent 工作台未启用，请在设置中开启".into());
@@ -2253,6 +2278,21 @@ pub async fn cc_workbench_send(
 #[tauri::command]
 pub fn cc_workbench_abort() -> Result<(), String> {
     crate::cc_workbench::runtime::abort_active_stream()
+}
+
+#[tauri::command]
+pub fn list_cc_bridge_processes() -> Result<crate::cc_workbench::CcBridgeProcessList, String> {
+    Ok(crate::cc_workbench::list_bridge_processes())
+}
+
+#[tauri::command]
+pub fn kill_cc_bridge_process(pid: u32) -> Result<(), String> {
+    let was_session = crate::cc_workbench::bridge_processes::session_pid() == Some(pid);
+    crate::cc_workbench::kill_bridge_process(pid)?;
+    if was_session {
+        crate::cc_workbench::runtime::clear_session_runtime_state();
+    }
+    Ok(())
 }
 
 #[tauri::command]

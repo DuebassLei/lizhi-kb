@@ -7,6 +7,7 @@ import { exportDocument } from "../utils/exportFile";
 import { canDeleteFolder } from "../utils/folderHelpers";
 import { useDocumentDelete } from "./useDocumentDelete";
 import { useFolderNameDialog } from "./useFolderNameDialog";
+import { useMoveToFolderDialog } from "./useMoveToFolderDialog";
 
 export function useFolderContextMenu() {
   const menu = useContextMenuStore();
@@ -15,6 +16,7 @@ export function useFolderContextMenu() {
   const { createSubfolder, renameFolder } = useFolderActions();
   const { requestDelete } = useDocumentDelete();
   const folderDialog = useFolderNameDialog();
+  const moveDialog = useMoveToFolderDialog();
 
   function moveTargetsForDoc(docId: string) {
     const doc = documents.tree.find((d) => d.id === docId);
@@ -80,11 +82,7 @@ export function useFolderContextMenu() {
     const doc = documents.tree.find((d) => d.id === docId);
     if (!doc) return;
 
-    const moveItems = moveTargetsForDoc(docId).map((f) => ({
-      id: `move-${f.id}`,
-      label: `移动到 › ${folders.pathLabel(f.id)}`,
-      run: async () => documents.moveToFolder(docId, f.id),
-    }));
+    const hasMoveTargets = moveTargetsForDoc(docId).length > 0;
 
     async function loadDocContent() {
       return documents.resolveDocumentContent(docId);
@@ -124,7 +122,21 @@ export function useFolderContextMenu() {
           void exportDocument(doc.title, await loadDocContent(), "pdf");
         },
       },
-      ...moveItems,
+      {
+        id: "move",
+        label: "移动到…",
+        disabled: !hasMoveTargets,
+        run: async () => {
+          const folderId = await moveDialog.promptMove({
+            docId,
+            docTitle: doc.title,
+            currentFolderId: folders.normalizeFolder(doc.folder),
+          });
+          if (folderId != null) {
+            await documents.moveToFolder(docId, folderId);
+          }
+        },
+      },
       {
         id: "pin",
         label: documents.isPinned(docId) ? "取消固定" : "固定文档",

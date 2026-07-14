@@ -6,11 +6,13 @@ import ConfirmDialog from "./components/common/ConfirmDialog.vue";
 import InputDialog from "./components/common/InputDialog.vue";
 import ContextMenu from "./components/common/ContextMenu.vue";
 import AppToast from "./components/common/AppToast.vue";
+import MoveToFolderDialog from "./components/workspace/MoveToFolderDialog.vue";
 import LockOverlay from "./components/vault/LockOverlay.vue";
 import WatermarkOverlay from "./components/common/WatermarkOverlay.vue";
 import { useCommandPalette } from "./composables/useCommandPalette";
 import { useDocumentDelete } from "./composables/useDocumentDelete";
 import { useFolderNameDialog } from "./composables/useFolderNameDialog";
+import { useMoveToFolderDialog } from "./composables/useMoveToFolderDialog";
 
 import { useWorkspaceShortcuts } from "./composables/useWorkspaceShortcuts";
 import { useAutoLock } from "./composables/useAutoLock";
@@ -24,6 +26,8 @@ useVaultUiStateSync();
 const { pending: deletePending, confirmDelete, cancelDelete } = useDocumentDelete();
 const folderDialog = useFolderNameDialog();
 const folderDialogState = computed(() => folderDialog.state.value);
+const moveDialog = useMoveToFolderDialog();
+const moveDialogState = computed(() => moveDialog.state.value);
 </script>
 
 <template>
@@ -57,6 +61,14 @@ const folderDialogState = computed(() => folderDialog.state.value);
       test-id="folder-name-dialog"
       @confirm="folderDialog.confirm"
       @cancel="folderDialog.cancel"
+    />
+
+    <MoveToFolderDialog
+      :open="!!moveDialogState?.open"
+      :doc-title="moveDialogState?.docTitle ?? ''"
+      :current-folder-id="moveDialogState?.currentFolderId ?? ''"
+      @confirm="moveDialog.confirm"
+      @cancel="moveDialog.cancel"
     />
   </div>
 </template>

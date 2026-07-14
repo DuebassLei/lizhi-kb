@@ -16,7 +16,7 @@ use super::chat_input::{CcEnhancePromptResult, CcModelTestResult};
 use super::config::{CcProviderMode, CcWorkbenchConfig, CwdMode};
 use super::path_utils::{format_path_for_node, resolve_project_dir};
 use super::paths::{is_sdk_installed, resolve_bridge_script, sdk_root_dir};
-use super::process_utils::hidden_command;
+use super::process_utils::{hidden_command, kill_process_tree};
 use super::providers::ResolvedProvider;
 use super::secrets::CcWorkbenchSecrets;
 use super::types::{BridgeMcpServer, BridgePayload, CcWorkbenchRequest, CcWorkbenchStatus};
@@ -32,9 +32,12 @@ struct ToolPermissionDecision {
     message: Option<String>,
 }
 
-/// Claude Code CLI ≥ 2.1.154 sends `role: system` inside messages[], which older
-/// vLLM Anthropic proxies reject (400). SDK 0.3.153 bundles CLI 2.1.153.
-const CC_AGENT_SDK_VERSION: &str = "0.3.153";
+/// Claude Code CLI ≥ 2.1.154 may send `role: system` inside messages[], which older
+/// vLLM Anthropic proxies reject (400). Prefer gateways that accept system roles
+/// (e.g. vLLM 0.23.0+) when using this SDK line.
+///
+/// SDK 0.3.209 ≈ CLI 2.1.209：支持同消息叠多个 skills（CLI ≥ 2.1.199）。
+const CC_AGENT_SDK_VERSION: &str = "0.3.209";
 
 pub fn locked_sdk_version() -> &'static str {
     CC_AGENT_SDK_VERSION
@@ -43,14 +46,20 @@ pub fn locked_sdk_version() -> &'static str {
 pub fn collect_status(data_dir: &Path) -> CcWorkbenchStatus {
     let (node_available, node_version) = detect_node();
     let bridge_path = resolve_bridge_script();
+    let sdk_installed = is_sdk_installed(data_dir);
     CcWorkbenchStatus {
         node_available,
         node_version,
         bridge_available: bridge_path.is_some(),
         bridge_path,
-        sdk_installed: is_sdk_installed(data_dir),
+        sdk_installed,
         sdk_path: sdk_root_dir(data_dir).display().to_string(),
         sdk_version: locked_sdk_version().to_string(),
+        installed_sdk_version: if sdk_installed {
+            super::paths::read_installed_sdk_version(data_dir)
+        } else {
+            None
+        },
         mcp_enabled: load_mcp_config(data_dir)
             .map(|c| c.enabled)
             .unwrap_or(false),
@@ -124,46 +133,32 @@ pub fn resolve_cwd(data_dir: &Path, config: &CcWorkbenchConfig) -> Result<String
 }
 
 pub fn abort_active_stream() -> Result<(), String> {
-    clear_permission_waiters("会话已终止");
     let pid = ACTIVE_BRIDGE_PID
         .lock()
         .map_err(|e| e.to_string())?
-        .take();
-    clear_bridge_stdin();
+        .take()
+        .or_else(super::bridge_processes::session_pid);
+    clear_session_runtime_state();
     let Some(pid) = pid else {
         return Ok(());
     };
+    super::bridge_processes::untrack_bridge(pid);
     kill_process_tree(pid)
 }
 
-fn kill_process_tree(pid: u32) -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        let status = hidden_command("taskkill")
-            .args(["/PID", &pid.to_string(), "/T", "/F"])
-            .status()
-            .map_err(|e| format!("终止 Agent 进程失败: {e}"))?;
-        if !status.success() {
-            return Err("终止 Agent 进程失败".into());
-        }
-    }
-    #[cfg(not(windows))]
-    {
-        let status = hidden_command("kill")
-            .arg(pid.to_string())
-            .status()
-            .map_err(|e| format!("终止 Agent 进程失败: {e}"))?;
-        if !status.success() {
-            return Err("终止 Agent 进程失败".into());
-        }
-    }
-    Ok(())
+/// Clear session bridge stdin, permission waiters, ACTIVE_BRIDGE_PID, and session registry entry.
+pub fn clear_session_runtime_state() {
+    clear_bridge_child();
 }
 
-fn track_bridge_child(child: &std::process::Child) {
-    if let Ok(mut guard) = ACTIVE_BRIDGE_PID.lock() {
-        *guard = Some(child.id());
+fn track_bridge_child(child: &std::process::Child, kind: &str) {
+    let pid = child.id();
+    if kind == "session" {
+        if let Ok(mut guard) = ACTIVE_BRIDGE_PID.lock() {
+            *guard = Some(pid);
+        }
     }
+    super::bridge_processes::track_bridge(pid, kind);
 }
 
 fn clear_bridge_child() {
@@ -172,6 +167,7 @@ fn clear_bridge_child() {
     }
     clear_bridge_stdin();
     clear_permission_waiters("会话已结束");
+    super::bridge_processes::untrack_session();
 }
 
 fn track_bridge_stdin(stdin: ChildStdin) {
@@ -526,7 +522,7 @@ pub fn run_stream(
         .spawn()
         .map_err(|e| format!("启动 ai-bridge 失败: {e}"))?;
 
-    track_bridge_child(&child);
+    track_bridge_child(&child, "session");
 
     let stdin_json = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
     if let Some(mut stdin) = child.stdin.take() {
@@ -727,6 +723,14 @@ fn run_bridge_sidecar_timed(
         .spawn()
         .map_err(|e| format!("启动 ai-bridge {subcommand} 失败: {e}"))?;
 
+    let sidecar_kind = match subcommand {
+        "enhance" => "enhance",
+        "test-model" => "modelTest",
+        _ => "session",
+    };
+    let sidecar_pid = child.id();
+    track_bridge_child(&child, sidecar_kind);
+
     if let Some(mut stdin) = child.stdin.take() {
         let json = serde_json::to_string(&payload).map_err(|e| e.to_string())?;
         stdin.write_all(json.as_bytes()).map_err(|e| e.to_string())?;
@@ -742,6 +746,7 @@ fn run_bridge_sidecar_timed(
                     if Instant::now() >= deadline {
                         let _ = child.kill();
                         let _ = child.wait();
+                        super::bridge_processes::untrack_bridge(sidecar_pid);
                         return Err(format!(
                             "ai-bridge {subcommand} 超时（{} 秒），请检查网络或 API 配置",
                             limit.as_secs()
@@ -749,14 +754,19 @@ fn run_bridge_sidecar_timed(
                     }
                     std::thread::sleep(Duration::from_millis(100));
                 }
-                Err(e) => return Err(format!("等待 ai-bridge {subcommand} 失败: {e}")),
+                Err(e) => {
+                    super::bridge_processes::untrack_bridge(sidecar_pid);
+                    return Err(format!("等待 ai-bridge {subcommand} 失败: {e}"));
+                }
             }
         }
     }
 
-    child
+    let result = child
         .wait_with_output()
-        .map_err(|e| format!("读取 ai-bridge {subcommand} 输出失败: {e}"))
+        .map_err(|e| format!("读取 ai-bridge {subcommand} 输出失败: {e}"));
+    super::bridge_processes::untrack_bridge(sidecar_pid);
+    result
 }
 
 pub fn run_enhance_prompt(

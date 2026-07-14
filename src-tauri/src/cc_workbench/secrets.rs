@@ -4,6 +4,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::crypto::{read_sealed, write_sealed, DEK_LEN};
+use crate::prefs::{CC_SECRETS_ENC_FILENAME, CC_SECRETS_FILENAME};
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CcWorkbenchSecrets {
@@ -14,7 +17,11 @@ pub struct CcWorkbenchSecrets {
 }
 
 pub fn secrets_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("cc-secrets.json")
+    data_dir.join(CC_SECRETS_FILENAME)
+}
+
+pub fn secrets_enc_path(data_dir: &Path) -> PathBuf {
+    data_dir.join(CC_SECRETS_ENC_FILENAME)
 }
 
 pub fn normalize_api_key(raw: &str) -> String {
@@ -27,24 +34,66 @@ pub fn normalize_api_key(raw: &str) -> String {
         .to_string()
 }
 
-pub fn load_secrets(data_dir: &Path) -> Result<CcWorkbenchSecrets, String> {
-    let path = secrets_path(data_dir);
-    if !path.is_file() {
-        return Ok(CcWorkbenchSecrets::default());
+pub fn load_secrets(
+    data_dir: &Path,
+    encryption_enabled: bool,
+    dek: Option<&[u8; DEK_LEN]>,
+) -> Result<CcWorkbenchSecrets, String> {
+    let enc_path = secrets_enc_path(data_dir);
+    let plain_path = secrets_path(data_dir);
+
+    if enc_path.is_file() {
+        let dek = dek.ok_or_else(|| "VAULT_LOCKED".to_string())?;
+        let bytes = read_sealed(&enc_path, dek).map_err(|e| e.to_string())?;
+        let mut secrets: CcWorkbenchSecrets =
+            serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        migrate_legacy_key(&mut secrets);
+        return Ok(secrets);
     }
-    let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let mut secrets: CcWorkbenchSecrets = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
-    migrate_legacy_key(&mut secrets);
-    Ok(secrets)
+
+    if plain_path.is_file() {
+        let raw = fs::read_to_string(&plain_path).map_err(|e| e.to_string())?;
+        let mut secrets: CcWorkbenchSecrets =
+            serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+        migrate_legacy_key(&mut secrets);
+        if encryption_enabled {
+            let dek = dek.ok_or_else(|| "VAULT_LOCKED".to_string())?;
+            save_secrets(data_dir, &secrets, true, Some(dek))?;
+        }
+        return Ok(secrets);
+    }
+
+    Ok(CcWorkbenchSecrets::default())
 }
 
-pub fn save_secrets(data_dir: &Path, secrets: &CcWorkbenchSecrets) -> Result<(), String> {
-    let path = secrets_path(data_dir);
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+pub fn save_secrets(
+    data_dir: &Path,
+    secrets: &CcWorkbenchSecrets,
+    encryption_enabled: bool,
+    dek: Option<&[u8; DEK_LEN]>,
+) -> Result<(), String> {
+    let json = serde_json::to_vec_pretty(secrets).map_err(|e| e.to_string())?;
+
+    if encryption_enabled {
+        let dek = dek.ok_or_else(|| "VAULT_LOCKED".to_string())?;
+        let enc_path = secrets_enc_path(data_dir);
+        write_sealed(&enc_path, dek, &json).map_err(|e| e.to_string())?;
+        let plain = secrets_path(data_dir);
+        if plain.is_file() {
+            let _ = fs::remove_file(plain);
+        }
+    } else {
+        let plain = secrets_path(data_dir);
+        if let Some(parent) = plain.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        fs::write(&plain, json).map_err(|e| e.to_string())?;
+        let enc = secrets_enc_path(data_dir);
+        if enc.is_file() {
+            let _ = fs::remove_file(enc);
+        }
     }
-    let json = serde_json::to_string_pretty(secrets).map_err(|e| e.to_string())?;
-    fs::write(path, json).map_err(|e| e.to_string())
+    Ok(())
 }
 
 pub fn get_api_key(secrets: &CcWorkbenchSecrets) -> Option<String> {

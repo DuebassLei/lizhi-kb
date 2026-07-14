@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { Download, MessageSquarePlus, Trash2, X } from "@lucide/vue";
 import {
   formatSessionTime,
@@ -15,7 +15,6 @@ import Btn from "../ui/Btn.vue";
 const props = defineProps<{
   surface: RagSurface;
   open: boolean;
-  compact?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -87,152 +86,264 @@ function confirmClearAll() {
   confirmClear.value = false;
   ui.showToast("success", "已清空全部历史");
 }
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key === "Escape" && props.open) {
+    event.preventDefault();
+    emit("close");
+  }
+}
+
+watch(
+  () => props.open,
+  (open) => {
+    if (open) {
+      confirmClear.value = false;
+      window.addEventListener("keydown", onKeydown);
+    } else {
+      window.removeEventListener("keydown", onKeydown);
+    }
+  },
+);
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeydown);
+});
 </script>
 
 <template>
-  <div
-    v-if="open"
-    class="fixed inset-0 z-40 flex"
-    :class="compact ? 'justify-end' : ''"
-    data-testid="chat-session-panel"
-  >
-    <button
-      type="button"
-      class="absolute inset-0 bg-overlay/60 backdrop-blur-[1px]"
-      aria-label="关闭历史会话"
-      @click="emit('close')"
-    />
-
-    <aside
-      class="relative flex min-h-0 flex-col border-border bg-surface-0 shadow-xl"
-      :class="
-        compact
-          ? 'h-full w-72 border-l'
-          : 'm-3 h-[calc(100%-1.5rem)] w-full max-w-sm rounded-xl border'
-      "
-      role="dialog"
-      aria-label="历史会话"
-      @click.stop
+  <Teleport to="body">
+    <div
+      v-if="open"
+      class="chat-history-drawer"
+      data-testid="chat-session-panel"
     >
-      <header class="flex shrink-0 items-center gap-2 border-b border-border px-3 py-3">
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium">历史会话</p>
-          <p class="text-[10px] text-muted">{{ surfaceLabel }} · {{ summary }}</p>
-        </div>
-        <Btn variant="ghost" size="sm" :disabled="chat.isStreaming" @click="startNew">
-          <MessageSquarePlus class="h-4 w-4" />
-        </Btn>
-        <button
-          type="button"
-          class="focus-ring rounded p-1 text-muted hover:bg-surface-1"
-          aria-label="关闭"
-          @click="emit('close')"
-        >
-          <X class="h-4 w-4" />
-        </button>
-      </header>
+      <button
+        type="button"
+        class="chat-history-drawer__backdrop"
+        aria-label="关闭历史会话"
+        @click="emit('close')"
+      />
 
-      <div class="scrollbar-thin min-h-0 flex-1 overflow-y-auto p-2">
-        <p v-if="!sessions.length" class="px-2 py-8 text-center text-xs text-muted">
-          暂无历史会话
-        </p>
-
-        <ul v-else class="space-y-1" role="list">
-          <li
-            v-for="session in sessions"
-            :key="session.id"
-            class="group flex items-start gap-1 rounded-lg border transition-colors"
-            :class="
-              isActive(session)
-                ? 'border-link/30 bg-link/10'
-                : 'border-transparent hover:border-border hover:bg-surface-1'
-            "
-          >
-            <button
-              type="button"
-              class="focus-ring min-w-0 flex-1 rounded-lg px-2.5 py-2 text-left"
-              :data-testid="`chat-session-item-${session.id}`"
-              @click="selectSession(session.id)"
-            >
-              <span class="block truncate text-sm font-medium text-[var(--color-text)]">
-                {{ session.title }}
-              </span>
-              <span class="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted">
-                <span class="rounded bg-surface-2 px-1 py-0.5">
-                  {{ sessionModeLabel(session.mode) }}
-                </span>
-                <span>{{ formatSessionTime(session.updatedAt) }}</span>
-                <span>{{ session.messages.length }} 条</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              class="focus-ring shrink-0 rounded p-1 text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
-              :class="isActive(session) ? 'opacity-100' : ''"
-              aria-label="删除此会话"
-              :data-testid="`chat-session-delete-${session.id}`"
-              :disabled="chat.isStreaming"
-              @click="deleteSession($event, session.id)"
-            >
-              <Trash2 class="h-3.5 w-3.5" />
-            </button>
-          </li>
-        </ul>
-      </div>
-
-      <footer class="shrink-0 space-y-2 border-t border-border p-3">
-        <div
-          v-if="confirmClear"
-          class="rounded-lg border border-danger/30 bg-danger/5 p-2.5"
-          data-testid="chat-session-clear-confirm"
-        >
-          <p class="text-xs text-[var(--color-text)]">
-            确定清空「{{ surfaceLabel }}」的全部历史？此操作不可恢复。
-          </p>
-          <div class="mt-2 flex justify-end gap-2">
-            <Btn variant="ghost" size="sm" @click="cancelClearAll">取消</Btn>
-            <Btn variant="secondary" size="sm" @click="confirmClearAll">确认清空</Btn>
+      <aside
+        class="chat-history-drawer__panel"
+        role="dialog"
+        aria-label="历史会话"
+        @click.stop
+      >
+        <header class="chat-history-drawer__head">
+          <div class="min-w-0 flex-1">
+            <p class="chat-history-drawer__title">历史会话</p>
+            <p class="chat-history-drawer__subtitle">{{ surfaceLabel }} · {{ summary }}</p>
           </div>
+          <Btn variant="ghost" size="sm" :disabled="chat.isStreaming" title="新会话" @click="startNew">
+            <MessageSquarePlus class="h-4 w-4" />
+          </Btn>
+          <button
+            type="button"
+            class="chat-history-drawer__close focus-ring"
+            aria-label="关闭"
+            @click="emit('close')"
+          >
+            <X class="h-4 w-4" />
+          </button>
+        </header>
+
+        <div class="chat-history-drawer__list scrollbar-thin">
+          <p v-if="!sessions.length" class="px-2 py-8 text-center text-xs text-muted">
+            暂无历史会话
+          </p>
+
+          <ul v-else class="space-y-1" role="list">
+            <li
+              v-for="session in sessions"
+              :key="session.id"
+              class="group flex items-start gap-1 rounded-lg border transition-colors"
+              :class="
+                isActive(session)
+                  ? 'border-link/30 bg-link/10'
+                  : 'border-transparent hover:border-border hover:bg-surface-1'
+              "
+            >
+              <button
+                type="button"
+                class="focus-ring min-w-0 flex-1 rounded-lg px-2.5 py-2 text-left"
+                :data-testid="`chat-session-item-${session.id}`"
+                @click="selectSession(session.id)"
+              >
+                <span class="block truncate text-sm font-medium text-[var(--color-text)]">
+                  {{ session.title }}
+                </span>
+                <span class="mt-0.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted">
+                  <span class="rounded bg-surface-2 px-1 py-0.5">
+                    {{ sessionModeLabel(session.mode) }}
+                  </span>
+                  <span>{{ formatSessionTime(session.updatedAt) }}</span>
+                  <span>{{ session.messages.length }} 条</span>
+                </span>
+              </button>
+              <button
+                type="button"
+                class="focus-ring shrink-0 rounded p-1 text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
+                :class="isActive(session) ? 'opacity-100' : ''"
+                aria-label="删除此会话"
+                :data-testid="`chat-session-delete-${session.id}`"
+                :disabled="chat.isStreaming"
+                @click="deleteSession($event, session.id)"
+              >
+                <Trash2 class="h-3.5 w-3.5" />
+              </button>
+            </li>
+          </ul>
         </div>
 
-        <div v-else class="flex flex-wrap gap-2">
-          <Btn
-            variant="secondary"
-            size="sm"
-            class="flex-1"
-            :disabled="!exportableCount || exporting || chat.isStreaming"
-            data-testid="chat-session-export-md"
-            @click="handleExport('md')"
+        <footer class="chat-history-drawer__foot">
+          <div
+            v-if="confirmClear"
+            class="rounded-lg border border-danger/30 bg-danger/5 p-2.5"
+            data-testid="chat-session-clear-confirm"
           >
-            <Download class="mr-1 h-3.5 w-3.5" />
-            导出 MD
-          </Btn>
-          <Btn
-            variant="secondary"
-            size="sm"
-            class="flex-1"
-            :disabled="!exportableCount || exporting || chat.isStreaming"
-            data-testid="chat-session-export-json"
-            @click="handleExport('json')"
-          >
-            <Download class="mr-1 h-3.5 w-3.5" />
-            导出 JSON
-          </Btn>
-        </div>
+            <p class="text-xs text-[var(--color-text)]">
+              确定清空「{{ surfaceLabel }}」的全部历史？此操作不可恢复。
+            </p>
+            <div class="mt-2 flex justify-end gap-2">
+              <Btn variant="ghost" size="sm" @click="cancelClearAll">取消</Btn>
+              <Btn variant="secondary" size="sm" @click="confirmClearAll">确认清空</Btn>
+            </div>
+          </div>
 
-        <Btn
-          v-if="!confirmClear"
-          variant="ghost"
-          size="sm"
-          class="w-full text-danger hover:bg-danger/10"
-          :disabled="!sessions.length || chat.isStreaming"
-          data-testid="chat-session-clear-all"
-          @click="requestClearAll"
-        >
-          <Trash2 class="mr-1 h-3.5 w-3.5" />
-          清空全部历史
-        </Btn>
-      </footer>
-    </aside>
-  </div>
+          <div v-else class="flex flex-wrap gap-2">
+            <Btn
+              variant="secondary"
+              size="sm"
+              class="flex-1"
+              :disabled="!exportableCount || exporting || chat.isStreaming"
+              data-testid="chat-session-export-md"
+              @click="handleExport('md')"
+            >
+              <Download class="mr-1 h-3.5 w-3.5" />
+              导出 MD
+            </Btn>
+            <Btn
+              variant="secondary"
+              size="sm"
+              class="flex-1"
+              :disabled="!exportableCount || exporting || chat.isStreaming"
+              data-testid="chat-session-export-json"
+              @click="handleExport('json')"
+            >
+              <Download class="mr-1 h-3.5 w-3.5" />
+              导出 JSON
+            </Btn>
+          </div>
+
+          <Btn
+            v-if="!confirmClear"
+            variant="ghost"
+            size="sm"
+            class="w-full text-danger hover:bg-danger/10"
+            :disabled="!sessions.length || chat.isStreaming"
+            data-testid="chat-session-clear-all"
+            @click="requestClearAll"
+          >
+            <Trash2 class="mr-1 h-3.5 w-3.5" />
+            清空全部历史
+          </Btn>
+        </footer>
+      </aside>
+    </div>
+  </Teleport>
 </template>
+
+<style scoped>
+.chat-history-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.chat-history-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  border: none;
+  background: color-mix(in srgb, var(--color-base) 55%, transparent);
+  backdrop-filter: blur(1px);
+  cursor: default;
+}
+
+.chat-history-drawer__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  height: 100%;
+  width: min(22rem, 92vw);
+  flex-direction: column;
+  border-left: 1px solid var(--color-border);
+  background: var(--color-surface-0);
+  box-shadow: -12px 0 32px rgb(0 0 0 / 0.18);
+  animation: chat-history-drawer-in 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes chat-history-drawer-in {
+  from {
+    opacity: 0.7;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.chat-history-drawer__head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  padding: 0.75rem 0.875rem;
+}
+
+.chat-history-drawer__title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.chat-history-drawer__subtitle {
+  margin-top: 0.125rem;
+  font-size: 0.625rem;
+  color: var(--color-muted);
+}
+
+.chat-history-drawer__close {
+  flex-shrink: 0;
+  border-radius: 0.375rem;
+  padding: 0.25rem;
+  color: var(--color-muted);
+}
+
+.chat-history-drawer__close:hover {
+  background: var(--color-surface-1);
+  color: var(--color-text);
+}
+
+.chat-history-drawer__list {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.chat-history-drawer__foot {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-1) 40%, var(--color-surface-0));
+  padding: 0.75rem;
+}
+</style>

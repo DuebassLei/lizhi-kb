@@ -8,16 +8,20 @@ use serde_json::Value;
 pub const UI_STATE_FILENAME: &str = "vault-ui-state.json";
 pub const AI_CONFIG_FILENAME: &str = "ai-config.json";
 pub const AI_SECRETS_FILENAME: &str = "ai-secrets.json";
+pub const AI_SECRETS_ENC_FILENAME: &str = "ai-secrets.json.enc";
 pub const MCP_CONFIG_FILENAME: &str = "mcp-config.json";
 pub const CC_WORKBENCH_CONFIG_FILENAME: &str = "cc-workbench.json";
 pub const CC_SECRETS_FILENAME: &str = "cc-secrets.json";
+pub const CC_SECRETS_ENC_FILENAME: &str = "cc-secrets.json.enc";
 
 pub const OPTIONAL_BACKUP_FILES: &[&str] = &[
     AI_CONFIG_FILENAME,
     AI_SECRETS_FILENAME,
+    AI_SECRETS_ENC_FILENAME,
     MCP_CONFIG_FILENAME,
     CC_WORKBENCH_CONFIG_FILENAME,
     CC_SECRETS_FILENAME,
+    CC_SECRETS_ENC_FILENAME,
     UI_STATE_FILENAME,
 ];
 

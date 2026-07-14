@@ -1,4 +1,5 @@
 pub mod agent_market;
+pub mod bridge_processes;
 pub mod cc_switch;
 pub mod chat_input;
 pub mod claude_md;
@@ -49,4 +50,5 @@ pub use chat_input::{
     CcPromptExportResult, CcPromptImportRequest, CcPromptImportResult, CcPromptInput,
 };
 pub use slash_commands::CcSlashCommandEntry;
+pub use bridge_processes::{kill_bridge_process, list_bridge_processes, CcBridgeProcessList};
 pub use types::{CcToolPermissionResponse, CcWorkbenchRequest, CcWorkbenchStatus};
