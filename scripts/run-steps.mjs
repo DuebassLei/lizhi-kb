@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
  * 并行 / 串行跑子进程，供 verify / build 复用。
+ *
+ * 使用 stdio: inherit，避免 pipe 缓冲 + 进程退出时日志未刷盘，
+ * 导致 CI 只看到 exit 101 却看不到 clippy 正文。
  */
 import { spawn } from "node:child_process";
 import { join, dirname } from "node:path";
@@ -12,7 +15,7 @@ const shell = process.platform === "win32";
 
 /**
  * @param {{ label: string, cmd: string, args?: string[], cwd?: string }} step
- * @returns {Promise<{ label: string, status: number, out: string }>}
+ * @returns {Promise<{ label: string, status: number }>}
  */
 export function runStep({ label, cmd, args = [], cwd = ROOT }) {
   return new Promise((resolve) => {
@@ -20,28 +23,19 @@ export function runStep({ label, cmd, args = [], cwd = ROOT }) {
       cwd,
       shell,
       env: process.env,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let out = "";
-    child.stdout?.on("data", (chunk) => {
-      out += chunk;
-    });
-    child.stderr?.on("data", (chunk) => {
-      out += chunk;
+      stdio: "inherit",
     });
     child.on("error", (err) => {
-      out += `${err.message}\n`;
-      resolve({ label, status: 1, out });
+      console.error(err.message);
+      resolve({ label, status: 1 });
     });
     child.on("close", (code) => {
-      resolve({ label, status: code ?? 1, out });
+      resolve({ label, status: code ?? 1 });
     });
   });
 }
 
-function printResult(result) {
-  const body = result.out.trim();
-  if (body) process.stdout.write(body.endsWith("\n") ? body : `${body}\n`);
+function printStatus(result) {
   if (result.status === 0) {
     console.log(`✓ ${result.label}`);
   } else {
@@ -55,7 +49,7 @@ export async function runParallel(steps) {
   console.log(`\n▶ 并行：${labels}`);
   const results = await Promise.all(steps.map((step) => runStep(step)));
   for (const result of results) {
-    printResult(result);
+    printStatus(result);
   }
   const failed = results.find((r) => r.status !== 0);
   if (failed) process.exit(failed.status);
@@ -66,7 +60,7 @@ export async function runSerial(steps) {
   for (const step of steps) {
     console.log(`\n▶ ${step.label}`);
     const result = await runStep(step);
-    printResult(result);
+    printStatus(result);
     if (result.status !== 0) process.exit(result.status);
   }
 }

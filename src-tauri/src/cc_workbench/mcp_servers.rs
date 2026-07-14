@@ -818,11 +818,11 @@ mod tests {
             .and_then(Value::as_array)
             .expect("project disabled list");
         assert_eq!(disabled, &[json!("demo")]);
-        let global = config
-            .get("disabledMcpServers")
-            .and_then(Value::as_array)
-            .expect("global disabled");
-        assert!(global.is_empty());
+        // 项目作用域更新不得改写 / 创建全局 disabled 列表
+        assert!(
+            config.get("disabledMcpServers").is_none(),
+            "global disabledMcpServers should remain untouched when project_path is set"
+        );
     }
 
     #[test]
