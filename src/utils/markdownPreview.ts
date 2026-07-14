@@ -151,10 +151,10 @@ export function markdownToPreviewHtml(content: string): string {
     if (!inCode) return;
     const code = codeLines.join("\n");
     if (codeLang.toLowerCase() === "mermaid") {
+      // MarkdownPreview.vue 会对 .mermaid 调用 mermaid.run 真正渲染
       parts.push(
         `<div class="preview-mermaid">` +
-          `<div class="preview-mermaid-label">Mermaid 图表</div>` +
-          `<pre class="preview-mermaid-code">${escapeHtml(code)}</pre>` +
+          `<pre class="mermaid">${escapeHtml(code)}</pre>` +
           `</div>`,
       );
       inCode = false;

@@ -4,6 +4,7 @@ import { resolveAssetUrl, isAssetRef } from "../../services/assetService";
 import { useDocumentsStore } from "../../stores/documents";
 import { useUiStore } from "../../stores/ui";
 import { markdownToPreviewHtml } from "../../utils/markdownPreview";
+import { renderMermaidIn } from "../../utils/mermaidPreview";
 import { handlePreviewCodeCopyClick } from "../../composables/cc/usePreviewCodeCopy";
 
 const props = defineProps<{
@@ -17,13 +18,23 @@ const containerRef = ref<HTMLElement | null>(null);
 const html = ref("");
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let mermaidToken = 0;
 
 function scheduleHtmlUpdate() {
   if (debounceTimer) clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     html.value = markdownToPreviewHtml(props.content || "");
-    void nextTick(() => resolvePreviewAssets());
+    void nextTick(() => afterHtmlPaint());
   }, 200);
+}
+
+async function afterHtmlPaint() {
+  const el = containerRef.value;
+  if (!el) return;
+  await resolvePreviewAssets();
+  const token = ++mermaidToken;
+  await renderMermaidIn(el);
+  if (token !== mermaidToken) return;
 }
 
 defineExpose({ containerRef });
@@ -75,8 +86,17 @@ watch(
   { immediate: true },
 );
 
+watch(
+  () => ui.theme,
+  () => {
+    // 主题切换后重新走一遍 HTML，便于 Mermaid 用对应 dark/default 主题重绘
+    scheduleHtmlUpdate();
+  },
+);
+
 onUnmounted(() => {
   if (debounceTimer) clearTimeout(debounceTimer);
+  mermaidToken += 1;
 });
 </script>
 
@@ -462,10 +482,22 @@ onUnmounted(() => {
 
 :deep(.preview-mermaid) {
   margin: 0.75rem 0;
-  border: 1px dashed var(--color-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-0);
-  padding: 0.75rem;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+}
+
+:deep(.preview-mermaid-svg) {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+:deep(.preview-mermaid-svg svg) {
+  max-width: 100%;
+  height: auto;
 }
 
 :deep(.preview-mermaid-label) {
@@ -475,12 +507,20 @@ onUnmounted(() => {
   margin-bottom: 0.5rem;
 }
 
+:deep(.preview-mermaid-label--error) {
+  color: var(--color-danger);
+}
+
 :deep(.preview-mermaid-code) {
   margin: 0;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   white-space: pre-wrap;
   color: var(--color-muted);
+}
+
+:deep(.preview-mermaid-error) {
+  color: var(--color-danger);
 }
 
 .preview-theme-mono :deep(p) {

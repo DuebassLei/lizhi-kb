@@ -68,6 +68,7 @@ export default defineConfig(async () => ({
           "vendor-ui": ["@lucide/vue", "marked", "lowlight"],
           "vendor-export": ["docx", "juice"],
           "vendor-pinyin": ["pinyin-pro"],
+          "vendor-mermaid": ["mermaid"],
         },
       },
       onwarn(warning) {
