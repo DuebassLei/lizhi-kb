@@ -261,7 +261,6 @@ pub fn init_app_state() -> Result<AppState, AppError> {
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-
 pub fn run() {
 
     let data_dir = data_dir().unwrap_or_else(|e| {
