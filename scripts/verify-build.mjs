@@ -5,6 +5,8 @@
  *
  * 用法: node scripts/verify-build.mjs
  *       pnpm verify
+ *
+ * 子进程必须 inherit stdio：pipe + process.exit 会在大段 cargo 输出未刷盘时截断 CI 日志。
  */
 
 import { spawnSync } from "node:child_process";
@@ -19,12 +21,14 @@ function run(label, cmd, args, { cwd = ROOT } = {}) {
   console.log(`\n▶ ${label}`);
   const result = spawnSync(cmd, args, {
     cwd,
-    encoding: "utf8",
     shell,
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: "inherit",
+    env: process.env,
   });
-  const out = `${result.stdout ?? ""}${result.stderr ?? ""}`;
-  if (out.trim()) process.stdout.write(out.endsWith("\n") ? out : `${out}\n`);
+  if (result.error) {
+    console.error(`\n✗ ${label} 失败: ${result.error.message}`);
+    process.exit(1);
+  }
   if (result.status !== 0) {
     console.error(`\n✗ ${label} 失败 (exit ${result.status ?? 1})`);
     process.exit(result.status ?? 1);
