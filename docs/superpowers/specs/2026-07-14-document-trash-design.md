@@ -1,6 +1,6 @@
 # 狸知知识库 · 文档回收站设计
 
-**文档版本**：v1.0.0  
+**文档版本**：v1.0.2  
 **日期**：2026-07-14  
 **状态**：已批准，待实现  
 **关联**：当前硬删除见 `delete_document`；产品 IA 见 [2026-07-06-lizhi-kb-complete-design.md](./2026-07-06-lizhi-kb-complete-design.md)；MCP 见 [2026-07-08-lizhi-mcp-design.md](./2026-07-08-lizhi-mcp-design.md)
@@ -12,7 +12,7 @@
 将「删除文档」从不可恢复的硬删除改为：
 
 1. UI / 常规删除 → **移至回收站**（软删除），可恢复  
-2. 回收站内可 **永久删除** / **清空**  
+2. **回收站**与**目录树**均可 **永久删除**（硬删）；回收站另支持 **清空**  
 3. 按保留天数 **自动清理** 到期项（默认 30 天，设置可改）  
 4. MCP：`delete` 软删；另提供 **直接硬删**（可跳过回收站）
 
@@ -136,9 +136,21 @@ CREATE INDEX IF NOT EXISTS idx_documents_deleted_at ON documents(deleted_at);
 
 打开面板时先 `purge_expired` 再 `list_trashed`。
 
-### 7.3 删除确认
+### 7.3 目录树删除控件与确认（两类）
 
-全局删除确认文案由「删除后无法恢复」改为表明将移至回收站、可从侧栏恢复；确认按钮文案推荐「移至回收站」。命令面板 / 右键菜单同步。
+文档行 hover 操作区在**同一位置并排**两个控件（紧挨现有垃圾桶槽位，虚拟列表行同样）：
+
+| 控件 | 语义 | `aria-label` / 提示 |
+|------|------|---------------------|
+| 垃圾桶（`Trash2`，沿用现样式） | 软删 | 「移至回收站」 |
+| 永久删除图标（如 `XCircle`，`text-danger`） | 硬删 | 「永久删除」 |
+
+右键菜单、命令面板与上述语义对齐，各提供「移至回收站」「永久删除」两项（硬删项 `danger: true`）。回收站面板行内仍保留永久删除。
+
+| 入口 | 确认文案要点 | 确认按钮 |
+|------|--------------|----------|
+| 软删（树垃圾桶 / 右键 / 命令面板） | 将移至回收站，可从侧栏恢复 | 「移至回收站」 |
+| 硬删（树旁永久删除控件 / 右键 / 命令面板 / 回收站） | **不可恢复**、强调立即清除 | 「永久删除」 |
 
 ### 7.4 设置
 
@@ -147,8 +159,8 @@ CREATE INDEX IF NOT EXISTS idx_documents_deleted_at ON documents(deleted_at);
 ### 7.5 前端状态
 
 - `documents.remove` → 软删；从树 / nav / pinned 移除（与现一致）；`folders.onDocumentRemoved` 仍更新 order  
+- 新增 `documents.purge`（或等价）→ 调 `purge_document`；同样从树 / nav / pinned 移除并清 tags  
 - 恢复后 `fetchTree`，文档回到原 folder（folder 不存在则 `ensure_folder`）  
-- 硬删时清理 `document_tags`  
 
 ### 7.6 本切片不做
 
@@ -160,7 +172,8 @@ CREATE INDEX IF NOT EXISTS idx_documents_deleted_at ON documents(deleted_at);
 
 | 场景 | 行为 |
 |------|------|
-| `restore` / UI 永久删除针对未入站文档 | 错误：「文档不在回收站」（UI 永久删除仅针对 trash 列表项；MCP `purge` 不受此限） |
+| `restore` 针对未入站文档 | 错误：「文档不在回收站」 |
+| UI / MCP `purge` 活跃或 trash | 均允许硬删 |
 | 重复软删 | 幂等成功 |
 | 恢复时 folder 已删 | `ensure_folder` 后挂回 |
 | `empty_trash` / 批量 purge 部分失败 | 尽力删除；返回计数或错误；前端 toast |
@@ -171,8 +184,8 @@ CREATE INDEX IF NOT EXISTS idx_documents_deleted_at ON documents(deleted_at);
 
 ## 9. 验收标准
 
-1. UI 删除后文档离开树与搜索，侧栏回收站可见，可恢复回原夹（或 ensure 后的原路径）  
-2. UI 永久删除 / 清空后文件与 DB 行消失，不可恢复  
+1. UI 常规删除后文档离开树与搜索，侧栏回收站可见，可恢复回原夹（或 ensure 后的原路径）  
+2. 目录树（与垃圾桶并排的永久删除控件、右键、命令面板）及回收站永久删除/清空后，文件与 DB 行消失，不可恢复  
 3. 默认保留 30 天；设置可改；解锁或打开回收站时清理到期项  
 4. MCP：`delete` 软删；`purge` 可硬删活跃或 trash；提供 list/restore/empty_trash  
 5. 活跃 list/统计/图谱/RAG 不计 trash  
@@ -182,7 +195,7 @@ CREATE INDEX IF NOT EXISTS idx_documents_deleted_at ON documents(deleted_at);
 ## 10. 测试（最低）
 
 - Rust：软删 → list 过滤 → restore → purge；`purge_expired` 按天数；对 trash 外 `restore` 失败  
-- 前端：确认文案；回收站恢复 / 永久删除  
+- 前端：软删/硬删两套确认文案；树行并排两控件；回收站恢复 / 永久删除  
 - 流程变更时 E2E：删 → 回收站 → 恢复  
 
 ## 11. 实现触及面（指引）
@@ -190,7 +203,7 @@ CREATE INDEX IF NOT EXISTS idx_documents_deleted_at ON documents(deleted_at);
 | 层 | 主要文件 |
 |----|----------|
 | Rust | `documents.rs`, `db.rs`, `commands.rs`, `link_index.rs`, `search_index.rs`, `mcp/handlers.rs`, `prefs`（`VaultUiState`） |
-| 前端 | `useDocumentDelete.ts`, `App.vue`, `Sidebar.vue`, `documents` store, `documentService.ts`, Settings, 新 `TrashPanel` |
+| 前端 | `useDocumentDelete.ts`（软删+硬删请求）、`FolderTreeNode.vue` / `FolderTreeVirtualRow.vue`（并排控件）、`useFolderContextMenu.ts`、`CommandPalette.vue`、`App.vue`、`Sidebar.vue`、`documents` store、`documentService.ts`、Settings、新 `TrashPanel` |
 | MCP | `packages/lizhi-mcp` tools / types / httpBackend；同步 bundle |
 | Spec 联动 | 实现后可回写 complete-design command 清单与 MCP design |
 
@@ -201,3 +214,5 @@ CREATE INDEX IF NOT EXISTS idx_documents_deleted_at ON documents(deleted_at);
 | 版本 | 日期 | 说明 |
 |------|------|------|
 | v1.0.0 | 2026-07-14 | 初版：软删回收站 + 可配置保留 + MCP 软删/硬删 |
+| v1.0.1 | 2026-07-14 | 目录树右键/命令面板支持永久删除 |
+| v1.0.2 | 2026-07-14 | 永久删除与树行垃圾桶并排展示（非仅右键） |
