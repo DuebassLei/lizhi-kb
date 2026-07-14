@@ -95,6 +95,18 @@ fn map_backup_vault_error(e: crate::vault::VaultError) -> String {
     }
 }
 
+fn audit_log(event_type: &str, detail: Option<&str>) {
+    if let Ok(dir) = db::data_dir() {
+        let _ = crate::audit::log_event(&dir, event_type, detail);
+    }
+}
+
+#[tauri::command]
+pub fn list_audit_events(limit: Option<usize>) -> Result<Vec<crate::audit::AuditEvent>, String> {
+    let dir = db::data_dir().map_err(|e| e.to_string())?;
+    Ok(crate::audit::list_events(&dir, limit.unwrap_or(50)))
+}
+
 
 
 #[tauri::command]
@@ -800,23 +812,22 @@ pub fn unlock_vault(state: State<Arc<AppState>>, password: String) -> Result<Vau
 
             .map_err(|_| "vault service lock poisoned".to_string())?;
 
-        vault.unlock_vault(password).map_err(|e| {
-
-            if matches!(e, crate::vault::VaultError::UnlockFailed) {
-
-                "WRONG_PASSWORD".to_string()
-
-            } else {
-
-                e.to_string()
-
+        match vault.unlock_vault(password) {
+            Ok(s) => s,
+            Err(e) => {
+                let msg = if matches!(e, crate::vault::VaultError::UnlockFailed) {
+                    "WRONG_PASSWORD".to_string()
+                } else {
+                    e.to_string()
+                };
+                audit_log("unlock_fail", None);
+                return Err(msg);
             }
-
-        })?
+        }
 
     };
 
-
+    audit_log("unlock", None);
 
     let vault = state
 
@@ -835,8 +846,6 @@ pub fn unlock_vault(state: State<Arc<AppState>>, password: String) -> Result<Vau
         .map_err(|_| "document service lock poisoned".to_string())?;
 
     sync_document_connection(&mut docs, &vault).map_err(|e| e.to_string())?;
-
-
 
     Ok(status)
 
@@ -881,6 +890,8 @@ pub fn lock_vault(state: State<Arc<AppState>>) -> Result<(), String> {
         .map_err(|_| "document service lock poisoned".to_string())?;
 
     sync_document_connection(&mut docs, &vault).map_err(|e| e.to_string())?;
+
+    audit_log("lock", None);
 
     Ok(())
 
@@ -1045,6 +1056,8 @@ pub fn export_vault(
     )
     .map_err(map_backup_vault_error)?;
 
+    audit_log("export_vault", None);
+
     Ok(path.to_string_lossy().into_owned())
 }
 
@@ -1127,8 +1140,16 @@ pub fn export_markdown_folder(
     dest_dir: String,
     files: Vec<crate::export::MarkdownExportFile>,
 ) -> Result<crate::export::MarkdownFolderExportResult, String> {
-    crate::export::export_markdown_folder(std::path::Path::new(&dest_dir), &files)
-        .map_err(|e| e.to_string())
+    let result = crate::export::export_markdown_folder(std::path::Path::new(&dest_dir), &files)
+        .map_err(|e| e.to_string())?;
+    let event = if files.len() > 1 {
+        "export_batch"
+    } else {
+        "export"
+    };
+    let detail = format!("files:{}", files.len());
+    audit_log(event, Some(&detail));
+    Ok(result)
 }
 
 #[tauri::command]
@@ -1186,27 +1207,22 @@ pub fn unlock_vault_with_recovery(
 
             .map_err(|_| "vault service lock poisoned".to_string())?;
 
-        vault
-
-            .unlock_with_recovery_phrase(recovery_phrase.trim())
-
-            .map_err(|e| {
-
-                if matches!(e, crate::vault::VaultError::UnlockFailed) {
-
+        match vault.unlock_with_recovery_phrase(recovery_phrase.trim()) {
+            Ok(s) => s,
+            Err(e) => {
+                let msg = if matches!(e, crate::vault::VaultError::UnlockFailed) {
                     "INVALID_RECOVERY_PHRASE".to_string()
-
                 } else {
-
                     e.to_string()
-
-                }
-
-            })?
+                };
+                audit_log("unlock_fail", None);
+                return Err(msg);
+            }
+        }
 
     };
 
-
+    audit_log("unlock", None);
 
     let vault = state
 
@@ -1225,8 +1241,6 @@ pub fn unlock_vault_with_recovery(
         .map_err(|_| "document service lock poisoned".to_string())?;
 
     sync_document_connection(&mut docs, &vault).map_err(|e| e.to_string())?;
-
-
 
     Ok(status)
 
@@ -2304,7 +2318,7 @@ pub fn export_obsidian_vault(
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
     let (_, encryption_enabled) = vault_meta(&state)?;
     let dek = session_dek(&state)?;
-    crate::export::export_obsidian_vault(
+    let result = crate::export::export_obsidian_vault(
         &data_dir,
         std::path::Path::new(&dest_dir),
         &files,
@@ -2312,7 +2326,10 @@ pub fn export_obsidian_vault(
         encryption_enabled,
         dek.as_ref(),
     )
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+    let detail = format!("files:{}", files.len());
+    audit_log("export_obsidian", Some(&detail));
+    Ok(result)
 }
 
 #[tauri::command]

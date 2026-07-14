@@ -15,6 +15,7 @@ const EVENT_LABELS: Record<string, string> = {
   export: "导出文档",
   export_batch: "批量导出",
   export_obsidian: "Obsidian 导出",
+  export_vault: "备份导出",
 };
 
 export function auditEventLabel(type: string): string {

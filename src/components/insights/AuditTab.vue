@@ -52,8 +52,17 @@ function formatTime(ts: number): string {
               :style="{ animationDelay: `${idx * 40}ms` }"
               aria-hidden="true"
             />
-            <span class="flex-1 text-[var(--color-text)]">{{ auditEventLabel(event.eventType) }}</span>
-            <span class="text-xs text-muted">{{ formatTime(event.createdAt) }}</span>
+            <div class="min-w-0 flex-1">
+              <span class="text-[var(--color-text)]">{{ auditEventLabel(event.eventType) }}</span>
+              <p
+                v-if="event.detail"
+                class="mt-0.5 truncate text-xs text-muted"
+                :title="event.detail"
+              >
+                {{ event.detail }}
+              </p>
+            </div>
+            <span class="shrink-0 text-xs text-muted">{{ formatTime(event.createdAt) }}</span>
           </li>
         </ul>
         <p v-else class="rounded-xl border border-border bg-surface-1 px-4 py-6 text-center text-xs text-muted">

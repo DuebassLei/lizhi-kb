@@ -1,5 +1,7 @@
 mod assets;
 
+mod audit;
+
 mod backup;
 
 mod commands;
@@ -338,6 +340,8 @@ pub fn run() {
             commands::get_edit_activity,
 
             commands::get_dashboard_stats,
+
+            commands::list_audit_events,
 
             commands::save_asset,
 
