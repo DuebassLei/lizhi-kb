@@ -10,10 +10,12 @@ pub fn hidden_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
     cmd
 }
 
+/// No-op on non-Windows; on Windows sets CREATE_NO_WINDOW.
+#[cfg(windows)]
 pub fn hide_console_window(cmd: &mut Command) {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(CREATE_NO_WINDOW);
 }
+
+#[cfg(not(windows))]
+pub fn hide_console_window(_cmd: &mut Command) {}
