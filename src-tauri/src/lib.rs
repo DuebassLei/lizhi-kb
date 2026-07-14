@@ -261,7 +261,6 @@ pub fn init_app_state() -> Result<AppState, AppError> {
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-
 pub fn run() {
 
     let data_dir = data_dir().unwrap_or_else(|e| {
@@ -271,7 +270,7 @@ pub fn run() {
 
     let vault_lock = std::sync::Mutex::new(Some(
         VaultLockGuard::acquire(&data_dir, "app").unwrap_or_else(|_| {
-            eprintln!("无法启动狸知：lizhi-mcpd Sidecar 正在独占知识库，请先关闭 Sidecar。");
+            eprintln!("无法启动狸知：知识库正被其他狸知实例占用，请先关闭已打开的应用。");
             std::process::exit(1);
         }),
     ));
@@ -310,6 +309,7 @@ pub fn run() {
 
         .setup(|app| {
             cc_workbench::paths::init_bridge_script(app.handle());
+            crate::mcp::init_mcp_adapter_path(app.handle());
             cc_workbench::skill_market::init_skill_market(app.handle());
             cc_workbench::agent_market::init_agent_market(app.handle());
             Ok(())

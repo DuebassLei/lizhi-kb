@@ -17,7 +17,7 @@ test.describe("Folder tree", () => {
   test("creates document in selected folder", async ({ page }) => {
     await page.getByTestId("folder-row").filter({ hasText: "知识库" }).click();
     await page.getByTestId("new-doc-btn").click();
-    await expect(page.getByText("将创建于：知识库")).toBeVisible();
+    await expect(page.locator(".sidebar-create-hint")).toContainText("知识库");
     await expect(page.getByTestId("folder-doc-item").first()).toBeVisible({ timeout: 5000 });
   });
 

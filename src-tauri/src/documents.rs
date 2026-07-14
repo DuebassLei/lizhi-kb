@@ -297,7 +297,17 @@ impl DocumentService {
         dek: Option<&[u8; DEK_LEN]>,
     ) -> Result<DocumentMeta, AppError> {
         let id = Uuid::new_v4().to_string();
-        let folder = folder.unwrap_or_else(|| "inbox".to_string());
+        // 规范化并注册侧栏树（与 MCP/前端 slug 规则对齐），避免文档落入「收件箱」
+        let folder = {
+            let raw = folder.unwrap_or_else(|| "inbox".to_string());
+            match crate::prefs::ensure_folder_path(&self.data_dir, &raw) {
+                Ok((normalized, _)) => normalized,
+                Err(e) => {
+                    eprintln!("[lizhi] ensure_folder_path before create failed ({raw}): {e}");
+                    crate::prefs::normalize_folder_id(&raw)
+                }
+            }
+        };
         let path = relative_path(&folder, &id, self.encryption_enabled);
         let now = now_millis();
 
@@ -671,6 +681,14 @@ impl DocumentService {
         folder: String,
         _dek: Option<&[u8; DEK_LEN]>,
     ) -> Result<DocumentMeta, AppError> {
+        let folder = match crate::prefs::ensure_folder_path(&self.data_dir, &folder) {
+            Ok((normalized, _)) => normalized,
+            Err(e) => {
+                eprintln!("[lizhi] ensure_folder_path before move failed ({folder}): {e}");
+                crate::prefs::normalize_folder_id(&folder)
+            }
+        };
+
         let (old_folder, _old_path) = self.get_document_location(id)?;
         if old_folder == folder {
             return self.get_document_meta(id);

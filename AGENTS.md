@@ -44,7 +44,8 @@
 
 ```bash
 pnpm install
-pnpm dev              # 浏览器预览（无需 Rust）
+pnpm dev              # 前端热更（调 UI/样式优先；无需编 Rust，启动最快）
+pnpm dev:tauri        # 完整桌面壳（= tauri dev；冷启动会编 Rust）
 pnpm tauri dev        # 完整桌面应用
 pnpm build            # 前端构建（含类型检查，零警告 Vite）
 pnpm verify           # 完整门禁：前端 + MCP + Rust，零警告
@@ -82,6 +83,7 @@ tests/e2e/        Playwright
 | 配置 | `cc-workbench.json`、`cc-secrets.json`；Claude 生态见 `~/.claude/` |
 | 工作目录 | **vault**（默认，仅 lizhi-mcp）/ **project**（完整文件工具 + Bash） |
 | bridge 同步 | 改 `packages/ai-bridge` 后：`node scripts/sync-ai-bridge-resources.mjs` |
+| MCP 同步 | 改 `packages/lizhi-mcp` 后：`pnpm build:mcp && pnpm sync:lizhi-mcp`（或 `pnpm build`） |
 
 **CC GUI 新功能**：不自动追平；用户点名后按工作台 spec **§17** 做差距分析 → Plan → 实现 → 更新 spec。
 

@@ -18,7 +18,6 @@ test.describe("WeChat preview in workspace", () => {
 
   test("shows theme selector with full migrated themes", async ({ page }) => {
     await page.getByTestId("toolbar-preview-kind-wechat").click();
-    await page.getByTestId("wechat-toolbar-menu-trigger").click();
     const themeSelect = page.getByTestId("workspace-wechat-theme-select");
     await expect(themeSelect).toBeVisible();
     await themeSelect.click();

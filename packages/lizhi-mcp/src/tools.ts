@@ -235,10 +235,14 @@ export function registerLizhiTools(server: McpServer, backend: LizhiBackend) {
     },
     {
       name: "lizhi_create_document",
-      description: "创建新文档（需 MCP 写入）",
+      description:
+        "创建新文档（需 MCP 写入）。folder 会自动注册到侧栏树；可省略 projects/ 前缀",
       schema: {
         title: z.string(),
-        folder: z.string().optional().describe("默认 inbox"),
+        folder: z
+          .string()
+          .optional()
+          .describe("默认 inbox；例 projects/甲/乙 或 甲/乙（自动挂到知识库下）"),
       },
       run: ({ title, folder }) =>
         wrap(() => backend.createDocument(String(title), folder as string | undefined)),
@@ -279,10 +283,44 @@ export function registerLizhiTools(server: McpServer, backend: LizhiBackend) {
     },
     {
       name: "lizhi_move_document",
-      description: "移动文档到指定文件夹（需 MCP 写入）",
-      schema: { id: z.string(), folder: z.string() },
+      description:
+        "移动文档到指定文件夹（需 MCP 写入）。目标深层路径会自动注册到侧栏树；可省略 projects/ 前缀",
+      schema: {
+        id: z.string(),
+        folder: z.string().describe("目标路径，例 projects/甲/乙 或 甲/乙"),
+      },
       run: ({ id, folder }) =>
         wrap(() => backend.moveDocument(String(id), String(folder))),
+    },
+    {
+      name: "lizhi_ensure_folder",
+      description:
+        "在侧栏文件夹树中确保路径存在（可建空夹，需 MCP 写入）。可省略 projects/ 前缀",
+      schema: {
+        path: z
+          .string()
+          .describe("例 projects/业务梳理/业务流程，或 业务梳理/业务流程"),
+      },
+      run: ({ path }) => wrap(() => backend.ensureFolder(String(path))),
+    },
+    {
+      name: "lizhi_delete_folder",
+      description:
+        "删除侧栏文件夹（含子夹，需 MCP 写入）。夹内文档先迁往上级（或 moveDocumentsTo）；空祖先会自动清理。不可删 inbox/projects。可省略 projects/ 前缀",
+      schema: {
+        path: z.string().describe("待删路径，例 业务梳理/旧夹 或 projects/业务梳理/旧夹"),
+        moveDocumentsTo: z
+          .string()
+          .optional()
+          .describe("夹内文档迁往路径；默认上级目录"),
+      },
+      run: ({ path, moveDocumentsTo }) =>
+        wrap(() =>
+          backend.deleteFolder(
+            String(path),
+            moveDocumentsTo !== undefined ? String(moveDocumentsTo) : undefined,
+          ),
+        ),
     },
     {
       name: "lizhi_set_document_tags",
@@ -303,7 +341,8 @@ export function registerLizhiTools(server: McpServer, backend: LizhiBackend) {
     },
     {
       name: "lizhi_migrate_folder_prefix",
-      description: "批量迁移文件夹前缀（需 MCP 写入）",
+      description:
+        "批量迁移文件夹前缀（需 MCP 写入）；同步侧栏树，并清理旧前缀留下的空祖先夹",
       schema: { oldPrefix: z.string(), newPrefix: z.string() },
       run: ({ oldPrefix, newPrefix }) =>
         wrap(() => backend.migrateFolderPrefix(String(oldPrefix), String(newPrefix))),
@@ -351,7 +390,7 @@ export function registerLizhiTools(server: McpServer, backend: LizhiBackend) {
           role: "user" as const,
           content: {
             type: "text" as const,
-            text: `你是狸知知识库助手。目标：${instruction}。可用 lizhi_search、lizhi_list_folders、lizhi_get_folder_tree、lizhi_move_document、lizhi_rename_document、lizhi_set_document_tags。写操作需用户已在设置中开启 MCP 写入。`,
+            text: `你是狸知知识库助手。目标：${instruction}。可用 lizhi_search、lizhi_list_folders、lizhi_get_folder_tree、lizhi_ensure_folder、lizhi_delete_folder、lizhi_move_document、lizhi_rename_document、lizhi_set_document_tags、lizhi_migrate_folder_prefix。写操作需用户已在设置中开启 MCP 写入。新建深层目录用 lizhi_ensure_folder；迁走文档后的空夹用 lizhi_delete_folder 清理（可省略 projects/ 前缀）。`,
           },
         },
       ],

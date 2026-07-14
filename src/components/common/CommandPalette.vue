@@ -47,12 +47,12 @@ watch(query, async () => {
   }
   if (isTauriRuntime()) {
     const seq = ++fullTextSeq;
-    fullTextHits.value = await searchKnowledgeBase(documents.tree, links.plainTextMap, q, 10);
+    fullTextHits.value = await searchKnowledgeBase(documents.tree, links.plainTextMap, q, 30);
     if (seq !== fullTextSeq) return;
     return;
   }
   void links.ensureIndex(documents.tree);
-  fullTextHits.value = searchDocuments(documents.tree, links.plainTextMap, q, 10);
+  fullTextHits.value = searchDocuments(documents.tree, links.plainTextMap, q, 30);
 });
 
 type Action = {

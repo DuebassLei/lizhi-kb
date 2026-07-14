@@ -14,10 +14,12 @@ import { useFolderNameDialog } from "./composables/useFolderNameDialog";
 
 import { useWorkspaceShortcuts } from "./composables/useWorkspaceShortcuts";
 import { useAutoLock } from "./composables/useAutoLock";
+import { useVaultUiStateSync } from "./composables/useVaultUiStateSync";
 
 useCommandPalette();
 useWorkspaceShortcuts();
 useAutoLock();
+useVaultUiStateSync();
 
 const { pending: deletePending, confirmDelete, cancelDelete } = useDocumentDelete();
 const folderDialog = useFolderNameDialog();

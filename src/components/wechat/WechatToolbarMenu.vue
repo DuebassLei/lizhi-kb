@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
-import { ChevronDown } from "@lucide/vue";
+import { computed } from "vue";
+import { FileDown } from "@lucide/vue";
 import type { WechatThemeId } from "../../services/wechatExport";
 import WechatThemeSelect from "./WechatThemeSelect.vue";
 import WechatCopyButton from "./WechatCopyButton.vue";
@@ -16,6 +16,8 @@ const props = defineProps<{
   content: string;
   themeId: WechatThemeId;
   visible?: boolean;
+  /** toolbar=顶栏紧凑；preview=预览区顶栏 */
+  variant?: "toolbar" | "preview";
 }>();
 
 const emit = defineEmits<{
@@ -23,30 +25,12 @@ const emit = defineEmits<{
   insert: [snippet: string];
 }>();
 
-const open = ref(false);
-const rootRef = ref<HTMLElement | null>(null);
-
 const themeModel = computed({
   get: () => props.themeId,
   set: (value: WechatThemeId) => emit("update:themeId", value),
 });
 
-function toggle() {
-  open.value = !open.value;
-}
-
-function close() {
-  open.value = false;
-}
-
-function onDocumentClick(event: MouseEvent) {
-  if (!open.value) return;
-  const root = rootRef.value;
-  if (root && !root.contains(event.target as Node)) close();
-}
-
-onMounted(() => document.addEventListener("click", onDocumentClick));
-onUnmounted(() => document.removeEventListener("click", onDocumentClick));
+const isPreview = computed(() => props.variant === "preview");
 
 async function exportHtmlToFolder() {
   if (!props.content.trim()) return;
@@ -61,59 +45,54 @@ async function exportHtmlToFolder() {
   const path = `${dest}/wechat-article.html`.replace(/\\/g, "/");
   await tauriInvoke("write_export_file", { path, content: html });
   ui.showToast("success", "已导出 HTML 到文件夹");
-  close();
 }
 </script>
 
 <template>
   <div
     v-if="visible !== false"
-    ref="rootRef"
-    class="relative min-w-0"
+    class="wechat-toolbar-actions flex shrink-0 items-center gap-1"
+    :class="
+      isPreview
+        ? 'min-h-10 flex-wrap border-b border-border bg-surface-1 px-2 py-1.5'
+        : ''
+    "
+    role="group"
+    aria-label="公众号排版工具"
     data-testid="wechat-toolbar-menu"
   >
+    <WechatThemeSelect
+      v-model="themeModel"
+      class="w-[5.5rem] shrink-0"
+      :menu-align="isPreview ? 'left' : 'right'"
+      test-id="workspace-wechat-theme-select"
+    />
+    <WechatModuleSelect
+      class="w-[4.5rem] shrink-0"
+      :menu-align="isPreview ? 'left' : 'right'"
+      test-id="workspace-wechat-module-select"
+      @insert="emit('insert', $event)"
+    />
+    <WechatCopyButton
+      :content="content"
+      :theme-id="themeId"
+      compact
+      :icon-only="!isPreview"
+      class="shrink-0"
+      test-id="workspace-wechat-copy"
+    />
     <button
       type="button"
-      class="focus-ring flex w-full items-center justify-between gap-1 rounded-md border border-border bg-surface-1 px-2 py-1 text-[11px] text-[var(--color-text)] hover:bg-surface-2"
-      :aria-expanded="open"
-      aria-haspopup="menu"
-      data-testid="wechat-toolbar-menu-trigger"
-      @click.stop="toggle"
+      class="toolbar-chip focus-ring flex h-7 shrink-0 items-center justify-center gap-1 text-[11px] text-[var(--color-text)] disabled:opacity-40"
+      :class="isPreview ? 'px-2' : 'w-7 px-0'"
+      data-testid="wechat-export-html-folder"
+      title="导出 HTML 到文件夹"
+      aria-label="导出 HTML 到文件夹"
+      :disabled="!content.trim()"
+      @click="exportHtmlToFolder"
     >
-      <span>公众号工具</span>
-      <ChevronDown class="h-3 w-3 shrink-0 opacity-70" aria-hidden="true" />
+      <FileDown class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+      <span v-if="isPreview">导出</span>
     </button>
-
-    <div
-      v-if="open"
-      class="absolute right-0 top-full z-50 mt-1 w-[16rem] space-y-2 rounded-lg border border-border bg-surface-1 p-2 shadow-2xl"
-      role="menu"
-      @click.stop
-    >
-      <WechatThemeSelect
-        v-model="themeModel"
-        class="min-w-0"
-        test-id="workspace-wechat-theme-select"
-      />
-      <WechatModuleSelect
-        class="min-w-0"
-        test-id="workspace-wechat-module-select"
-        @insert="emit('insert', $event)"
-      />
-      <WechatCopyButton
-        :content="content"
-        :theme-id="themeId"
-        class="w-full"
-        test-id="workspace-wechat-copy"
-      />
-      <button
-        type="button"
-        class="focus-ring w-full rounded-md border border-border px-2 py-1.5 text-[11px] text-link hover:bg-surface-2"
-        data-testid="wechat-export-html-folder"
-        @click="exportHtmlToFolder"
-      >
-        导出 HTML 到文件夹
-      </button>
-    </div>
   </div>
 </template>

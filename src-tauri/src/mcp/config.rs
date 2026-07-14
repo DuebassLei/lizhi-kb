@@ -5,8 +5,6 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub const DEFAULT_MCP_PORT: u16 = 13721;
-pub const DEFAULT_STANDALONE_PORT: u16 = 13722;
-pub const DEFAULT_SESSION_TIMEOUT_MINUTES: u16 = 30;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -14,19 +12,7 @@ pub struct McpConfig {
     pub enabled: bool,
     pub write_enabled: bool,
     pub port: u16,
-    #[serde(default = "default_standalone_port")]
-    pub standalone_port: u16,
-    #[serde(default = "default_session_timeout")]
-    pub session_timeout_minutes: u16,
     pub token: String,
-}
-
-fn default_standalone_port() -> u16 {
-    DEFAULT_STANDALONE_PORT
-}
-
-fn default_session_timeout() -> u16 {
-    DEFAULT_SESSION_TIMEOUT_MINUTES
 }
 
 impl Default for McpConfig {
@@ -35,8 +21,6 @@ impl Default for McpConfig {
             enabled: false,
             write_enabled: false,
             port: DEFAULT_MCP_PORT,
-            standalone_port: DEFAULT_STANDALONE_PORT,
-            session_timeout_minutes: DEFAULT_SESSION_TIMEOUT_MINUTES,
             token: Uuid::new_v4().to_string(),
         }
     }
@@ -49,8 +33,6 @@ pub struct McpConfigPublic {
     pub enabled: bool,
     pub write_enabled: bool,
     pub port: u16,
-    pub standalone_port: u16,
-    pub session_timeout_minutes: u16,
     pub token_masked: String,
     pub token: Option<String>,
 }
@@ -61,8 +43,6 @@ pub struct McpConfigUpdate {
     pub enabled: Option<bool>,
     pub write_enabled: Option<bool>,
     pub port: Option<u16>,
-    pub standalone_port: Option<u16>,
-    pub session_timeout_minutes: Option<u16>,
 }
 
 pub fn config_path(data_dir: &Path) -> PathBuf {
@@ -77,7 +57,13 @@ pub fn load_config(data_dir: &Path) -> Result<McpConfig, String> {
         return Ok(config);
     }
     let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    // 旧配置可能含 standalonePort / sessionTimeoutMinutes，serde 默认忽略未知字段
     serde_json::from_str(&raw).map_err(|e| e.to_string())
+}
+
+/// 别名：供 cc_workbench 等模块读取 MCP 配置
+pub fn load_mcp_config(data_dir: &Path) -> Result<McpConfig, String> {
+    load_config(data_dir)
 }
 
 pub fn save_config(data_dir: &Path, config: &McpConfig) -> Result<(), String> {
@@ -101,8 +87,6 @@ pub fn to_public(config: &McpConfig, reveal_token: bool) -> McpConfigPublic {
         enabled: config.enabled,
         write_enabled: config.write_enabled,
         port: config.port,
-        standalone_port: config.standalone_port,
-        session_timeout_minutes: config.session_timeout_minutes,
         token_masked: mask_token(&config.token),
         token: if reveal_token {
             Some(config.token.clone())
@@ -127,12 +111,6 @@ pub fn apply_update(config: &mut McpConfig, update: &McpConfigUpdate) {
     if let Some(port) = update.port {
         config.port = port.clamp(1024, 65535);
     }
-    if let Some(port) = update.standalone_port {
-        config.standalone_port = port.clamp(1024, 65535);
-    }
-    if let Some(minutes) = update.session_timeout_minutes {
-        config.session_timeout_minutes = minutes.min(24 * 60);
-    }
 }
 
 #[cfg(test)]
@@ -146,5 +124,28 @@ mod tests {
         assert!(!config.write_enabled);
         assert_eq!(config.port, DEFAULT_MCP_PORT);
         assert!(!config.token.is_empty());
+    }
+
+    #[test]
+    fn ignores_legacy_sidecar_fields() {
+        let dir = std::env::temp_dir().join(format!("lizhi-mcp-cfg-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        let path = config_path(&dir);
+        fs::write(
+            &path,
+            r#"{
+  "enabled": true,
+  "writeEnabled": false,
+  "port": 13721,
+  "standalonePort": 13722,
+  "sessionTimeoutMinutes": 30,
+  "token": "abcdef12-3456-7890-abcd-ef1234567890"
+}"#,
+        )
+        .unwrap();
+        let config = load_config(&dir).unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.port, 13721);
+        let _ = fs::remove_dir_all(dir);
     }
 }

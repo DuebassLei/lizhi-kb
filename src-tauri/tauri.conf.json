@@ -6,7 +6,7 @@
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "node scripts/sync-ai-bridge-resources.mjs && pnpm build",
+    "beforeBuildCommand": "pnpm build",
     "frontendDist": "../dist"
   },
   "app": {
@@ -44,6 +44,7 @@
     ],
     "resources": {
       "resources/ai-bridge/": "ai-bridge/",
+      "resources/lizhi-mcp/": "lizhi-mcp/",
       "resources/cc-skill-market.json": "cc-skill-market.json",
       "resources/cc-agent-market.json": "cc-agent-market.json"
     },

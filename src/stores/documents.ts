@@ -31,6 +31,8 @@ import { getLinksStore } from "./linksStoreLazy";
 import { useFoldersStore } from "./folders";
 import { useUiStore } from "./ui";
 import { useVaultStore } from "./vault";
+import { mergeFoldersFromDisk } from "../services/vaultUiStateService";
+import { isTauriRuntime } from "../services/vaultService";
 
 export const useDocumentsStore = defineStore("documents", () => {
   const tree = ref<DocumentMeta[]>([]);
@@ -78,9 +80,17 @@ export const useDocumentsStore = defineStore("documents", () => {
     fetchTreeInflight = (async () => {
       error.value = null;
       pinnedIds.value = loadPinnedIds();
-      useFoldersStore().load();
+      const foldersStore = useFoldersStore();
+      if (isTauriRuntime()) {
+        const merged = await mergeFoldersFromDisk();
+        if (merged) foldersStore.mergeFromFolderUiState(merged);
+        else foldersStore.load();
+      } else {
+        foldersStore.load();
+      }
       try {
         tree.value = await listDocuments();
+        foldersStore.ensureMissingFromDocuments(tree.value);
       } catch (e) {
         error.value = e instanceof Error ? e.message : String(e);
       }

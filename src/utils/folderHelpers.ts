@@ -181,3 +181,151 @@ export function canDeleteFolder(folderId: string, folders: FolderMeta[]): boolea
   const f = folders.find((x) => x.id === folderId);
   return !!f && !f.system;
 }
+
+/** 与前端 `slugifyFolderName` / Rust MCP 对齐 */
+export function slugifyFolderSegment(name: string): string {
+  const clipped = name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w\u4e00-\u9fff-]/g, "")
+    .slice(0, 32);
+  return clipped || "folder";
+}
+
+/** 规范化 folder id；非 inbox/projects 根时自动挂到 projects/ */
+export function normalizeFolderIdPath(folder: string, slugifySegments = true): string {
+  const parts = folder
+    .split("/")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return FOLDER_INBOX;
+  if (parts[0] !== FOLDER_INBOX && parts[0] !== FOLDER_PROJECTS) {
+    parts.unshift(FOLDER_PROJECTS);
+  }
+  if (!slugifySegments) return parts.join("/");
+  return [parts[0], ...parts.slice(1).map(slugifyFolderSegment)].join("/");
+}
+
+export type EnsureFolderPathResult = {
+  folderId: string;
+  folders: FolderMeta[];
+  folderOrder: Record<string, string[]>;
+  expanded: Record<string, boolean>;
+  created: string[];
+};
+
+/** 确保路径上每一级都在目录注册表中（本地自愈 / 与 MCP ensure 对齐） */
+export function ensureFolderPathInState(
+  folder: string,
+  state: {
+    folders: FolderMeta[];
+    folderOrder: Record<string, string[]>;
+    expanded: Record<string, boolean>;
+  },
+  options?: { slugifySegments?: boolean },
+): EnsureFolderPathResult {
+  const slugifySegments = options?.slugifySegments !== false;
+  const folderId = normalizeFolderIdPath(folder, slugifySegments);
+  const folders = [...state.folders];
+  const folderOrder = { ...state.folderOrder };
+  const expanded = { ...state.expanded };
+  const known = new Set(folders.map((f) => f.id));
+  const created: string[] = [];
+
+  const ensureSystem = (id: string, label: string) => {
+    if (known.has(id)) return;
+    folders.push({ id, label, parentId: null, system: true });
+    known.add(id);
+    created.push(id);
+  };
+  ensureSystem(FOLDER_INBOX, "收件箱");
+  ensureSystem(FOLDER_PROJECTS, "知识库");
+
+  const rawParts = (() => {
+    const raw = folder
+      .split("/")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (raw.length === 0) return [FOLDER_INBOX];
+    if (raw[0] !== FOLDER_INBOX && raw[0] !== FOLDER_PROJECTS) {
+      raw.unshift(FOLDER_PROJECTS);
+    }
+    return raw;
+  })();
+  const parts = folderId.split("/").filter(Boolean);
+
+  for (let i = 0; i < parts.length; i++) {
+    const id = parts.slice(0, i + 1).join("/");
+    if (known.has(id)) continue;
+    const parentId = i === 0 ? null : parts.slice(0, i).join("/");
+    const label =
+      i === 0
+        ? id === FOLDER_INBOX
+          ? "收件箱"
+          : "知识库"
+        : (rawParts[i] ?? parts[i]);
+    folders.push({
+      id,
+      label,
+      parentId,
+      ...(parentId === null ? { system: true } : {}),
+    });
+    known.add(id);
+    created.push(id);
+    const orderKey = parentId ?? "__root__";
+    const list = [...(folderOrder[orderKey] ?? [])].filter((x) => x !== id);
+    list.push(id);
+    folderOrder[orderKey] = list;
+    if (parentId) expanded[parentId] = true;
+    expanded[id] = true;
+  }
+
+  return { folderId, folders, folderOrder, expanded, created };
+}
+
+/** 合并磁盘侧栏树：按 id 并集，保留本地已有 label */
+export function mergeFolderUiStates(
+  local: {
+    folders: FolderMeta[];
+    folderOrder: Record<string, string[]>;
+    expanded: Record<string, boolean>;
+    order: Record<string, string[]>;
+  },
+  incoming: {
+    folders?: FolderMeta[];
+    folderOrder?: Record<string, string[]>;
+    expanded?: Record<string, boolean>;
+    order?: Record<string, string[]>;
+  },
+): typeof local {
+  const byId = new Map(local.folders.map((f) => [f.id, f]));
+  for (const f of incoming.folders ?? []) {
+    if (!byId.has(f.id)) byId.set(f.id, f);
+  }
+  const mergeOrder = (
+    a: Record<string, string[]>,
+    b: Record<string, string[]>,
+  ): Record<string, string[]> => {
+    const out: Record<string, string[]> = { ...a };
+    for (const [key, ids] of Object.entries(b)) {
+      const seen = new Set(out[key] ?? []);
+      const merged = [...(out[key] ?? [])];
+      for (const id of ids) {
+        if (!seen.has(id)) {
+          seen.add(id);
+          merged.push(id);
+        }
+      }
+      out[key] = merged;
+    }
+    return out;
+  };
+  return {
+    folders: [...byId.values()],
+    folderOrder: mergeOrder(local.folderOrder, incoming.folderOrder ?? {}),
+    expanded: { ...local.expanded, ...(incoming.expanded ?? {}) },
+    order: mergeOrder(local.order, incoming.order ?? {}),
+  };
+}
+

@@ -214,9 +214,10 @@ test.describe("Workspace editor", () => {
 
     await page.getByTestId("toolbar-preview-kind-wechat").click();
     await expect(page.getByTestId("wechat-preview-panel")).toBeVisible();
-    await page.getByTestId("wechat-toolbar-menu-trigger").click();
     await expect(page.getByTestId("workspace-wechat-theme-select")).toBeVisible();
+    await expect(page.getByTestId("workspace-wechat-module-select")).toBeVisible();
     await expect(page.getByTestId("workspace-wechat-copy")).toBeVisible();
+    await expect(page.getByTestId("wechat-export-html-folder")).toBeVisible();
     await expect(page.getByTestId("markdown-preview")).not.toBeVisible();
 
     const wechatPreview = page.getByTestId("wechat-preview-content");

@@ -35,6 +35,11 @@ const SHADOW_WARM = {
   "--shadow-inset": "inset 0 1px 0 rgba(0, 0, 0, 0.05)",
 };
 
+const SHADOW_READING = {
+  "--shadow-float": "0 8px 32px rgba(36, 44, 32, 0.14)",
+  "--shadow-inset": "inset 0 1px 1px rgba(255, 255, 255, 0.35)",
+};
+
 const THEMES: Record<ThemeId, Record<string, string>> = {
   dark: {
     ...SHARED_ACCENTS,
@@ -96,6 +101,21 @@ const THEMES: Record<ThemeId, Record<string, string>> = {
     "--color-muted": "#8a8070",
     "--color-danger": "#e07a6a",
   },
+  reading: {
+    ...SHARED_ACCENTS,
+    ...LINK_LIGHT,
+    ...SHADOW_READING,
+    "--color-base": "#bcc8b2",
+    "--color-canvas": "#c2cdb8",
+    "--color-surface-0": "#c2cdb8",
+    "--color-surface-1": "#b5c0ab",
+    "--color-surface-2": "#a8b39e",
+    "--color-surface-3": "#9ba691",
+    "--color-text": "#252c21",
+    "--color-text-secondary": "#4e5646",
+    "--color-muted": "#6e7866",
+    "--color-danger": "#b84e3a",
+  },
 };
 
 export const THEME_OPTIONS: { id: ThemeId; label: string; preview: string }[] = [
@@ -103,10 +123,11 @@ export const THEME_OPTIONS: { id: ThemeId; label: string; preview: string }[] = 
   { id: "light", label: "浅色", preview: THEMES.light["--color-base"] },
   { id: "warm", label: "米白 · 暖色", preview: THEMES.warm["--color-base"] },
   { id: "eye", label: "护眼", preview: THEMES.eye["--color-base"] },
+  { id: "reading", label: "豆沙绿 · 阅读", preview: THEMES.reading["--color-base"] },
 ];
 
 function isLightTheme(theme: ThemeId): boolean {
-  return theme === "light" || theme === "warm";
+  return theme === "light" || theme === "warm" || theme === "reading";
 }
 
 export { isLightTheme };
@@ -157,6 +178,6 @@ export function applyTheme(theme: ThemeId) {
 
 export function loadStoredTheme(): ThemeId {
   const v = localStorage.getItem(KEY);
-  if (v === "light" || v === "warm" || v === "eye" || v === "dark") return v;
+  if (v === "light" || v === "warm" || v === "eye" || v === "dark" || v === "reading") return v;
   return "dark";
 }

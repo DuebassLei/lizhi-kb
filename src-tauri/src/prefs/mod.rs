@@ -50,7 +50,11 @@ fn default_schema_version() -> u32 {
 
 mod document_ui;
 
-pub use document_ui::{get_document_tags, get_folder_tree, list_all_tags, set_document_tags};
+pub use document_ui::{
+    delete_folder_path, ensure_folder_path, get_document_tags, get_folder_tree, list_all_tags,
+    migrate_folder_prefix_in_tree, normalize_folder_id, parent_folder_id, prune_empty_folder_chain,
+    set_document_tags,
+};
 
 pub fn ui_state_path(data_dir: &Path) -> PathBuf {
     data_dir.join(UI_STATE_FILENAME)

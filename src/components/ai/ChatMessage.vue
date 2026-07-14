@@ -11,6 +11,7 @@ import {
 } from "../../utils/ccMessageBlocks";
 import type { UiChatMessage } from "../../stores/chat";
 import CitationChip from "./CitationChip.vue";
+import ChatToolCalls from "./ChatToolCalls.vue";
 
 const props = defineProps<{
   message: UiChatMessage;
@@ -238,18 +239,7 @@ watch(
           </p>
         </template>
 
-        <div
-          v-if="message.toolCalls?.length"
-          class="mt-2.5 space-y-1.5 border-t border-divider pt-2.5 text-xs text-muted"
-        >
-          <div v-for="(tool, i) in message.toolCalls" :key="i">
-            <span class="font-mono text-link">{{ tool.name }}</span>
-            <pre
-              v-if="tool.output"
-              class="mt-1 max-h-24 overflow-auto rounded-md bg-surface-0 px-2 py-1 whitespace-pre-wrap"
-            >{{ tool.output }}</pre>
-          </div>
-        </div>
+        <ChatToolCalls v-if="message.toolCalls?.length" :tools="message.toolCalls" />
 
         <CitationChip
           v-if="message.citations?.length"

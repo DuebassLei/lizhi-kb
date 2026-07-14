@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { ExternalLink, X } from "@lucide/vue";
+import { ExternalLink, Rocket, X } from "@lucide/vue";
 import Btn from "../ui/Btn.vue";
 import Input from "../ui/Input.vue";
 import JournalEntryPreview from "../journal/JournalEntryPreview.vue";
+import RequirementLinkPicker from "./RequirementLinkPicker.vue";
 import type { Requirement } from "../../types/requirement";
 import type {
   LaunchEnvironment,
@@ -20,6 +21,7 @@ import {
   LAUNCH_STATUSES,
   RISK_LABELS,
   RISK_LEVELS,
+  RISK_THEME,
   STATUS_LABELS,
   STATUS_THEME,
   VERIFICATION_LABELS,
@@ -214,28 +216,55 @@ function openRequirement(req: Requirement) {
         />
 
         <aside
-          class="relative flex h-full w-full max-w-md flex-col border-l border-border bg-surface-0 shadow-xl"
+          class="launch-drawer relative flex h-full w-full max-w-md flex-col border-l border-border bg-surface-0 shadow-xl"
           role="dialog"
           aria-modal="true"
           aria-label="上线记录详情"
           data-testid="launch-record-drawer"
         >
           <header
-            class="flex shrink-0 items-center justify-between border-b border-border px-4 py-3"
+            class="launch-drawer__header flex shrink-0 items-start justify-between gap-3 border-b border-border px-4 py-3.5"
             :class="STATUS_THEME[status].headerBg"
           >
-            <div class="min-w-0">
-              <h2 class="text-sm font-medium">上线记录</h2>
-              <p class="mt-0.5 truncate font-mono text-[10px] text-muted">{{ record.recordNumber }}</p>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span
+                  class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-medium leading-none"
+                  :class="STATUS_THEME[status].pill"
+                >
+                  <span class="h-1.5 w-1.5 rounded-full" :class="STATUS_THEME[status].dot" aria-hidden="true" />
+                  {{ STATUS_LABELS[status] }}
+                </span>
+                <span
+                  v-if="riskLevel"
+                  class="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                  :class="RISK_THEME[riskLevel].pill"
+                >
+                  风险 {{ RISK_LABELS[riskLevel] }}
+                </span>
+              </div>
+              <h2 class="mt-2 flex items-center gap-1.5 text-sm font-semibold leading-snug">
+                <Rocket class="h-3.5 w-3.5 shrink-0 text-muted" aria-hidden="true" />
+                <span class="truncate">{{ title.trim() || "上线记录" }}</span>
+              </h2>
+              <p class="mt-1 truncate font-mono text-[10px] tracking-wide text-muted">
+                {{ record.recordNumber }}
+                <span v-if="version.trim()" class="text-muted/80"> · {{ version.trim() }}</span>
+              </p>
             </div>
-            <button type="button" class="focus-ring rounded p-1 text-muted" aria-label="关闭" @click="emit('close')">
+            <button
+              type="button"
+              class="focus-ring shrink-0 rounded-md p-1.5 text-muted hover:bg-surface-1/60"
+              aria-label="关闭"
+              @click="emit('close')"
+            >
               <X class="h-4 w-4" />
             </button>
           </header>
 
-          <div class="flex-1 overflow-y-auto px-4 py-4 space-y-5">
-            <section class="space-y-3">
-              <h3 class="text-xs font-medium text-muted">基本信息</h3>
+          <div class="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+            <section class="launch-drawer__section space-y-3">
+              <h3 class="launch-drawer__section-title">基本信息</h3>
               <div>
                 <label class="mb-1 block text-xs text-muted">标题</label>
                 <Input v-model="title" aria-label="标题" />
@@ -247,32 +276,50 @@ function openRequirement(req: Requirement) {
                 </div>
                 <div>
                   <label class="mb-1 block text-xs text-muted">环境</label>
-                  <select v-model="environment" class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs">
+                  <select
+                    v-model="environment"
+                    class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs"
+                  >
                     <option v-for="env in LAUNCH_ENVIRONMENTS" :key="env" :value="env">
                       {{ ENVIRONMENT_LABELS[env] }}
                     </option>
                   </select>
                 </div>
               </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="mb-1 block text-xs text-muted">状态</label>
-                  <select v-model="status" class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs">
-                    <option v-for="s in LAUNCH_STATUSES" :key="s" :value="s">{{ STATUS_LABELS[s] }}</option>
-                  </select>
+              <div>
+                <p class="mb-1.5 text-xs text-muted">状态</p>
+                <div class="flex flex-wrap gap-1.5" role="group" aria-label="状态">
+                  <button
+                    v-for="s in LAUNCH_STATUSES"
+                    :key="s"
+                    type="button"
+                    class="focus-ring rounded-full px-2 py-1 text-[10px] font-medium transition-opacity"
+                    :class="
+                      status === s
+                        ? STATUS_THEME[s].pill
+                        : 'border border-border bg-surface-1/40 text-muted opacity-70 hover:opacity-100'
+                    "
+                    :aria-pressed="status === s"
+                    @click="status = s"
+                  >
+                    {{ STATUS_LABELS[s] }}
+                  </button>
                 </div>
-                <div>
-                  <label class="mb-1 block text-xs text-muted">风险等级</label>
-                  <select v-model="riskLevel" class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs">
-                    <option value="">—</option>
-                    <option v-for="r in RISK_LEVELS" :key="r" :value="r">{{ RISK_LABELS[r] }}</option>
-                  </select>
-                </div>
+              </div>
+              <div>
+                <label class="mb-1 block text-xs text-muted">风险等级</label>
+                <select
+                  v-model="riskLevel"
+                  class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs"
+                >
+                  <option value="">—</option>
+                  <option v-for="r in RISK_LEVELS" :key="r" :value="r">{{ RISK_LABELS[r] }}</option>
+                </select>
               </div>
             </section>
 
-            <section class="space-y-3">
-              <h3 class="text-xs font-medium text-muted">客户 / 项目（可选）</h3>
+            <section class="launch-drawer__section space-y-3">
+              <h3 class="launch-drawer__section-title">客户 / 项目</h3>
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="mb-1 block text-xs text-muted">客户名称</label>
@@ -285,26 +332,38 @@ function openRequirement(req: Requirement) {
               </div>
             </section>
 
-            <section class="space-y-3">
-              <h3 class="text-xs font-medium text-muted">时间</h3>
+            <section class="launch-drawer__section space-y-3">
+              <h3 class="launch-drawer__section-title">时间</h3>
               <div class="grid grid-cols-1 gap-3">
                 <div>
                   <label class="mb-1 block text-xs text-muted">计划上线</label>
-                  <input v-model="scheduledAtLocal" type="datetime-local" class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs" />
+                  <input
+                    v-model="scheduledAtLocal"
+                    type="datetime-local"
+                    class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs"
+                  />
                 </div>
                 <div>
                   <label class="mb-1 block text-xs text-muted">实际上线</label>
-                  <input v-model="launchedAtLocal" type="datetime-local" class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs" />
+                  <input
+                    v-model="launchedAtLocal"
+                    type="datetime-local"
+                    class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs"
+                  />
                 </div>
                 <div v-if="status === 'rolled_back'">
                   <label class="mb-1 block text-xs text-muted">回滚时间</label>
-                  <input v-model="rolledBackAtLocal" type="datetime-local" class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs" />
+                  <input
+                    v-model="rolledBackAtLocal"
+                    type="datetime-local"
+                    class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs"
+                  />
                 </div>
               </div>
             </section>
 
-            <section class="space-y-3">
-              <h3 class="text-xs font-medium text-muted">人员</h3>
+            <section class="launch-drawer__section space-y-3">
+              <h3 class="launch-drawer__section-title">人员</h3>
               <div class="grid grid-cols-3 gap-2">
                 <div>
                   <label class="mb-1 block text-xs text-muted">负责人</label>
@@ -321,8 +380,8 @@ function openRequirement(req: Requirement) {
               </div>
             </section>
 
-            <section class="space-y-3">
-              <h3 class="text-xs font-medium text-muted">内容</h3>
+            <section class="launch-drawer__section space-y-3">
+              <h3 class="launch-drawer__section-title">内容</h3>
               <div>
                 <label class="mb-1 block text-xs text-muted">变更摘要</label>
                 <Input v-model="changeSummary" aria-label="变更摘要" />
@@ -382,14 +441,19 @@ function openRequirement(req: Requirement) {
               </div>
             </section>
 
-            <section class="space-y-3">
-              <h3 class="text-xs font-medium text-muted">验证</h3>
+            <section class="launch-drawer__section space-y-3">
+              <h3 class="launch-drawer__section-title">验证</h3>
               <div class="grid grid-cols-2 gap-3">
                 <div>
                   <label class="mb-1 block text-xs text-muted">验证状态</label>
-                  <select v-model="verificationStatus" class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs">
+                  <select
+                    v-model="verificationStatus"
+                    class="focus-ring w-full rounded-lg border border-border bg-surface-1 px-2 py-2 text-xs"
+                  >
                     <option value="">—</option>
-                    <option v-for="v in VERIFICATION_STATUSES" :key="v" :value="v">{{ VERIFICATION_LABELS[v] }}</option>
+                    <option v-for="v in VERIFICATION_STATUSES" :key="v" :value="v">
+                      {{ VERIFICATION_LABELS[v] }}
+                    </option>
                   </select>
                 </div>
               </div>
@@ -399,19 +463,19 @@ function openRequirement(req: Requirement) {
               </div>
             </section>
 
-            <section class="space-y-3">
-              <h3 class="text-xs font-medium text-muted">关联</h3>
+            <section class="launch-drawer__section space-y-3">
+              <h3 class="launch-drawer__section-title">关联</h3>
               <RequirementLinkPicker v-model="linkedRequirementIds" :requirements="requirements" />
-              <div v-if="linkedRequirements.length > 0" class="space-y-1">
+              <div v-if="linkedRequirements.length > 0" class="space-y-1.5">
                 <button
                   v-for="req in linkedRequirements"
                   :key="req.id"
                   type="button"
-                  class="focus-ring flex w-full items-center gap-2 rounded-lg border border-border bg-surface-1 px-3 py-2 text-left text-xs hover:bg-surface-2"
+                  class="focus-ring flex w-full items-center gap-2 rounded-lg border border-border bg-surface-1 px-3 py-2 text-left text-xs transition-colors hover:border-border-strong hover:bg-surface-2"
                   @click="openRequirement(req)"
                 >
                   <span class="font-mono text-[10px] text-muted">{{ req.number }}</span>
-                  <span class="min-w-0 flex-1 truncate">{{ req.title ?? req.content.split('\n')[0] }}</span>
+                  <span class="min-w-0 flex-1 truncate">{{ req.title ?? req.content.split("\n")[0] }}</span>
                   <ExternalLink class="h-3 w-3 shrink-0 text-muted" />
                 </button>
               </div>
@@ -421,13 +485,16 @@ function openRequirement(req: Requirement) {
               </div>
             </section>
 
-            <section v-if="record" class="text-[10px] text-muted space-y-0.5">
+            <section
+              v-if="record"
+              class="rounded-lg border border-border/50 bg-surface-1/30 px-3 py-2.5 text-[10px] text-muted"
+            >
               <p>创建：{{ formatLaunchDate(record.createdAt) }}</p>
-              <p>更新：{{ formatLaunchDate(record.updatedAt) }}</p>
+              <p class="mt-0.5">更新：{{ formatLaunchDate(record.updatedAt) }}</p>
             </section>
           </div>
 
-          <footer class="flex shrink-0 flex-col gap-2 border-t border-border px-4 py-3">
+          <footer class="flex shrink-0 flex-col gap-2 border-t border-border bg-surface-0/90 px-4 py-3 backdrop-blur-sm">
             <div
               v-if="deleteConfirm"
               class="rounded-lg border border-danger/30 bg-danger/5 px-3 py-2.5"
@@ -446,7 +513,7 @@ function openRequirement(req: Requirement) {
                 <Btn
                   variant="primary"
                   size="sm"
-                  class="!bg-danger !border-danger hover:!bg-danger/90"
+                  class="!border-danger !bg-danger hover:!bg-danger/90"
                   data-testid="launch-delete-confirm-btn"
                   @click="confirmDelete"
                 >
@@ -470,6 +537,21 @@ function openRequirement(req: Requirement) {
 </template>
 
 <style scoped>
+.launch-drawer__section {
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+  background: color-mix(in srgb, var(--color-surface-1) 42%, transparent);
+  padding: 0.85rem 0.9rem;
+}
+
+.launch-drawer__section-title {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
 .drawer-enter-active,
 .drawer-leave-active {
   transition: opacity 0.2s ease;

@@ -13,9 +13,9 @@
 
 | 命令 | 范围 | 何时运行 |
 |------|------|----------|
-| `pnpm verify` | 前端 + MCP + Rust（clippy + test） | **合并前必跑**；Implementer / Reviewer 完成标准 |
-| `pnpm build` | 前端类型检查 + Vite 构建 + MCP | 日常前端迭代；已含零警告 Vite 配置 |
-| `pnpm verify:fe` | 仅前端 | 只改 `src/` 时 |
+| `pnpm verify` | vue-tsc 后 Vite 与 MCP 并行，再 sync、clippy、test | **合并前必跑**；Implementer / Reviewer 完成标准 |
+| `pnpm build` | vue-tsc 后 Vite 与 MCP 并行，再 sync | 日常前端迭代 / Tauri beforeBuild |
+| `pnpm verify:fe` | vue-tsc → Vite（不含 MCP / Rust） | 只改 `src/` 时 |
 | `pnpm verify:rust` | 仅 Rust | 只改 `src-tauri/` 时 |
 
 ```bash
@@ -58,7 +58,9 @@ pnpm tauri dev       # Tauri/IPC 手动验证
 
 ## CI
 
-`.github/workflows/ci.yml` 在 PR / main 上运行 `pnpm verify` 与 `pnpm test:unit`。
+`.github/workflows/ci.yml` 在 PR / main 上运行 `pnpm verify`（已含 Rust test）与 `pnpm test:unit`，不再单独重复 `cargo test`。
+
+本地 `pnpm verify` / `pnpm build`：先 `vue-tsc`，再并行 `vite build` 与 `build:mcp`（避免 tsc 与 Vite 双重量级争抢导致总时长不降反升）。
 
 **已知盲区**：CI **未**跑 Playwright E2E（`pnpm test:e2e`）；Agent 工作台等路由无专项 E2E（见 [CC Workbench §17.4](../superpowers/specs/2026-07-10-cc-workbench-design.md#174-差距追踪待对齐项)）。流程/UI 大改时请在本地补跑 E2E。
 

@@ -2,23 +2,11 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { HttpBridgeBackend } from "./client.js";
-import { StandaloneBackend } from "./standalone.js";
 import { registerLizhiTools } from "./tools.js";
 import type { LizhiBackend } from "./types.js";
-import { LizhiBridgeError } from "./types.js";
 
 function createBackend(): LizhiBackend {
-  const mode = (process.env.LIZHI_MCP_BACKEND ?? "http_bridge").toLowerCase();
-  if (mode === "http_bridge" || mode === "bridge") {
-    return new HttpBridgeBackend();
-  }
-  if (mode === "standalone" || mode === "sidecar") {
-    return new StandaloneBackend();
-  }
-  throw new LizhiBridgeError(
-    "UNSUPPORTED_BACKEND",
-    `不支持的 backend: ${mode}（可选: http_bridge | standalone）`,
-  );
+  return new HttpBridgeBackend();
 }
 
 export function createServer(backend: LizhiBackend = createBackend()): McpServer {

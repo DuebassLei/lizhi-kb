@@ -33,7 +33,7 @@ test.describe("Full-text search", () => {
     await expect(cmEditor(page)).toContainText(uniqueToken, { timeout: 5_000 });
   });
 
-  test("sidebar full-text search shows snippet and opens document", async ({ page }) => {
+  test("sidebar search entry opens command palette for full-text lookup", async ({ page }) => {
     const uniqueToken = `侧栏检索${Date.now()}`;
 
     await page.getByTestId("new-doc-btn").click();
@@ -44,9 +44,13 @@ test.describe("Full-text search", () => {
 
     await expect(page.getByText("已保存")).toBeVisible({ timeout: 5_000 });
 
-    await page.getByTestId("sidebar-filter").fill(uniqueToken);
+    await page.getByTestId("sidebar-search").click();
+    await expect(page.getByTestId("command-palette")).toBeVisible();
 
-    const result = page.getByTestId("sidebar-search-result").first();
+    const searchInput = page.getByTestId("command-palette").locator('input[type="search"]');
+    await searchInput.fill(uniqueToken);
+
+    const result = page.getByTestId("search-result").first();
     await expect(result).toBeVisible({ timeout: 5_000 });
     await expect(result).toContainText(uniqueToken);
     await result.click();

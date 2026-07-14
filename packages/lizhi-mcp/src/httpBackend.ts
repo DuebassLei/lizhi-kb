@@ -158,6 +158,29 @@ export abstract class HttpBackendBase implements LizhiBackend {
     });
   }
 
+  ensureFolder(path: string): Promise<{ folder: string; tree: unknown }> {
+    return this.request<{ folder: string; tree: unknown }>("POST", "/folders/ensure", {
+      path,
+    });
+  }
+
+  deleteFolder(
+    path: string,
+    moveDocumentsTo?: string,
+  ): Promise<{
+    folder: string;
+    removedFolderIds: string[];
+    prunedEmptyAncestors: string[];
+    movedDocuments: import("./types.js").DocumentMeta[];
+    movedTo: string;
+    tree: unknown;
+  }> {
+    return this.request("POST", "/folders/delete", {
+      path,
+      ...(moveDocumentsTo !== undefined ? { moveDocumentsTo } : {}),
+    });
+  }
+
   saveAsset(dataBase64: string, extension: string): Promise<{ id: string; mimeType: string }> {
     return this.request<{ id: string; mimeType: string }>("POST", "/assets", {
       dataBase64,

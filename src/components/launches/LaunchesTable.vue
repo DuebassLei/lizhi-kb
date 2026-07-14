@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "@lucide/vue";
 import type { LaunchRecord, LaunchStatus } from "../../types/launchRecord";
 import {
   ENVIRONMENT_LABELS,
   formatLaunchCompactDate,
+  previewLaunchPlainText,
+  RISK_LABELS,
+  RISK_THEME,
   STATUS_LABELS,
   STATUS_THEME,
 } from "../../types/launchRecord";
@@ -64,76 +68,169 @@ function toggleSort(key: SortKey) {
   }
 }
 
-function sortIndicator(key: SortKey): string {
-  if (sortKey.value !== key) return "";
-  return sortAsc.value ? " ↑" : " ↓";
+function notesCell(text?: string): string {
+  const raw = text?.trim();
+  if (!raw) return "—";
+  return previewLaunchPlainText(raw, 80).replace(/\n+/g, " ");
 }
 </script>
 
 <template>
-  <div class="overflow-x-auto p-4">
+  <div class="launches-table overflow-x-auto p-4">
     <table class="w-full min-w-[960px] border-collapse text-left text-xs">
       <thead>
-        <tr class="border-b border-border text-muted">
-          <th class="cursor-pointer px-2 py-2 font-medium" @click="toggleSort('recordNumber')">
-            单号{{ sortIndicator("recordNumber") }}
+        <tr class="launches-table__head">
+          <th class="launches-table__th launches-table__th--sort" @click="toggleSort('recordNumber')">
+            <span>单号</span>
+            <ArrowUp v-if="sortKey === 'recordNumber' && sortAsc" class="h-3 w-3" />
+            <ArrowDown v-else-if="sortKey === 'recordNumber'" class="h-3 w-3" />
+            <ArrowUpDown v-else class="h-3 w-3 opacity-35" />
           </th>
-          <th class="cursor-pointer px-2 py-2 font-medium" @click="toggleSort('title')">
-            标题{{ sortIndicator("title") }}
+          <th class="launches-table__th launches-table__th--sort" @click="toggleSort('title')">
+            <span>标题</span>
+            <ArrowUp v-if="sortKey === 'title' && sortAsc" class="h-3 w-3" />
+            <ArrowDown v-else-if="sortKey === 'title'" class="h-3 w-3" />
+            <ArrowUpDown v-else class="h-3 w-3 opacity-35" />
           </th>
-          <th class="px-2 py-2 font-medium">环境</th>
-          <th class="cursor-pointer px-2 py-2 font-medium" @click="toggleSort('status')">
-            状态{{ sortIndicator("status") }}
+          <th class="launches-table__th">环境</th>
+          <th class="launches-table__th launches-table__th--sort" @click="toggleSort('status')">
+            <span>状态</span>
+            <ArrowUp v-if="sortKey === 'status' && sortAsc" class="h-3 w-3" />
+            <ArrowDown v-else-if="sortKey === 'status'" class="h-3 w-3" />
+            <ArrowUpDown v-else class="h-3 w-3 opacity-35" />
           </th>
-          <th class="px-2 py-2 font-medium">客户</th>
-          <th class="cursor-pointer px-2 py-2 font-medium" @click="toggleSort('launchedAt')">
-            上线时间{{ sortIndicator("launchedAt") }}
+          <th class="launches-table__th">风险</th>
+          <th class="launches-table__th">客户</th>
+          <th class="launches-table__th launches-table__th--sort" @click="toggleSort('launchedAt')">
+            <span>上线时间</span>
+            <ArrowUp v-if="sortKey === 'launchedAt' && sortAsc" class="h-3 w-3" />
+            <ArrowDown v-else-if="sortKey === 'launchedAt'" class="h-3 w-3" />
+            <ArrowUpDown v-else class="h-3 w-3 opacity-35" />
           </th>
-          <th class="px-2 py-2 font-medium">变更摘要</th>
-          <th class="px-2 py-2 font-medium">发布说明</th>
-          <th class="px-2 py-2 font-medium">操作人</th>
+          <th class="launches-table__th">变更摘要</th>
+          <th class="launches-table__th">发布说明</th>
+          <th class="launches-table__th">操作人</th>
         </tr>
       </thead>
       <tbody>
         <tr
           v-for="record in sortedItems"
           :key="record.id"
-          class="focus-ring cursor-pointer border-b border-border/50 transition-colors hover:bg-surface-1/60"
+          class="launches-table__row focus-ring"
           :class="[
             STATUS_THEME[record.status].rowAccent,
-            'border-l-2',
-            record.id === selectedId ? 'bg-surface-1' : '',
+            record.id === selectedId ? 'launches-table__row--selected' : '',
           ]"
           tabindex="0"
           @click="emit('select', record.id)"
           @keydown.enter="emit('select', record.id)"
         >
-          <td class="px-2 py-2.5 font-mono text-[10px] text-muted">{{ record.recordNumber }}</td>
-          <td class="max-w-[200px] truncate px-2 py-2.5">{{ record.title }}</td>
-          <td class="px-2 py-2.5 text-muted">{{ ENVIRONMENT_LABELS[record.environment] }}</td>
-          <td class="px-2 py-2.5">
+          <td class="launches-table__td font-mono text-[10px] tracking-wide text-muted">
+            {{ record.recordNumber }}
+          </td>
+          <td class="launches-table__td max-w-[220px]">
+            <div class="truncate font-medium text-[var(--color-text)]">{{ record.title }}</div>
+            <div v-if="record.version" class="mt-0.5 truncate font-mono text-[10px] text-muted">
+              {{ record.version }}
+            </div>
+          </td>
+          <td class="launches-table__td">
+            <span class="rounded-full border border-border bg-surface-2 px-1.5 py-0.5 text-[10px] text-muted">
+              {{ ENVIRONMENT_LABELS[record.environment] }}
+            </span>
+          </td>
+          <td class="launches-table__td">
             <span
-              class="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+              class="inline-flex items-center gap-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
               :class="STATUS_THEME[record.status].pill"
             >
+              <span
+                class="h-1.5 w-1.5 rounded-full"
+                :class="STATUS_THEME[record.status].dot"
+                aria-hidden="true"
+              />
               {{ STATUS_LABELS[record.status as LaunchStatus] }}
             </span>
           </td>
-          <td class="max-w-[120px] truncate px-2 py-2.5 text-muted">
+          <td class="launches-table__td">
+            <span
+              v-if="record.riskLevel"
+              class="rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+              :class="RISK_THEME[record.riskLevel].pill"
+            >
+              {{ RISK_LABELS[record.riskLevel] }}
+            </span>
+            <span v-else class="text-muted">—</span>
+          </td>
+          <td class="launches-table__td max-w-[120px] truncate text-muted">
             {{ record.clientName ?? "—" }}
           </td>
-          <td class="px-2 py-2.5 tabular-nums text-muted">
+          <td class="launches-table__td tabular-nums text-muted">
             {{ formatLaunchCompactDate(record.launchedAt ?? record.scheduledAt) }}
           </td>
-          <td class="max-w-[140px] truncate px-2 py-2.5 text-muted">
+          <td class="launches-table__td max-w-[140px] truncate text-muted">
             {{ record.changeSummary?.trim() || "—" }}
           </td>
-          <td class="max-w-[180px] truncate px-2 py-2.5 text-muted">
-            {{ record.releaseNotes?.trim() || "—" }}
+          <td class="launches-table__td max-w-[180px] truncate text-muted">
+            {{ notesCell(record.releaseNotes) }}
           </td>
-          <td class="px-2 py-2.5 text-muted">{{ record.operator ?? "—" }}</td>
+          <td class="launches-table__td text-muted">{{ record.operator ?? "—" }}</td>
         </tr>
       </tbody>
     </table>
   </div>
 </template>
+
+<style scoped>
+.launches-table__head {
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 88%, transparent);
+  background: color-mix(in srgb, var(--color-surface-1) 55%, transparent);
+}
+
+.launches-table__th {
+  padding: 0.55rem 0.65rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.launches-table__th--sort {
+  cursor: pointer;
+  user-select: none;
+}
+
+.launches-table__th--sort > span,
+.launches-table__th--sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.launches-table__th--sort:hover {
+  color: var(--color-text);
+}
+
+.launches-table__row {
+  cursor: pointer;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent);
+  border-left-width: 3px;
+  border-left-style: solid;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.launches-table__row:hover {
+  background: color-mix(in srgb, var(--color-surface-1) 72%, transparent);
+}
+
+.launches-table__row--selected {
+  background: color-mix(in srgb, var(--color-paw) 8%, var(--color-surface-1));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-paw) 18%, transparent);
+}
+
+.launches-table__td {
+  padding: 0.7rem 0.65rem;
+  vertical-align: middle;
+}
+</style>

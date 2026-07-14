@@ -6,10 +6,12 @@ import {
   canDeleteFolder,
   canReparentFolder,
   collectDescendantFolderIds,
+  ensureFolderPathInState,
   getFolderPathLabel,
   getFolderPathSegments,
   isDescendantFolder,
   listFoldersFlat,
+  mergeFolderUiStates,
   normalizeDocFolder,
   remapFolderIdInList,
 } from "../utils/folderHelpers";
@@ -186,6 +188,82 @@ export const useFoldersStore = defineStore("folders", () => {
 
   function folderExists(folderId: string): boolean {
     return folders.value.some((f) => f.id === folderId);
+  }
+
+  /** 确保路径注册到侧栏；返回规范化后的 folder id */
+  function ensureFolderPath(folderPath: string): string {
+    const result = ensureFolderPathInState(folderPath, {
+      folders: folders.value,
+      folderOrder: folderOrder.value,
+      expanded: expanded.value,
+    });
+    if (result.created.length > 0) {
+      folders.value = result.folders;
+      folderOrder.value = result.folderOrder;
+      expanded.value = result.expanded;
+      persist();
+    }
+    return result.folderId;
+  }
+
+  /** 根据文档 meta 自愈：补齐侧栏缺失路径 */
+  function ensureMissingFromDocuments(docs: DocumentMeta[]) {
+    let changed = false;
+    let nextFolders = folders.value;
+    let nextOrder = folderOrder.value;
+    let nextExpanded = expanded.value;
+    const seen = new Set<string>();
+    for (const doc of docs) {
+      const raw = doc.folder?.trim();
+      if (!raw || seen.has(raw)) continue;
+      seen.add(raw);
+      if (nextFolders.some((f) => f.id === raw)) continue;
+      // 文档已有 folder 字符串：按原样注册，避免 slugify 与旧路径不一致
+      const result = ensureFolderPathInState(
+        raw,
+        {
+          folders: nextFolders,
+          folderOrder: nextOrder,
+          expanded: nextExpanded,
+        },
+        { slugifySegments: false },
+      );
+      if (result.created.length > 0) {
+        changed = true;
+        nextFolders = result.folders;
+        nextOrder = result.folderOrder;
+        nextExpanded = result.expanded;
+      }
+    }
+    if (changed) {
+      folders.value = nextFolders;
+      folderOrder.value = nextOrder;
+      expanded.value = nextExpanded;
+      persist();
+    }
+  }
+
+  /** 与磁盘/MCP 写入的侧栏树做并集合并 */
+  function mergeFromFolderUiState(incoming: {
+    folders?: FolderMeta[];
+    folderOrder?: Record<string, string[]>;
+    expanded?: Record<string, boolean>;
+    order?: Record<string, string[]>;
+  }) {
+    const merged = mergeFolderUiStates(
+      {
+        folders: folders.value,
+        folderOrder: folderOrder.value,
+        expanded: expanded.value,
+        order: order.value,
+      },
+      incoming,
+    );
+    folders.value = merged.folders;
+    folderOrder.value = merged.folderOrder;
+    expanded.value = merged.expanded;
+    order.value = merged.order;
+    persist();
   }
 
   function applyFolderIdMigration(
@@ -406,6 +484,9 @@ export const useFoldersStore = defineStore("folders", () => {
     resolveSiblingDropBeforeId,
     resolveFolderDropPosition,
     folderExists,
+    ensureFolderPath,
+    ensureMissingFromDocuments,
+    mergeFromFolderUiState,
     addSubfolder,
     renameFolder,
     reparentFolder,

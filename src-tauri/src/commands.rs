@@ -89,7 +89,7 @@ fn map_backup_vault_error(e: crate::vault::VaultError) -> String {
             if err.kind() == std::io::ErrorKind::PermissionDenied
                 || err.raw_os_error() == Some(5) =>
         {
-            "无法写入数据目录：知识库文件仍被占用。请关闭其他狸知实例或 Sidecar 后重试".to_string()
+            "无法写入数据目录：知识库文件仍被占用。请关闭其他狸知实例后重试".to_string()
         }
         other => other.to_string(),
     }
@@ -2263,9 +2263,21 @@ pub fn get_vault_ui_state() -> Result<crate::prefs::VaultUiState, String> {
 }
 
 #[tauri::command]
-pub fn save_vault_ui_state(state: crate::prefs::VaultUiState) -> Result<(), String> {
+pub fn save_vault_ui_state(
+    app: State<Arc<AppState>>,
+    state: crate::prefs::VaultUiState,
+) -> Result<(), String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
-    crate::prefs::save_ui_state(&data_dir, &state)
+    crate::prefs::save_ui_state(&data_dir, &state)?;
+    // 前端可能覆盖掉 MCP ensure 写入的树：按文档实际 folder 再 reconcile 一次
+    if let Ok(svc) = app.document_service.lock() {
+        if let Ok(folders) = svc.list_folders() {
+            for folder in folders {
+                let _ = crate::prefs::ensure_folder_path(&data_dir, &folder);
+            }
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]

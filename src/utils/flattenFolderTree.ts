@@ -2,7 +2,7 @@ import type { DocumentMeta } from "../types/document";
 import type { FolderTreeNode } from "../types/folder";
 
 export const TREE_ROW_HEIGHT = 30;
-export const TREE_EMPTY_ROW_HEIGHT = 72;
+export const TREE_EMPTY_ROW_HEIGHT = 40;
 
 export type FlatTreeRow =
   | { kind: "folder"; key: string; node: FolderTreeNode }

@@ -169,6 +169,28 @@ export const STATUS_THEME: Record<
   },
 };
 
+export const RISK_THEME: Record<LaunchRiskLevel, { pill: string }> = {
+  low: { pill: "bg-surface-2 text-muted border border-border" },
+  medium: { pill: "bg-warning/12 text-warning border border-warning/25" },
+  high: { pill: "bg-danger/12 text-danger border border-danger/25" },
+};
+
+/** 列表卡片用：去掉 markdown 标记，保留可读摘要 */
+export function previewLaunchPlainText(text: string, maxChars = 160): string {
+  const cleaned = text
+    .replace(/\r\n/g, "\n")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^\s*[-*+]\s+/gm, "· ")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\*\*?([^*]+)\*\*?/g, "$1")
+    .replace(/__?([^_]+)__?/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (cleaned.length <= maxChars) return cleaned;
+  return `${cleaned.slice(0, maxChars).trimEnd()}…`;
+}
+
 export function formatLaunchDate(ts?: number): string {
   if (!ts) return "—";
   return new Date(ts).toLocaleString("zh-CN", {

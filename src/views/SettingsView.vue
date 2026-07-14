@@ -331,7 +331,7 @@ async function onRebuildIndex() {
 
         <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">外观</h2>
 
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
 
           <label
 

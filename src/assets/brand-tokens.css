@@ -1,0 +1,41 @@
+/* ============================================
+   狸知知识库 · 品牌色彩令牌
+   基于 docs/brand/lizhi-brand-design.md v1.0.0
+   用于 Tailwind CSS 4 @theme 扩展
+   ============================================ */
+
+@theme {
+  /* ── 背景层级 ── */
+  --color-nest-950: #0d0f12;   /* 最深：代码区、标题栏 */
+  --color-nest-900: #141619;   /* 画布：主工作区 */
+  --color-nest-800: #1a1d23;   /* 面板：侧栏、卡片 */
+  --color-nest-700: #23262d;   /* 悬浮：hover 态 */
+  --color-nest-600: #2a2e36;   /* 活动：选中态 */
+
+  /* ── 品牌强调 ── */
+  --color-brand-blue: #5b9fd4;
+  --color-brand-blue-deep: #4a8bc0;
+  --color-brand-blue-ghost: rgba(91, 159, 212, 0.15);
+  --color-brand-warm: #d4a574;
+  --color-brand-warm-deep: #c09060;
+  --color-brand-warm-ghost: rgba(212, 165, 116, 0.12);
+
+  /* ── 文字 ── */
+  --color-text-primary: #f0f1f2;
+  --color-text-secondary: #b0b5bd;
+  --color-text-tertiary: #6b717a;
+  --color-text-quaternary: #454b54;
+
+  /* ── 语义 ── */
+  --color-status-success: #3ecf8e;
+  --color-status-warning: #f0c040;
+  --color-status-error: #e0556a;
+  --color-status-info: #5b9fd4;
+
+  /* ── 边框（半透明白层级） ── */
+  --color-border-subtle: rgba(255, 255, 255, 0.04);
+  --color-border-default: rgba(255, 255, 255, 0.08);
+  --color-border-emphasis: rgba(255, 255, 255, 0.12);
+  --color-border-brand: rgba(91, 159, 212, 0.3);
+  --color-border-warm: rgba(212, 165, 116, 0.25);
+}

@@ -7,9 +7,13 @@ import {
   type WechatThemeId,
 } from "../../services/wechatExport";
 
-defineProps<{
-  testId?: string;
-}>();
+withDefaults(
+  defineProps<{
+    testId?: string;
+    menuAlign?: "left" | "right";
+  }>(),
+  { menuAlign: "left" },
+);
 
 const themeId = defineModel<WechatThemeId>({ required: true });
 
@@ -60,12 +64,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div ref="rootRef" class="relative w-full min-w-0">
+  <div ref="rootRef" class="relative min-w-0 max-w-full">
     <button
       type="button"
-      class="toolbar-chip focus-ring flex h-7 w-full min-w-0 cursor-pointer items-center justify-between gap-1 px-2 text-left text-[var(--color-text)]"
+      class="toolbar-chip focus-ring flex h-7 w-full min-w-0 max-w-full cursor-pointer items-center justify-between gap-1 px-2 text-left text-[11px] text-[var(--color-text)]"
       aria-label="公众号主题"
-      title="公众号主题"
+      :title="`主题：${currentThemeName}`"
       :aria-expanded="open"
       aria-haspopup="listbox"
       :data-testid="testId ?? 'wechat-theme-select'"
@@ -77,7 +81,8 @@ onUnmounted(() => {
 
     <div
       v-if="open"
-      class="scrollbar-thin absolute left-0 top-full z-50 mt-1 w-full min-w-[220px] max-h-[360px] overflow-y-auto rounded-lg border border-border bg-surface-1 p-1"
+      class="scrollbar-thin absolute top-full z-50 mt-1 w-[14rem] max-h-[360px] overflow-y-auto rounded-lg border border-border bg-surface-1 p-1"
+      :class="menuAlign === 'right' ? 'right-0' : 'left-0'"
       :style="{ boxShadow: 'var(--shadow-float)' }"
       role="listbox"
       aria-label="公众号主题"

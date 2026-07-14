@@ -2,6 +2,7 @@ import { tauriInvoke } from "../composables/useTauriCommand";
 import type { FolderUiState } from "../types/folder";
 import type { DocTagsMap } from "../utils/documentTags";
 import { loadFolderState } from "../utils/folderTree";
+import { mergeFolderUiStates } from "../utils/folderHelpers";
 import { loadChatSessionStore, type ChatSessionStore } from "../utils/chatSessionStorage";
 import { readInsightsHeroBackgroundFromStorage, INSIGHTS_HERO_BG_KEY } from "../utils/insightsHeroBackgroundStorage";
 import {
@@ -155,4 +156,19 @@ export async function reloadVaultUiStateFromDisk(): Promise<void> {
   if (!isTauriRuntime()) return;
   const disk = await tauriInvoke<VaultUiState>("get_vault_ui_state");
   applyVaultUiStateToLocal(disk);
+}
+
+/** 仅合并磁盘上的文件夹树（供 MCP 写入后自愈，不覆盖对话等其它 UI 状态） */
+export async function mergeFoldersFromDisk(): Promise<FolderUiState | null> {
+  if (!isTauriRuntime()) return null;
+  try {
+    const disk = await tauriInvoke<VaultUiState>("get_vault_ui_state");
+    if (!disk.folders) return null;
+    const local = loadFolderState();
+    const merged = mergeFolderUiStates(local, disk.folders);
+    localStorage.setItem(FOLDERS_KEY, JSON.stringify(merged));
+    return merged;
+  } catch {
+    return null;
+  }
 }

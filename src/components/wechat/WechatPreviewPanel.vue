@@ -7,21 +7,35 @@ import {
 } from "../../services/wechatExport";
 import { WECHAT_CODE_HLJS_CSS } from "../../services/wechatExport/highlightCodeForWechat";
 import { WECHAT_BASE_CSS } from "../../services/wechatExport/wechatBaseCss";
+import WechatToolbarMenu from "./WechatToolbarMenu.vue";
+
+const WECHAT_HTML_ROOT = "#lizhi-wechat-html";
 
 const props = defineProps<{
   content: string;
   themeId: WechatThemeId;
   /** 嵌入工作区分栏时去掉重复左边框 */
   embedded?: boolean;
+  /** 是否显示预览顶栏工具（主题 / 模块 / 复制） */
+  showToolbar?: boolean;
+}>();
+
+const emit = defineEmits<{
+  "update:themeId": [value: WechatThemeId];
+  insert: [snippet: string];
 }>();
 
 const previewHtml = ref("");
 const loading = ref(false);
+const containerRef = ref<HTMLElement | null>(null);
+
+defineExpose({ containerRef });
 
 const themeStyle = computed(() => {
-  const themeCss = getThemeCss(props.themeId, "#wechat-preview #nice");
-  const hljsCss = WECHAT_CODE_HLJS_CSS.replace(/#nice/g, "#wechat-preview #nice");
-  return `${WECHAT_BASE_CSS.replace(/#nice/g, "#wechat-preview #nice")}\n${hljsCss}\n${themeCss}`;
+  const themeCss = getThemeCss(props.themeId, WECHAT_HTML_ROOT);
+  const hljsCss = WECHAT_CODE_HLJS_CSS.replace(/#nice/g, WECHAT_HTML_ROOT);
+  const baseCss = WECHAT_BASE_CSS.replace(/#nice/g, WECHAT_HTML_ROOT);
+  return `${baseCss}\n${hljsCss}\n${themeCss}`;
 });
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -33,7 +47,8 @@ async function renderPreview() {
   try {
     const html = await buildWechatPreviewHtml(props.content, props.themeId);
     if (generation !== renderGeneration) return;
-    previewHtml.value = html;
+    // 统一根选择器：主题 CSS 只作用于正文，不波及预览顶栏
+    previewHtml.value = html.replace(/\bid="nice"/, `id="lizhi-wechat-html"`);
   } finally {
     if (generation === renderGeneration) loading.value = false;
   }
@@ -60,22 +75,31 @@ onUnmounted(() => {
 
 <template>
   <div
-    id="wechat-preview"
-    class="wechat-preview-panel flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-white"
+    class="wechat-preview-panel flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-canvas"
     :class="embedded ? '' : 'border-l border-border'"
     data-testid="wechat-preview-panel"
   >
+    <WechatToolbarMenu
+      v-if="showToolbar !== false"
+      variant="preview"
+      :content="content"
+      :theme-id="themeId"
+      @update:theme-id="emit('update:themeId', $event)"
+      @insert="emit('insert', $event)"
+    />
+
     <component :is="'style'">{{ themeStyle }}</component>
 
     <div
       v-if="loading && !previewHtml"
-      class="flex flex-1 items-center justify-center text-sm text-muted"
+      class="flex flex-1 items-center justify-center bg-white text-sm text-muted"
       role="status"
     >
       渲染预览…
     </div>
     <div
       v-else
+      ref="containerRef"
       class="scrollbar-thin min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-white px-4 py-6 pb-12"
       data-testid="wechat-preview-content"
     >
@@ -90,10 +114,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.wechat-preview-panel :deep(#nice) {
-  color: #3f3f3f;
-}
-
 .wechat-preview-body {
   font-family: Optima-Regular, Optima, PingFangSC-light, "PingFang SC", Cambria, Georgia, serif;
 }

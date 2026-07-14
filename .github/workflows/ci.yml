@@ -60,11 +60,8 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Verify (zero warnings)
+        # 含 vue-tsc / vite / MCP（并行）+ cargo clippy + cargo test
         run: pnpm verify
 
       - name: Unit tests
         run: pnpm test:unit
-
-      - name: Rust tests
-        working-directory: src-tauri
-        run: cargo test --no-default-features --features sqlcipher --quiet

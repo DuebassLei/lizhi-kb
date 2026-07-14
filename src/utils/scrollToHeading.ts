@@ -1,20 +1,12 @@
 import { findHeadingLineIndex } from "./headings";
+import { findHeadingElement } from "./headingScrollSync";
 
 /** 在预览 DOM 中滚动到匹配标题 */
 export function scrollToHeadingInContainer(container: HTMLElement, headingText: string, occurrence = 0): boolean {
-  const target = headingText.trim();
-  const tags = container.querySelectorAll("h1, h2, h3, h4, h5, h6");
-  let count = 0;
-  for (const el of tags) {
-    if (el.textContent?.trim() === target) {
-      if (count === occurrence) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        return true;
-      }
-      count += 1;
-    }
-  }
-  return false;
+  const el = findHeadingElement(container, headingText, occurrence);
+  if (!el) return false;
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  return true;
 }
 
 function scrollCmToLine(lineIndex: number): boolean {

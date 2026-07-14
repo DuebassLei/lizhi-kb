@@ -144,6 +144,20 @@ export interface LizhiBackend {
   deleteDocument(id: string): Promise<{ deleted: string }>;
   convertUnlinkedMention(sourceId: string, targetTitle: string): Promise<ConvertMentionResult>;
   migrateFolderPrefix(oldPrefix: string, newPrefix: string): Promise<{ migratedCount: number }>;
+  /** 将深层文件夹路径注册到侧栏树（可建空夹；可省略 projects/ 前缀） */
+  ensureFolder(path: string): Promise<{ folder: string; tree: unknown }>;
+  /** 删除侧栏目录（含子夹）；目录内文档先迁往上级或指定路径 */
+  deleteFolder(
+    path: string,
+    moveDocumentsTo?: string,
+  ): Promise<{
+    folder: string;
+    removedFolderIds: string[];
+    prunedEmptyAncestors: string[];
+    movedDocuments: DocumentMeta[];
+    movedTo: string;
+    tree: unknown;
+  }>;
   saveAsset(dataBase64: string, extension: string): Promise<{ id: string; mimeType: string }>;
   getAsset(id: string): Promise<AssetPayload>;
 }

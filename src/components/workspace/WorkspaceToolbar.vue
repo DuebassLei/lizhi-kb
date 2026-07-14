@@ -48,9 +48,6 @@ const showSplitPreview = computed(
 const showPreviewKind = computed(
   () => showSplitPreview.value && ui.splitPreviewVisible && !ui.focusMode,
 );
-const showWechatControls = computed(
-  () => showPreviewKind.value && ui.splitPreviewKind === "wechat",
-);
 const showTypewriter = computed(() => ui.workspaceViewMode === "edit");
 const showChat = computed(
   () => ui.workspaceViewMode === "edit" && !ui.focusMode && chat.aiEnabled,
@@ -107,7 +104,7 @@ const isPinned = computed(() =>
 
 <template>
   <header
-    class="flex h-[var(--toolbar-height)] shrink-0 items-center gap-1 border-b border-border px-2"
+    class="flex min-h-[var(--toolbar-height)] shrink-0 items-center gap-1 border-b border-border px-2"
     data-testid="workspace-toolbar"
   >
     <BtnIcon
@@ -212,42 +209,42 @@ const isPinned = computed(() =>
 
         <div
           v-if="showPreviewKind"
-          class="flex shrink-0 items-center gap-1"
+          class="flex shrink-0 items-center gap-1.5"
           data-testid="toolbar-preview-cluster"
         >
-        <div
-          class="flex shrink-0 rounded-md bg-surface-1 p-0.5 text-xs"
-          aria-label="预览类型"
-        >
-          <button
-            type="button"
-            class="focus-ring shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 transition-colors"
-            :class="ui.splitPreviewKind === 'gfm' ? 'bg-surface-2 text-[var(--color-text)]' : 'text-muted hover:text-[var(--color-text)]'"
-            :aria-pressed="ui.splitPreviewKind === 'gfm'"
-            data-testid="toolbar-preview-kind-gfm"
-            @click="ui.setSplitPreviewKind('gfm')"
+          <div
+            class="flex shrink-0 rounded-md bg-surface-1 p-0.5 text-xs"
+            aria-label="预览类型"
           >
-            阅读
-          </button>
-          <button
-            type="button"
-            class="focus-ring shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 transition-colors"
-            :class="ui.splitPreviewKind === 'wechat' ? 'bg-surface-2 text-[var(--color-text)]' : 'text-muted hover:text-[var(--color-text)]'"
-            :aria-pressed="ui.splitPreviewKind === 'wechat'"
-            data-testid="toolbar-preview-kind-wechat"
-            @click="ui.setSplitPreviewKind('wechat')"
-          >
-            公众号
-          </button>
-        </div>
+            <button
+              type="button"
+              class="focus-ring shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 transition-colors"
+              :class="ui.splitPreviewKind === 'gfm' ? 'bg-surface-2 text-[var(--color-text)]' : 'text-muted hover:text-[var(--color-text)]'"
+              :aria-pressed="ui.splitPreviewKind === 'gfm'"
+              data-testid="toolbar-preview-kind-gfm"
+              @click="ui.setSplitPreviewKind('gfm')"
+            >
+              阅读
+            </button>
+            <button
+              type="button"
+              class="focus-ring shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 transition-colors"
+              :class="ui.splitPreviewKind === 'wechat' ? 'bg-surface-2 text-[var(--color-text)]' : 'text-muted hover:text-[var(--color-text)]'"
+              :aria-pressed="ui.splitPreviewKind === 'wechat'"
+              data-testid="toolbar-preview-kind-wechat"
+              @click="ui.setSplitPreviewKind('wechat')"
+            >
+              公众号
+            </button>
+          </div>
 
-        <WechatToolbarMenu
-          v-model:theme-id="wechatThemeId"
-          :content="documents.content"
-          :visible="showWechatControls"
-          class="w-[7.5rem]"
-          @insert="insertModuleSnippetInDoc"
-        />
+          <WechatToolbarMenu
+            :visible="ui.splitPreviewKind === 'wechat'"
+            variant="toolbar"
+            v-model:theme-id="wechatThemeId"
+            :content="documents.content"
+            @insert="insertModuleSnippetInDoc"
+          />
         </div>
       </template>
     </div>

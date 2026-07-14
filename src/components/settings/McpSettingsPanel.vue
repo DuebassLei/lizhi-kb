@@ -20,8 +20,7 @@ const saving = ref(false);
 const config = ref<McpConfigPublic | null>(null);
 const revealedToken = ref<string | null>(null);
 const portInput = ref("13721");
-const standalonePortInput = ref("13722");
-const sessionTimeoutInput = ref("30");
+const adapterPath = ref<string | null>(null);
 
 const effectiveToken = computed(
   () => revealedToken.value ?? config.value?.token ?? null,
@@ -32,8 +31,7 @@ async function loadConfig(reveal = false) {
   try {
     config.value = await getMcpConfig(reveal);
     portInput.value = String(config.value.port);
-    standalonePortInput.value = String(config.value.standalonePort);
-    sessionTimeoutInput.value = String(config.value.sessionTimeoutMinutes);
+    adapterPath.value = await getMcpAdapterPath();
     if (config.value.token) {
       revealedToken.value = config.value.token;
     }
@@ -57,8 +55,6 @@ async function persist(update: {
   enabled?: boolean;
   writeEnabled?: boolean;
   port?: number;
-  standalonePort?: number;
-  sessionTimeoutMinutes?: number;
 }) {
   if (!config.value) return;
   saving.value = true;
@@ -100,44 +96,24 @@ async function onRegenerateToken() {
   }
 }
 
-async function onSaveStandalonePort() {
-  const port = Number.parseInt(standalonePortInput.value, 10);
-  if (!Number.isFinite(port) || port < 1024 || port > 65535) {
-    ui.showToast("error", "Sidecar 端口需在 1024–65535 之间");
-    return;
-  }
-  await persist({ standalonePort: port });
-}
-
-async function onSaveSessionTimeout() {
-  const minutes = Number.parseInt(sessionTimeoutInput.value, 10);
-  if (!Number.isFinite(minutes) || minutes < 0 || minutes > 24 * 60) {
-    ui.showToast("error", "Session 超时需在 0–1440 分钟之间（0 表示永不）");
-    return;
-  }
-  await persist({ sessionTimeoutMinutes: minutes });
-}
-
-async function copyCursorConfig(mode: "bridge" | "standalone") {
+async function copyCursorConfig() {
   if (!config.value || !effectiveToken.value) {
     ui.showToast("error", "请先获取 token");
     return;
   }
-  const scriptPath = await getMcpAdapterPath();
+  const scriptPath = adapterPath.value ?? (await getMcpAdapterPath());
+  if (!scriptPath) {
+    ui.showToast("error", "未找到内置 MCP 适配器，请重新安装狸知或先构建 lizhi-mcp");
+    return;
+  }
   const snippet = buildCursorMcpConfigSnippet(
     effectiveToken.value,
     config.value.port,
-    mode,
-    config.value.standalonePort,
     scriptPath,
   );
   try {
     await navigator.clipboard.writeText(snippet);
-    const hint =
-      mode === "standalone"
-        ? "Sidecar 配置已复制（需先关闭狸知并运行 lizhi-mcpd）"
-        : "Bridge 配置已复制（需狸知运行且 MCP 已启用）";
-    ui.showToast("success", hint);
+    ui.showToast("success", "MCP 配置已复制（需狸知运行且 MCP 已启用）");
   } catch {
     ui.showToast("error", "复制失败，请手动复制配置");
     console.info(snippet);
@@ -163,9 +139,9 @@ onMounted(() => {
       class="space-y-4 rounded-lg border border-border bg-surface-0 p-4"
     >
       <p class="text-sm text-muted">
-        供 Cursor、Claude Desktop 等 AI 工具通过 MCP 访问本机知识库。仅绑定
-        <code class="rounded bg-surface-1 px-1">127.0.0.1</code>；vault
-        锁定或应用关闭后不可用。文档正文会进入 AI 上下文，请谨慎开启。
+        供 Cursor、Claude Desktop 等 AI 工具通过 MCP 访问本机知识库（Bridge）。仅绑定
+        <code class="rounded bg-surface-1 px-1">127.0.0.1</code>；须保持狸知运行且 vault
+        已解锁。适配器已随安装包分发，本机需安装 Node.js。文档正文会进入 AI 上下文，请谨慎开启。
       </p>
 
       <label
@@ -216,6 +192,12 @@ onMounted(() => {
         <p class="mt-1 font-mono text-xs break-all">
           {{ effectiveToken ?? config.tokenMasked }}
         </p>
+        <p v-if="adapterPath" class="mt-2 text-xs text-muted break-all">
+          适配器：<code class="rounded bg-surface-0 px-1">{{ adapterPath }}</code>
+        </p>
+        <p v-else class="mt-2 text-xs text-danger">
+          未找到内置适配器（开发态请先 <code class="rounded bg-surface-0 px-1">pnpm build:mcp</code>）
+        </p>
         <div class="mt-3 flex flex-wrap gap-2">
           <Btn variant="ghost" size="sm" :disabled="saving" @click="onRegenerateToken">
             <RefreshCw class="mr-1 h-3.5 w-3.5" aria-hidden="true" />
@@ -224,22 +206,12 @@ onMounted(() => {
           <Btn
             variant="ghost"
             size="sm"
-            :disabled="!config.enabled || saving"
+            :disabled="!config.enabled || saving || !adapterPath"
             data-testid="copy-cursor-mcp-config"
-            @click="copyCursorConfig('bridge')"
+            @click="copyCursorConfig"
           >
             <Copy class="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-            复制 Bridge 配置
-          </Btn>
-          <Btn
-            variant="ghost"
-            size="sm"
-            :disabled="saving"
-            data-testid="copy-cursor-mcp-standalone-config"
-            @click="copyCursorConfig('standalone')"
-          >
-            <Copy class="mr-1 h-3.5 w-3.5" aria-hidden="true" />
-            复制 Sidecar 配置
+            复制 Cursor 配置
           </Btn>
         </div>
       </div>
@@ -254,35 +226,6 @@ onMounted(() => {
           <Btn variant="secondary" size="sm" :disabled="saving" @click="onSavePort">保存</Btn>
         </div>
       </details>
-
-      <div class="rounded-md border border-divider bg-surface-1 px-3 py-3 text-sm">
-        <p class="font-medium">Sidecar 模式（Phase 2）</p>
-        <p class="mt-1 text-xs text-muted">
-          关闭狸知后运行
-          <code class="rounded bg-surface-0 px-1">cargo run --bin lizhi-mcpd</code>，AI 工具通过
-          Standalone 后端连接。与桌面应用互斥，不可同时打开。
-        </p>
-        <div class="mt-3 grid gap-2">
-          <div class="flex items-end gap-2">
-            <div class="flex-1">
-              <label class="mb-1 block text-xs text-muted">Sidecar 端口</label>
-              <Input v-model="standalonePortInput" type="number" min="1024" max="65535" />
-            </div>
-            <Btn variant="secondary" size="sm" :disabled="saving" @click="onSaveStandalonePort">
-              保存
-            </Btn>
-          </div>
-          <div class="flex items-end gap-2">
-            <div class="flex-1">
-              <label class="mb-1 block text-xs text-muted">Session 超时（分钟，0=永不）</label>
-              <Input v-model="sessionTimeoutInput" type="number" min="0" max="1440" />
-            </div>
-            <Btn variant="secondary" size="sm" :disabled="saving" @click="onSaveSessionTimeout">
-              保存
-            </Btn>
-          </div>
-        </div>
-      </div>
     </div>
   </section>
 </template>

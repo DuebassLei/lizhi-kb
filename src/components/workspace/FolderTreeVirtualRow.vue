@@ -238,23 +238,21 @@ const rowStyle = computed(() => ({
         >
           <Inbox
             v-if="row.folderId === FOLDER_INBOX"
-            :size="18"
-            class="text-paw/60"
+            :size="12"
+            class="shrink-0 text-paw/60"
             aria-hidden="true"
           />
-          <Folder v-else :size="18" class="text-muted/70" aria-hidden="true" />
-          <p class="text-[11px] font-medium text-text-secondary">
-            {{ row.folderId === FOLDER_INBOX ? "收件箱为空" : "目录为空" }}
-          </p>
-          <p class="text-[10px] leading-relaxed text-muted">拖入文档，或点击上方「新建文档」</p>
+          <Folder v-else :size="12" class="shrink-0 text-muted/70" aria-hidden="true" />
+          <div class="tree-empty-state__text">
+            <p class="text-[11px] font-medium text-text-secondary">
+              {{ row.folderId === FOLDER_INBOX ? "收件箱为空" : "目录为空" }}
+            </p>
+            <p class="truncate text-[10px] text-muted" title="拖入文档，或点击上方「新建文档」">
+              拖入或点「新建」
+            </p>
+          </div>
         </div>
       </div>
     </template>
   </div>
 </template>
-
-<style scoped>
-.virtual-empty {
-  min-height: 68px;
-}
-</style>

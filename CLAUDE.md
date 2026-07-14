@@ -61,7 +61,9 @@ pnpm build         # 前端 + MCP 构建
 pnpm test:e2e      # 流程变更时
 pnpm tauri dev     # Tauri/IPC 变更时
 node scripts/sync-ai-bridge-resources.mjs   # 修改 packages/ai-bridge 后同步到 Tauri bundle
+pnpm build:mcp && pnpm sync:lizhi-mcp       # 修改 packages/lizhi-mcp 后同步到 Tauri bundle
 ```
+
 
 详见 [verification.md](./docs/agent-workflow/verification.md)。
 

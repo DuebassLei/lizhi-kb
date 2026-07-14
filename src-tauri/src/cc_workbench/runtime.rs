@@ -348,7 +348,6 @@ fn build_mcp_servers(
         if mcp_config.enabled {
             if let Some(adapter) = resolve_mcp_adapter_path() {
                 let mut env = std::collections::HashMap::new();
-                env.insert("LIZHI_MCP_BACKEND".into(), "http_bridge".into());
                 env.insert(
                     "LIZHI_MCP_URL".into(),
                     format!("http://127.0.0.1:{}", mcp_config.port),

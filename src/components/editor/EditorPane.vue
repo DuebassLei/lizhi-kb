@@ -20,6 +20,7 @@ import EmptyState from "../ui/EmptyState.vue";
 import { useSplitPreviewResize } from "../../composables/useSplitPreviewResize";
 import { useEditorPreviewScrollSync } from "../../composables/useEditorPreviewScrollSync";
 import { useWechatTheme } from "../../composables/useWechatTheme";
+import { insertModuleSnippet } from "../../services/wechatExport";
 import { PenLine } from "@lucide/vue";
 
 const documents = useDocumentsStore();
@@ -30,13 +31,24 @@ const folders = useFoldersStore();
 const links = useLinksStore();
 const { themeId: wechatThemeId } = useWechatTheme();
 
+function insertWechatModuleSnippet(snippet: string) {
+  documents.updateContent(insertModuleSnippet(documents.content, snippet));
+  void editor.saveNow();
+}
+
 const editingTitle = ref(false);
 const titleDraft = ref("");
 const cmRef = ref<InstanceType<typeof MarkdownCodeEditor> | null>(null);
 const findReplaceRef = ref<InstanceType<typeof EditorFindReplace> | null>(null);
 const splitContainerRef = ref<HTMLElement | null>(null);
 const gfmPreviewCmp = ref<{ containerRef: HTMLElement | null } | null>(null);
-const previewRef = computed(() => gfmPreviewCmp.value?.containerRef ?? null);
+const wechatPreviewCmp = ref<{ containerRef: HTMLElement | null } | null>(null);
+const previewRef = computed(() => {
+  if (ui.splitPreviewKind === "wechat") {
+    return wechatPreviewCmp.value?.containerRef ?? null;
+  }
+  return gfmPreviewCmp.value?.containerRef ?? null;
+});
 
 const activeTitle = computed(
   () => documents.tree.find((d) => d.id === documents.activeId)?.title ?? "无标题",
@@ -64,8 +76,9 @@ const showPreviewOnly = computed(
   () => ui.workspaceViewMode === "edit" && ui.previewOnlyMode,
 );
 
+const showWechatPreview = computed(() => ui.splitPreviewKind === "wechat");
 const showWechatSplitPreview = computed(
-  () => showSplitPreview.value && ui.splitPreviewKind === "wechat",
+  () => showSplitPreview.value && showWechatPreview.value,
 );
 
 const { editorRatio, dragging: splitDragging, onResizeStart: onSplitResizeStart } =
@@ -192,8 +205,9 @@ const cmView = computed(() => {
 });
 
 const scrollSyncEnabled = computed(() => showSplitPreview.value);
+const scrollSyncContent = computed(() => documents.content);
 
-useEditorPreviewScrollSync(cmView, previewRef, scrollSyncEnabled);
+useEditorPreviewScrollSync(cmView, previewRef, scrollSyncEnabled, scrollSyncContent);
 
 async function retrySave() {
   editor.clearSaveError();
@@ -379,10 +393,13 @@ async function retrySave() {
             <WechatPreviewPanel
               v-else
               :key="`wechat-split-preview-${documents.activeId}`"
+              ref="wechatPreviewCmp"
+              v-model:theme-id="wechatThemeId"
               :content="documents.content"
-              :theme-id="wechatThemeId"
               embedded
+              :show-toolbar="false"
               class="h-full min-h-0"
+              @insert="insertWechatModuleSnippet"
             />
           </div>
         </div>
@@ -393,7 +410,7 @@ async function retrySave() {
           data-testid="preview-only-pane"
         >
           <MarkdownPreview
-            v-if="!showWechatSplitPreview"
+            v-if="!showWechatPreview"
             :key="`preview-only-${documents.activeId}`"
             ref="gfmPreviewCmp"
             :content="documents.content"
@@ -403,10 +420,12 @@ async function retrySave() {
           <WechatPreviewPanel
             v-else
             :key="`wechat-preview-only-${documents.activeId}`"
+            ref="wechatPreviewCmp"
+            v-model:theme-id="wechatThemeId"
             :content="documents.content"
-            :theme-id="wechatThemeId"
             embedded
             class="h-full min-h-0"
+            @insert="insertWechatModuleSnippet"
           />
         </div>
 

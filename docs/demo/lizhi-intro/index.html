@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>狸知知识库 · 功能介绍</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=Noto+Sans+SC:wght@300;400;500;700&family=Noto+Serif+SC:wght@300;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121110;
+    --bg-elev: #1a1917;
+    --paper: #e8e2d8;
+    --paper-dim: #c4beB4;
+    --ink: #121110;
+    --muted: #78726a;
+    --rule: #302e2b;
+    --accent: #c48448;
+    --accent-dim: #784e2a;
+    --accent-glow: rgba(196, 132, 72, 0.35);
+    --safe: #5a7a62;
+    --sans: "Instrument Sans", "Noto Sans SC", system-ui, sans-serif;
+    --serif: "Instrument Serif", "Noto Serif SC", Georgia, serif;
+    --serif-zh: "Noto Serif SC", "Instrument Serif", serif;
+    --mono: "IBM Plex Mono", ui-monospace, monospace;
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--paper);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* —— ambient grain —— */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; z-index: 50; pointer-events: none;
+    opacity: 0.07;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    mix-blend-mode: overlay;
+    animation: grainShift 8s steps(8) infinite;
+  }
+  @keyframes grainShift {
+    0%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(-1%, 1%); }
+    50% { transform: translate(1%, -1%); }
+    75% { transform: translate(-1%, -1%); }
+  }
+
+  /* —— radar canvas bg —— */
+  #radar {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    z-index: 0; pointer-events: none; opacity: 0.45;
+  }
+
+  #deck {
+    position: fixed; inset: 0; display: flex; flex-wrap: nowrap;
+    width: max-content; height: 100vh;
+    transform: translateX(0);
+    transition: transform 0.95s var(--ease);
+    z-index: 10; will-change: transform;
+  }
+
+  .slide {
+    width: 100vw; height: 100vh; flex: 0 0 100vw;
+    position: relative; overflow: hidden;
+    padding: clamp(2rem, 5vh, 3.5rem) clamp(1.5rem, 5vw, 4.5rem) clamp(3.5rem, 8vh, 5rem);
+    display: flex; flex-direction: column;
+    background: var(--bg);
+  }
+  .slide.paper { background: var(--paper); color: var(--ink); }
+  .slide.elev { background: var(--bg-elev); }
+
+  .chrome {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: clamp(1rem, 3vh, 2.5rem);
+    opacity: 0; transform: translateY(-8px);
+  }
+  .slide.is-active .chrome { animation: rise 0.7s var(--ease-out) 0.05s forwards; }
+  .slide.paper .chrome { color: var(--accent-dim); }
+
+  .kicker {
+    font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 1rem;
+    opacity: 0; transform: translateY(16px);
+  }
+  .slide.is-active .kicker { animation: rise 0.8s var(--ease-out) 0.12s forwards; }
+
+  .h-hero {
+    font-family: var(--serif-zh); font-weight: 300;
+    font-size: clamp(2.6rem, 7.2vw, 5.8rem); line-height: 1.08;
+    letter-spacing: -0.02em; max-width: 16ch;
+    opacity: 0; transform: translateY(28px);
+  }
+  .slide.is-active .h-hero { animation: rise 1s var(--ease-out) 0.2s forwards; }
+
+  .h-xl {
+    font-family: var(--serif-zh); font-weight: 300;
+    font-size: clamp(2rem, 4.6vw, 3.6rem); line-height: 1.15;
+    letter-spacing: -0.02em;
+    opacity: 0; transform: translateY(24px);
+  }
+  .slide.is-active .h-xl { animation: rise 0.9s var(--ease-out) 0.18s forwards; }
+
+  .lead {
+    margin-top: 1.25rem; font-size: clamp(1rem, 1.5vw, 1.2rem);
+    line-height: 1.7; color: var(--paper-dim); max-width: 36em;
+    opacity: 0; transform: translateY(18px);
+  }
+  .slide.paper .lead { color: var(--muted); }
+  .slide.is-active .lead { animation: rise 0.9s var(--ease-out) 0.32s forwards; }
+
+  .accent-word { color: var(--accent); font-style: italic; font-family: var(--serif); }
+
+  @keyframes rise {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.55; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.08); }
+  }
+  @keyframes sweep {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  @keyframes barGrow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+  @keyframes floatY {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+  }
+
+  /* —— cover —— */
+  .cover-grid {
+    flex: 1; display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: clamp(1.5rem, 4vw, 4rem); align-items: center;
+  }
+  .cover-brand {
+    font-family: var(--serif-zh); font-weight: 500;
+    font-size: clamp(3rem, 8vw, 6.5rem); line-height: 0.95;
+    letter-spacing: -0.03em;
+  }
+  .cover-sub {
+    margin-top: 1.5rem; font-family: var(--serif); font-style: italic;
+    font-size: clamp(1.1rem, 2vw, 1.6rem); color: var(--paper-dim);
+  }
+  .cover-meta {
+    margin-top: 2.5rem; display: flex; gap: 1.5rem; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.12em;
+    color: var(--muted);
+  }
+  .cover-meta span { border-bottom: 1px solid var(--accent-dim); padding-bottom: 4px; }
+
+  .nest-stage {
+    position: relative; aspect-ratio: 1; width: min(42vw, 460px); margin-left: auto;
+    opacity: 0; transform: scale(0.92);
+  }
+  .slide.is-active .nest-stage { animation: nestIn 1.2s var(--ease-out) 0.25s forwards; }
+  @keyframes nestIn {
+    to { opacity: 1; transform: scale(1); }
+  }
+  .nest-ring {
+    position: absolute; inset: 0; margin: auto;
+    border: 1px solid rgba(120, 114, 106, 0.35); border-radius: 50%;
+  }
+  .nest-ring:nth-child(1) { inset: 6%; }
+  .nest-ring:nth-child(2) { inset: 18%; animation: floatY 7s ease-in-out infinite; }
+  .nest-ring:nth-child(3) { inset: 32%; border-color: rgba(196, 132, 72, 0.35); }
+  .nest-ring:nth-child(4) { inset: 46%; }
+  .nest-eye {
+    position: absolute; left: 50%; top: 50%;
+    width: 14px; height: 14px; margin: -7px 0 0 -7px;
+    border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 0 8px var(--accent-glow), 0 0 40px var(--accent-glow);
+    animation: pulse 2.8s ease-in-out infinite;
+  }
+  .nest-sweep {
+    position: absolute; inset: 18%; border-radius: 50%;
+    background: conic-gradient(from 0deg, transparent 0deg, rgba(196,132,72,0.18) 40deg, transparent 70deg);
+    animation: sweep 9s linear infinite;
+    mask: radial-gradient(circle, transparent 55%, #000 56%);
+    -webkit-mask: radial-gradient(circle, transparent 55%, #000 56%);
+  }
+  .nest-node {
+    position: absolute; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--muted);
+  }
+  .nest-ear {
+    position: absolute; width: 36px; height: 36px;
+    border: 1px solid var(--accent-dim); transform: rotate(28deg);
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    right: 18%; top: 16%; opacity: 0.7;
+  }
+
+  /* —— statement —— */
+  .statement {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    max-width: 18ch;
+  }
+  .statement .h-hero { max-width: none; font-size: clamp(2.4rem, 6.5vw, 5rem); }
+
+  /* —— duo —— */
+  .duo {
+    flex: 1; display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0;
+    align-items: stretch; min-height: 0;
+  }
+  .duo-col { padding: clamp(1rem, 3vw, 2.5rem); display: flex; flex-direction: column; justify-content: center; }
+  .duo-rule { background: var(--rule); align-self: stretch; }
+  .slide.paper .duo-rule { background: rgba(18, 17, 16, 0.12); }
+  .duo-label {
+    font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 1rem;
+  }
+  .duo-title { font-family: var(--serif-zh); font-size: clamp(1.6rem, 3vw, 2.4rem); font-weight: 500; margin-bottom: 1rem; }
+  .duo-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+  .duo-list li {
+    font-size: 1rem; line-height: 1.5; color: var(--paper-dim);
+    padding-left: 1.1rem; position: relative;
+    opacity: 0; transform: translateX(-12px);
+  }
+  .slide.paper .duo-list li { color: var(--muted); }
+  .duo-list li::before {
+    content: ""; position: absolute; left: 0; top: 0.55em;
+    width: 6px; height: 1px; background: var(--accent);
+  }
+  .slide.is-active .duo-list li { animation: riseX 0.7s var(--ease-out) forwards; }
+  .slide.is-active .duo-list li:nth-child(1) { animation-delay: 0.25s; }
+  .slide.is-active .duo-list li:nth-child(2) { animation-delay: 0.35s; }
+  .slide.is-active .duo-list li:nth-child(3) { animation-delay: 0.45s; }
+  .slide.is-active .duo-list li:nth-child(4) { animation-delay: 0.55s; }
+  @keyframes riseX { to { opacity: 1; transform: translateX(0); } }
+  .duo-col.after .duo-title { color: var(--accent); }
+
+  /* —— pillars —— */
+  .pillars {
+    flex: 1; display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: clamp(0.75rem, 2vw, 1.5rem); align-items: stretch;
+  }
+  .pillar {
+    border: 1px solid var(--rule); padding: clamp(1.25rem, 2.5vw, 2rem);
+    display: flex; flex-direction: column; gap: 1rem;
+    opacity: 0; transform: translateY(30px);
+    transition: border-color 0.4s, background 0.4s;
+  }
+  .pillar:hover { border-color: var(--accent-dim); background: rgba(196, 132, 72, 0.04); }
+  .slide.is-active .pillar { animation: rise 0.8s var(--ease-out) forwards; }
+  .slide.is-active .pillar:nth-child(1) { animation-delay: 0.2s; }
+  .slide.is-active .pillar:nth-child(2) { animation-delay: 0.35s; }
+  .slide.is-active .pillar:nth-child(3) { animation-delay: 0.5s; }
+  .pillar-num { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 0.12em; }
+  .pillar-title { font-family: var(--serif-zh); font-size: clamp(1.4rem, 2.4vw, 1.9rem); font-weight: 500; }
+  .pillar-desc { font-size: 0.95rem; line-height: 1.65; color: var(--paper-dim); margin-top: auto; }
+
+  /* —— feature grid —— */
+  .feat-grid {
+    flex: 1; display: grid; grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr); gap: 1px; background: var(--rule);
+    border: 1px solid var(--rule); min-height: 0;
+  }
+  .feat {
+    background: var(--bg); padding: clamp(1rem, 2vw, 1.75rem);
+    display: flex; flex-direction: column; gap: 0.6rem;
+    opacity: 0; transform: scale(0.96);
+  }
+  .slide.is-active .feat { animation: featIn 0.7s var(--ease-out) forwards; }
+  .slide.is-active .feat:nth-child(1) { animation-delay: 0.15s; }
+  .slide.is-active .feat:nth-child(2) { animation-delay: 0.22s; }
+  .slide.is-active .feat:nth-child(3) { animation-delay: 0.29s; }
+  .slide.is-active .feat:nth-child(4) { animation-delay: 0.36s; }
+  .slide.is-active .feat:nth-child(5) { animation-delay: 0.43s; }
+  .slide.is-active .feat:nth-child(6) { animation-delay: 0.5s; }
+  @keyframes featIn { to { opacity: 1; transform: scale(1); } }
+  .feat-icon {
+    width: 28px; height: 28px; border: 1px solid var(--accent-dim);
+    display: grid; place-items: center; margin-bottom: 0.4rem;
+  }
+  .feat-icon svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; stroke-width: 1.5; }
+  .feat h3 { font-family: var(--serif-zh); font-size: 1.25rem; font-weight: 500; }
+  .feat p { font-size: 0.88rem; line-height: 1.55; color: var(--muted); }
+
+  /* —— layers —— */
+  .layers {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    gap: 0.75rem; max-width: 900px;
+  }
+  .layer {
+    display: grid; grid-template-columns: 7rem 1fr; gap: 1.25rem; align-items: center;
+    padding: 1.1rem 1.25rem; border-left: 2px solid var(--accent);
+    background: linear-gradient(90deg, rgba(196,132,72,0.08), transparent 70%);
+    opacity: 0; transform: translateX(-20px);
+  }
+  .slide.is-active .layer { animation: riseX 0.75s var(--ease-out) forwards; }
+  .slide.is-active .layer:nth-child(1) { animation-delay: 0.2s; }
+  .slide.is-active .layer:nth-child(2) { animation-delay: 0.35s; }
+  .slide.is-active .layer:nth-child(3) { animation-delay: 0.5s; }
+  .layer-tag { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; color: var(--accent); }
+  .layer-body strong { display: block; font-family: var(--serif-zh); font-size: 1.35rem; font-weight: 500; margin-bottom: 0.25rem; }
+  .layer-body span { font-size: 0.9rem; color: var(--paper-dim); }
+
+  /* —— specs —— */
+  .specs {
+    flex: 1; display: grid; grid-template-columns: 1.2fr 1fr; gap: clamp(1.5rem, 4vw, 3rem);
+    align-items: center;
+  }
+  .spec-rows { display: flex; flex-direction: column; gap: 0; }
+  .spec-row {
+    display: grid; grid-template-columns: 8rem 1fr; gap: 1rem;
+    padding: 1rem 0; border-bottom: 1px solid rgba(18,17,16,0.1);
+    opacity: 0; transform: translateY(12px);
+  }
+  .slide.is-active .spec-row { animation: rise 0.65s var(--ease-out) forwards; }
+  .slide.is-active .spec-row:nth-child(1) { animation-delay: 0.2s; }
+  .slide.is-active .spec-row:nth-child(2) { animation-delay: 0.3s; }
+  .slide.is-active .spec-row:nth-child(3) { animation-delay: 0.4s; }
+  .slide.is-active .spec-row:nth-child(4) { animation-delay: 0.5s; }
+  .slide.is-active .spec-row:nth-child(5) { animation-delay: 0.6s; }
+  .spec-key { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; color: var(--accent-dim); }
+  .spec-val { font-size: 1.05rem; font-weight: 500; }
+  .spec-bars { display: flex; flex-direction: column; gap: 1.25rem; }
+  .bar-label {
+    display: flex; justify-content: space-between;
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 0.4rem;
+  }
+  .bar-track { height: 3px; background: rgba(18,17,16,0.08); overflow: hidden; }
+  .bar-fill {
+    height: 100%; background: var(--accent); transform-origin: left;
+    transform: scaleX(0);
+  }
+  .slide.is-active .bar-fill { animation: barGrow 1.1s var(--ease-out) forwards; }
+  .slide.is-active .bar-fill.d1 { animation-delay: 0.3s; }
+  .slide.is-active .bar-fill.d2 { animation-delay: 0.45s; }
+  .slide.is-active .bar-fill.d3 { animation-delay: 0.6s; }
+
+  /* —— flow —— */
+  .flow {
+    flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem;
+    align-items: center;
+  }
+  .flow-step {
+    text-align: center; padding: 1.5rem 0.75rem; position: relative;
+    opacity: 0; transform: translateY(20px);
+  }
+  .slide.is-active .flow-step { animation: rise 0.7s var(--ease-out) forwards; }
+  .slide.is-active .flow-step:nth-child(1) { animation-delay: 0.15s; }
+  .slide.is-active .flow-step:nth-child(2) { animation-delay: 0.28s; }
+  .slide.is-active .flow-step:nth-child(3) { animation-delay: 0.41s; }
+  .slide.is-active .flow-step:nth-child(4) { animation-delay: 0.54s; }
+  .slide.is-active .flow-step:nth-child(5) { animation-delay: 0.67s; }
+  .flow-step::after {
+    content: ""; position: absolute; right: -0.35rem; top: 2.1rem;
+    width: calc(100% - 3rem); height: 1px;
+    background: linear-gradient(90deg, var(--accent-dim), transparent);
+    pointer-events: none;
+  }
+  .flow-step:last-child::after { display: none; }
+  .flow-nb {
+    width: 2.5rem; height: 2.5rem; margin: 0 auto 1rem;
+    border: 1px solid var(--accent); border-radius: 50%;
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 0.8rem; color: var(--accent);
+  }
+  .flow-title { font-family: var(--serif-zh); font-size: 1.15rem; font-weight: 500; margin-bottom: 0.4rem; }
+  .flow-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.45; }
+
+  /* —— closing —— */
+  .closing {
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    align-items: flex-start;
+  }
+  .closing .h-hero { max-width: 12ch; }
+  .closing-cta {
+    margin-top: 2.5rem; display: inline-flex; align-items: center; gap: 0.75rem;
+    font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent);
+    border-bottom: 1px solid var(--accent); padding-bottom: 0.4rem;
+    opacity: 0;
+  }
+  .slide.is-active .closing-cta { animation: rise 0.8s var(--ease-out) 0.55s forwards; }
+
+  /* —— practical feature layouts —— */
+  .map-grid {
+    flex: 1; display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem; align-content: start; min-height: 0;
+  }
+  .map-card {
+    border: 1px solid var(--rule); padding: 1.1rem 1rem;
+    opacity: 0; transform: translateY(16px);
+  }
+  .slide.paper .map-card { border-color: rgba(18,17,16,0.12); }
+  .slide.is-active .map-card { animation: rise 0.65s var(--ease-out) forwards; }
+  .slide.is-active .map-card:nth-child(1) { animation-delay: 0.12s; }
+  .slide.is-active .map-card:nth-child(2) { animation-delay: 0.18s; }
+  .slide.is-active .map-card:nth-child(3) { animation-delay: 0.24s; }
+  .slide.is-active .map-card:nth-child(4) { animation-delay: 0.3s; }
+  .slide.is-active .map-card:nth-child(5) { animation-delay: 0.36s; }
+  .slide.is-active .map-card:nth-child(6) { animation-delay: 0.42s; }
+  .slide.is-active .map-card:nth-child(7) { animation-delay: 0.48s; }
+  .slide.is-active .map-card:nth-child(8) { animation-delay: 0.54s; }
+  .map-card .route {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+    color: var(--accent); margin-bottom: 0.55rem;
+  }
+  .map-card h3 { font-family: var(--serif-zh); font-size: 1.15rem; font-weight: 500; margin-bottom: 0.45rem; }
+  .map-card p { font-size: 0.82rem; line-height: 1.5; color: var(--muted); }
+  .slide:not(.paper) .map-card p { color: var(--paper-dim); }
+
+  .checklist {
+    list-style: none; display: flex; flex-direction: column; gap: 0.65rem;
+    margin-top: 1.25rem; max-width: 40rem;
+  }
+  .checklist li {
+    display: grid; grid-template-columns: 1.1rem 1fr; gap: 0.75rem; align-items: start;
+    font-size: 0.98rem; line-height: 1.55; color: var(--paper-dim);
+    opacity: 0; transform: translateY(10px);
+  }
+  .slide.paper .checklist li { color: var(--ink); }
+  .checklist li::before {
+    content: ""; width: 0.55rem; height: 0.55rem; margin-top: 0.4rem;
+    border: 1px solid var(--accent); background: var(--accent-glow);
+  }
+  .slide.is-active .checklist li { animation: rise 0.6s var(--ease-out) forwards; }
+  .slide.is-active .checklist li:nth-child(1) { animation-delay: 0.2s; }
+  .slide.is-active .checklist li:nth-child(2) { animation-delay: 0.28s; }
+  .slide.is-active .checklist li:nth-child(3) { animation-delay: 0.36s; }
+  .slide.is-active .checklist li:nth-child(4) { animation-delay: 0.44s; }
+  .slide.is-active .checklist li:nth-child(5) { animation-delay: 0.52s; }
+  .slide.is-active .checklist li:nth-child(6) { animation-delay: 0.6s; }
+  .checklist li strong { color: var(--paper); font-weight: 500; }
+  .slide.paper .checklist li strong { color: var(--ink); }
+
+  .how-row {
+    margin-top: auto; padding-top: 1.5rem;
+    display: grid; grid-template-columns: auto 1fr; gap: 1rem; align-items: center;
+    border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--muted);
+    opacity: 0;
+  }
+  .slide.paper .how-row { border-color: rgba(18,17,16,0.1); color: var(--accent-dim); }
+  .slide.is-active .how-row { animation: rise 0.7s var(--ease-out) 0.55s forwards; }
+  .how-row .tag {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+    color: var(--accent); white-space: nowrap;
+  }
+
+  @media (max-width: 900px) {
+    .map-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* —— nav —— */
+  .nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem clamp(1.5rem, 5vw, 4.5rem) 1.25rem;
+    background: linear-gradient(transparent, rgba(18,17,16,0.92) 55%);
+    pointer-events: none;
+  }
+  .nav-hint {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+    color: var(--muted); pointer-events: none;
+  }
+  .dots { display: flex; gap: 0.45rem; pointer-events: auto; }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: rgba(232, 226, 216, 0.22); border: none; cursor: pointer;
+    transition: transform 0.3s, background 0.3s;
+  }
+  .dot.on { background: var(--accent); transform: scale(1.25); }
+  .progress {
+    position: fixed; top: 0; left: 0; height: 2px; z-index: 60;
+    background: var(--accent); width: 0%;
+    transition: width 0.95s var(--ease); pointer-events: none;
+  }
+
+  .foot-mark {
+    position: absolute; right: clamp(1.5rem, 5vw, 4.5rem);
+    bottom: clamp(3.2rem, 7vh, 4.5rem);
+    font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.14em;
+    color: var(--muted); opacity: 0.7;
+  }
+
+  @media (max-width: 900px) {
+    .cover-grid, .specs, .duo, .pillars, .feat-grid, .flow { grid-template-columns: 1fr; }
+    .feat-grid { grid-template-rows: auto; }
+    .duo { grid-template-columns: 1fr; }
+    .duo-rule { height: 1px; width: 100%; }
+    .flow { grid-template-columns: 1fr 1fr; }
+    .flow-step::after { display: none; }
+    .nest-stage { width: min(70vw, 280px); margin: 1.5rem auto 0; }
+    .h-hero { font-size: clamp(2rem, 10vw, 3.2rem); }
+  }
+</style>
+</head>
+<body>
+<canvas id="radar" aria-hidden="true"></canvas>
+<div class="progress" id="progress"></div>
+
+<div id="deck">
+  <!-- 01 Cover -->
+  <section class="slide is-active" data-i="0">
+    <div class="chrome"><span>Lizhi Knowledge · 01</span><span>功能介绍</span></div>
+    <div class="cover-grid">
+      <div>
+        <p class="kicker">Desktop App · Feature Tour</p>
+        <h1 class="cover-brand h-hero">狸知<br />知识库</h1>
+        <p class="cover-sub">本地加密知识库：写、链、搜、导出、AI 与 Agent。</p>
+        <div class="cover-meta">
+          <span>Vault 加密</span>
+          <span>双链图谱</span>
+          <span>AI / MCP</span>
+        </div>
+      </div>
+      <div class="nest-stage" aria-hidden="true">
+        <div class="nest-ring"></div>
+        <div class="nest-ring"></div>
+        <div class="nest-ring"></div>
+        <div class="nest-ring"></div>
+        <div class="nest-sweep"></div>
+        <div class="nest-eye"></div>
+        <div class="nest-ear"></div>
+        <div class="nest-node" style="left:72%;top:28%"></div>
+        <div class="nest-node" style="left:78%;top:55%"></div>
+        <div class="nest-node" style="left:58%;top:78%"></div>
+        <div class="nest-node" style="left:30%;top:70%"></div>
+        <div class="nest-node" style="left:22%;top:42%"></div>
+      </div>
+    </div>
+    <span class="foot-mark">LZ·KB / FEATURES</span>
+  </section>
+
+  <!-- 02 Feature map -->
+  <section class="slide paper" data-i="1">
+    <div class="chrome"><span>Map · 02</span><span>功能地图</span></div>
+    <p class="kicker" style="color:var(--accent-dim)">你打开应用后能用到什么</p>
+    <h2 class="h-xl" style="margin-bottom:1.25rem">八个主要入口</h2>
+    <div class="map-grid">
+      <article class="map-card">
+        <div class="route">/unlock</div>
+        <h3>解锁</h3>
+        <p>主密码打开加密库，会话内持钥</p>
+      </article>
+      <article class="map-card">
+        <div class="route">/insights</div>
+        <h3>洞察</h3>
+        <p>写作热力图、库统计、活动概览</p>
+      </article>
+      <article class="map-card">
+        <div class="route">/workspace</div>
+        <h3>工作区</h3>
+        <p>文件夹树、编辑器、图谱切换</p>
+      </article>
+      <article class="map-card">
+        <div class="route">/ai</div>
+        <h3>AI 助手</h3>
+        <p>闲聊 / RAG / 笔记助手三模式</p>
+      </article>
+      <article class="map-card">
+        <div class="route">/cc-workbench</div>
+        <h3>Agent 工作台</h3>
+        <p>Claude Agent · vault/project 目录</p>
+      </article>
+      <article class="map-card">
+        <div class="route">/journal · /credentials</div>
+        <h3>日记 / 凭证</h3>
+        <p>日常记录与敏感条目分开管理</p>
+      </article>
+      <article class="map-card">
+        <div class="route">/requirements · /launches</div>
+        <h3>需求 / 发布</h3>
+        <p>需求条目与发布记录时间线</p>
+      </article>
+      <article class="map-card">
+        <div class="route">/settings</div>
+        <h3>设置</h3>
+        <p>安全、AI、MCP、备份与偏好</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 03 Vault -->
+  <section class="slide elev" data-i="2">
+    <div class="chrome"><span>Vault · 03</span><span>加密库</span></div>
+    <p class="kicker">本地优先</p>
+    <h2 class="h-xl">创建、解锁与落盘加密</h2>
+    <ul class="checklist">
+      <li><span><strong>新建知识库</strong>：设定主密码，生成 vault 与密钥材料</span></li>
+      <li><span><strong>解锁会话</strong>：密码派生密钥；密钥只在 Rust 侧持有，不进前端持久化</span></li>
+      <li><span><strong>文档与资产</strong>：正文加密存储，元数据进本地数据库</span></li>
+      <li><span><strong>算法基线</strong>：AES-256-GCM + Argon2id（可在设置/白皮书口径对齐）</span></li>
+      <li><span><strong>锁定</strong>：离开时可再次锁定，锁屏遮罩而非直接丢窗</span></li>
+    </ul>
+    <div class="how-row">
+      <span class="tag">怎么用</span>
+      <span>首次 Welcome 创建库 → 之后每次从解锁页进入 → 侧栏可随时锁定</span>
+    </div>
+  </section>
+
+  <!-- 04 Workspace -->
+  <section class="slide" data-i="3">
+    <div class="chrome"><span>Workspace · 04</span><span>写作与组织</span></div>
+    <p class="kicker">核心日常</p>
+    <h2 class="h-xl">工作区：文档、文件夹、搜索</h2>
+    <ul class="checklist">
+      <li><span><strong>Markdown 编辑</strong>：CodeMirror 源码编辑，自动保存</span></li>
+      <li><span><strong>文件夹树</strong>：新建 / 重命名 / 移动文档；命令面板快捷操作</span></li>
+      <li><span><strong>搜索</strong>：库内检索标题与正文，快速跳转</span></li>
+      <li><span><strong>标签</strong>：文档打标，侧栏与库状态同步</span></li>
+      <li><span><strong>视图切换</strong>：编辑视图 ↔ 局部图谱视图（同在工作区）</span></li>
+      <li><span><strong>附件资源</strong>：资产目录存图等材料，写入加密资产区</span></li>
+    </ul>
+    <div class="how-row">
+      <span class="tag">入口</span>
+      <span>侧栏「工作区」→ 点选文档开始写；<code style="font-family:var(--mono);font-size:0.85em">Ctrl/Cmd+K</code> 开命令面板</span>
+    </div>
+  </section>
+
+  <!-- 05 Links & graph -->
+  <section class="slide paper" data-i="4">
+    <div class="chrome"><span>Network · 05</span><span>双链与图谱</span></div>
+    <p class="kicker" style="color:var(--accent-dim)">把笔记织成网</p>
+    <h2 class="h-xl">双链、反链、局部图谱</h2>
+    <div class="duo" style="margin-top:1rem">
+      <div class="duo-col">
+        <div class="duo-label">写作时</div>
+        <div class="duo-title">Wiki 双链</div>
+        <ul class="duo-list">
+          <li>输入 <code style="font-family:var(--mono)">[[</code> 触发搜索建议（含拼音）</li>
+          <li>Cmd/Ctrl+Click 跳转目标文档</li>
+          <li>悬浮预览链接内容</li>
+          <li>写入时增量更新 links 索引</li>
+        </ul>
+      </div>
+      <div class="duo-rule"></div>
+      <div class="duo-col after">
+        <div class="duo-label">浏览时</div>
+        <div class="duo-title">反链 · 图谱</div>
+        <ul class="duo-list">
+          <li>查看谁链到了当前文档</li>
+          <li>未链接提及可转成正式双链</li>
+          <li>局部图谱约 2-depth 力导向布局</li>
+          <li>工作区内一键切换图谱视图</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 06 Insights -->
+  <section class="slide elev" data-i="5">
+    <div class="chrome"><span>Insights · 06</span><span>洞察看板</span></div>
+    <p class="kicker">默认首页</p>
+    <h2 class="h-xl">热力图与库概览</h2>
+    <ul class="checklist">
+      <li><span><strong>写作热力图</strong>：按日编辑活动，看长期节奏</span></li>
+      <li><span><strong>库统计</strong>：文档量、链接概况等仪表信息</span></li>
+      <li><span><strong>最近动态</strong>：从活动中快速回到正在推进的笔记</span></li>
+      <li><span><strong>作为启动页</strong>：解锁后默认进入洞察，再下钻工作区</span></li>
+    </ul>
+    <div class="how-row">
+      <span class="tag">入口</span>
+      <span>解锁成功 → /insights；也可随时从侧栏回洞察</span>
+    </div>
+  </section>
+
+  <!-- 07 Security & export -->
+  <section class="slide" data-i="6">
+    <div class="chrome"><span>Security · 07</span><span>安全与导出</span></div>
+    <p class="kicker">防窥与外发</p>
+    <h2 class="h-xl">App Lock、水印、导出清理</h2>
+    <div class="pillars" style="margin-top:1.25rem">
+      <article class="pillar">
+        <span class="pillar-num">01 / LOCK</span>
+        <h3 class="pillar-title">应用锁定</h3>
+        <p class="pillar-desc">离开座位一键锁定。设置页开关；平台暂不支持的能力会明确提示。</p>
+      </article>
+      <article class="pillar">
+        <span class="pillar-num">02 / WATERMARK</span>
+        <h3 class="pillar-title">界面 / 导出水印</h3>
+        <p class="pillar-desc">Canvas 覆盖水印可配；导出 PDF/长图时可带水印，默认关闭、推荐按场景开启。</p>
+      </article>
+      <article class="pillar">
+        <span class="pillar-num">03 / EXPORT</span>
+        <h3 class="pillar-title">MD / PDF 导出</h3>
+        <p class="pillar-desc">导出时可清洗元数据；敏感外发前可先预览与确认。</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- 08 AI -->
+  <section class="slide paper" data-i="7">
+    <div class="chrome"><span>AI · 08</span><span>灵狸助手</span></div>
+    <p class="kicker" style="color:var(--accent-dim)">应用内对话</p>
+    <h2 class="h-xl">三种助手模式</h2>
+    <ul class="checklist">
+      <li><span><strong>闲聊</strong>：普通问答，不强制读库</span></li>
+      <li><span><strong>RAG</strong>：基于知识库检索回答，引用你的笔记</span></li>
+      <li><span><strong>笔记助手</strong>：围绕当前文档改写、总结、扩展</span></li>
+      <li><span><strong>配置</strong>：在设置中接入模型与密钥；工具调用过程可在聊天区展示</span></li>
+      <li><span><strong>边界</strong>：仅在 vault 解锁后可用，避免明文会话越权</span></li>
+    </ul>
+    <div class="how-row">
+      <span class="tag">入口</span>
+      <span>侧栏「AI」→ /ai；先到设置完成模型配置</span>
+    </div>
+  </section>
+
+  <!-- 09 Agent + MCP -->
+  <section class="slide elev" data-i="8">
+    <div class="chrome"><span>Agent · 09</span><span>工作台与 MCP</span></div>
+    <p class="kicker">给 Agent 用的能力面</p>
+    <h2 class="h-xl">Agent 工作台 + lizhi-mcp</h2>
+    <div class="duo" style="margin-top:0.75rem">
+      <div class="duo-col">
+        <div class="duo-label">Agent 工作台</div>
+        <div class="duo-title">/cc-workbench</div>
+        <ul class="duo-list">
+          <li>基于 Claude Agent SDK 的独立工作台</li>
+          <li>工作目录可选 vault（默认）或 project</li>
+          <li>vault 模式侧重知识库工具，而非裸盘乱写</li>
+          <li>与应用内 AI 助手并列，互不合并</li>
+        </ul>
+      </div>
+      <div class="duo-rule"></div>
+      <div class="duo-col after">
+        <div class="duo-label">MCP</div>
+        <div class="duo-title">lizhi-mcp</div>
+        <ul class="duo-list">
+          <li>列出 / 读取 / 搜索 / 保存文档</li>
+          <li>文件夹树、标签、反链、图谱快照</li>
+          <li>设置页管理 MCP 服务启用与配置</li>
+          <li>改包后需 build + sync 进 Tauri 资源</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 10 Extra modules -->
+  <section class="slide" data-i="9">
+    <div class="chrome"><span>Modules · 10</span><span>专项模块</span></div>
+    <p class="kicker">业务向扩展页</p>
+    <h2 class="h-xl" style="margin-bottom:1.25rem">日记 · 凭证 · 需求 · 发布</h2>
+    <div class="feat-grid">
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="16" rx="1"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>
+        <h3>日记</h3>
+        <p>/journal — 日记式记录，与普通文档流分离的日常入口。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24"><rect x="4" y="7" width="16" height="12" rx="1"/><path d="M8 7V5a4 4 0 0 1 8 0v2"/></svg></div>
+        <h3>凭证</h3>
+        <p>/credentials — 敏感条目集中存放，减少散落在笔记里的明文口令。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16v4H4zM4 14h10v4H4z"/></svg></div>
+        <h3>需求</h3>
+        <p>/requirements — 需求条目管理，适配产品/项目笔记场景。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2"/><circle cx="12" cy="7" r="2"/><circle cx="18" cy="15" r="2"/><path d="M8 11.5l3-3.5M13.2 8.5l3.3 5"/></svg></div>
+        <h3>发布记录</h3>
+        <p>/launches — 发布卡片、时间线与抽屉详情，追踪上线节奏。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M4 7h16v12H4z"/><path d="M8 7V5h8v2"/></svg></div>
+        <h3>备份扩展</h3>
+        <p>设置内备份：整库 replace / 设置 merge / 文档合并等恢复模式。</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg></div>
+        <h3>UI 状态</h3>
+        <p>文件夹展开、标签、对话等写入 vault-ui-state，Tauri 下双写。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 Daily workflow -->
+  <section class="slide paper" data-i="10">
+    <div class="chrome"><span>Flow · 11</span><span>推荐用法</span></div>
+    <p class="kicker" style="color:var(--accent-dim)">一条典型路径</p>
+    <h2 class="h-xl" style="margin-bottom:1.75rem">今天打开狸知能做什么</h2>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-nb">01</div>
+        <div class="flow-title">解锁</div>
+        <p class="flow-desc">主密码进入 vault</p>
+      </div>
+      <div class="flow-step">
+        <div class="flow-nb">02</div>
+        <div class="flow-title">看洞察</div>
+        <p class="flow-desc">热力图摸清进度</p>
+      </div>
+      <div class="flow-step">
+        <div class="flow-nb">03</div>
+        <div class="flow-title">写文档</div>
+        <p class="flow-desc">工作区编辑 + 文件夹</p>
+      </div>
+      <div class="flow-step">
+        <div class="flow-nb">04</div>
+        <div class="flow-title">建双链</div>
+        <p class="flow-desc">[[链接]] 与图谱浏览</p>
+      </div>
+      <div class="flow-step">
+        <div class="flow-nb">05</div>
+        <div class="flow-title">问 AI / Agent</div>
+        <p class="flow-desc">助手检索或工作台执行</p>
+      </div>
+    </div>
+    <div class="how-row" style="margin-top:2rem">
+      <span class="tag">可选</span>
+      <span>日记打卡 · 记一笔凭证 · 更新需求/发布 · 需要时导出带水印 PDF</span>
+    </div>
+  </section>
+
+  <!-- 12 Closing checklist -->
+  <section class="slide elev" data-i="11">
+    <div class="chrome"><span>Summary · 12</span><span>功能速查</span></div>
+    <div class="closing">
+      <p class="kicker">Remember</p>
+      <h2 class="h-hero" style="max-width:14ch;font-size:clamp(2rem,5.2vw,3.6rem)">写得进库<br />链得成网<br />锁得住盘</h2>
+      <ul class="checklist" style="max-width:34rem">
+        <li><span>加密库 + 工作区写作是每天的底座</span></li>
+        <li><span>双链 / 图谱 / 洞察负责「看见结构」</span></li>
+        <li><span>水印与导出负责「外发可控」</span></li>
+        <li><span>AI、Agent、MCP 负责「自动化延伸」</span></li>
+      </ul>
+      <div class="closing-cta">打开侧栏，从解锁开始走一遍 →</div>
+    </div>
+    <span class="foot-mark">FEATURE TOUR · DONE</span>
+  </section>
+</div>
+
+<nav class="nav" aria-label="演示导航">
+  <span class="nav-hint">← → / 滚轮翻页 · Esc 回封面</span>
+  <div class="dots" id="dots"></div>
+  <span class="nav-hint" id="pageLabel">01 / 12</span>
+</nav>
+
+<script>
+(() => {
+  const deck = document.getElementById('deck');
+  const slides = [...document.querySelectorAll('.slide')];
+  const progress = document.getElementById('progress');
+  const dotsWrap = document.getElementById('dots');
+  const pageLabel = document.getElementById('pageLabel');
+  const N = slides.length;
+  let i = 0;
+  let locked = false;
+
+  slides.forEach((_, idx) => {
+    const b = document.createElement('button');
+    b.className = 'dot' + (idx === 0 ? ' on' : '');
+    b.type = 'button';
+    b.setAttribute('aria-label', `第 ${idx + 1} 页`);
+    b.addEventListener('click', () => go(idx));
+    dotsWrap.appendChild(b);
+  });
+  const dots = [...dotsWrap.querySelectorAll('.dot')];
+
+  function go(n) {
+    if (locked) return;
+    n = Math.max(0, Math.min(N - 1, n));
+    if (n === i) return;
+    locked = true;
+    i = n;
+    deck.style.transform = `translateX(-${i * 100}vw)`;
+    progress.style.width = `${((i + 1) / N) * 100}%`;
+    pageLabel.textContent = String(i + 1).padStart(2, '0') + ' / ' + String(N).padStart(2, '0');
+    dots.forEach((d, di) => d.classList.toggle('on', di === i));
+    slides.forEach((s, si) => s.classList.toggle('is-active', si === i));
+    setTimeout(() => { locked = false; }, 700);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') {
+      e.preventDefault(); go(i + 1);
+    } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+      e.preventDefault(); go(i - 1);
+    } else if (e.key === 'Escape') {
+      go(0);
+    } else if (e.key === 'Home') {
+      go(0);
+    } else if (e.key === 'End') {
+      go(N - 1);
+    }
+  });
+
+  let wheelAcc = 0;
+  window.addEventListener('wheel', (e) => {
+    wheelAcc += e.deltaY;
+    if (Math.abs(wheelAcc) < 60) return;
+    const dir = wheelAcc > 0 ? 1 : -1;
+    wheelAcc = 0;
+    go(i + dir);
+  }, { passive: true });
+
+  let tx = 0;
+  window.addEventListener('touchstart', (e) => { tx = e.changedTouches[0].clientX; }, { passive: true });
+  window.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) < 50) return;
+    go(i + (dx < 0 ? 1 : -1));
+  }, { passive: true });
+
+  /* —— radar ambient —— */
+  const canvas = document.getElementById('radar');
+  const ctx = canvas.getContext('2d');
+  let w, h, cx, cy, t = 0;
+  const nodes = Array.from({ length: 18 }, (_, k) => ({
+    a: (k / 18) * Math.PI * 2,
+    r: 0.18 + (k % 5) * 0.06,
+    pulse: Math.random() * Math.PI * 2,
+  }));
+
+  function resize() {
+    w = canvas.width = window.innerWidth * devicePixelRatio;
+    h = canvas.height = window.innerHeight * devicePixelRatio;
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    cx = w * 0.72; cy = h * 0.52;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function frame() {
+    t += 0.008;
+    ctx.clearRect(0, 0, w, h);
+    const R = Math.min(w, h) * 0.38;
+    ctx.strokeStyle = 'rgba(120,114,106,0.18)';
+    ctx.lineWidth = 1 * devicePixelRatio;
+    for (let k = 1; k <= 5; k++) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, R * (k / 5), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // sweep fan
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(t);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, R, -0.35, 0.05);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(196,132,72,0.07)';
+    ctx.fill();
+    ctx.restore();
+
+    nodes.forEach((n) => {
+      const rr = R * n.r;
+      const x = cx + Math.cos(n.a + t * 0.15) * rr;
+      const y = cy + Math.sin(n.a + t * 0.15) * rr;
+      const glow = 0.35 + 0.25 * Math.sin(t * 2 + n.pulse);
+      ctx.beginPath();
+      ctx.arc(x, y, 2.2 * devicePixelRatio, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(196,132,72,${glow})`;
+      ctx.fill();
+    });
+
+    // eye
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4 * devicePixelRatio, 0, Math.PI * 2);
+    ctx.fillStyle = '#c48448';
+    ctx.fill();
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // no-op: reserved for delayed meta reveals
+
+  progress.style.width = `${(1 / N) * 100}%`;
+})();
+</script>
+</body>
+</html>

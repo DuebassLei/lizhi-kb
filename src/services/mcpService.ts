@@ -1,14 +1,10 @@
 import { tauriInvoke } from "../composables/useTauriCommand";
 import { isTauriRuntime } from "./vaultService";
 
-export type McpBackendMode = "bridge" | "standalone";
-
 export interface McpConfigPublic {
   enabled: boolean;
   writeEnabled: boolean;
   port: number;
-  standalonePort: number;
-  sessionTimeoutMinutes: number;
   tokenMasked: string;
   token?: string | null;
 }
@@ -17,16 +13,12 @@ export interface McpConfigUpdate {
   enabled?: boolean;
   writeEnabled?: boolean;
   port?: number;
-  standalonePort?: number;
-  sessionTimeoutMinutes?: number;
 }
 
 const DEFAULT_MCP_CONFIG: McpConfigPublic = {
   enabled: false,
   writeEnabled: false,
   port: 13721,
-  standalonePort: 13722,
-  sessionTimeoutMinutes: 30,
   tokenMasked: "e2e-****-mock",
   token: "e2e-mock-token",
 };
@@ -71,32 +63,25 @@ export async function getMcpAdapterPath(): Promise<string | null> {
   }
 }
 
+/** 生成 Cursor MCP 配置（仅 Bridge：需狸知运行且已启用 MCP） */
 export function buildCursorMcpConfigSnippet(
   token: string,
   port: number,
-  mode: McpBackendMode = "bridge",
-  standalonePort = 13722,
   scriptPath?: string | null,
 ): string {
-  const env: Record<string, string> = {
-    LIZHI_MCP_BACKEND: mode === "standalone" ? "standalone" : "http_bridge",
-    LIZHI_MCP_TOKEN: token,
-  };
-  if (mode === "standalone") {
-    env.LIZHI_MCP_STANDALONE_URL = `http://127.0.0.1:${standalonePort}`;
-  } else {
-    env.LIZHI_MCP_URL = `http://127.0.0.1:${port}`;
-  }
   const adapterPath =
     scriptPath?.trim() ||
-    "<PROJECT_ROOT>/packages/lizhi-mcp/dist/index.js";
+    "<INSTALL_OR_PROJECT>/lizhi-mcp/index.js";
   return JSON.stringify(
     {
       mcpServers: {
         "lizhi-kb": {
           command: "node",
           args: [adapterPath.replace(/\\/g, "/")],
-          env,
+          env: {
+            LIZHI_MCP_TOKEN: token,
+            LIZHI_MCP_URL: `http://127.0.0.1:${port}`,
+          },
         },
       },
     },

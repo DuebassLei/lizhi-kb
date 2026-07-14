@@ -1,0 +1,7 @@
+/* 字体单独成文件，dev 下延后加载以缩短首屏模块图解析 */
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/noto-sans-sc/400.css";
+@import "@fontsource/noto-sans-sc/500.css";
+@import "@fontsource/jetbrains-mono/400.css";

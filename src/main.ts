@@ -16,13 +16,6 @@ import { useDocumentsStore } from "./stores/documents";
 import { useEditorStore } from "./stores/editor";
 import { useLinksStore } from "./stores/links";
 
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
-import "@fontsource/inter/600.css";
-import "@fontsource/noto-sans-sc/400.css";
-import "@fontsource/noto-sans-sc/500.css";
-import "@fontsource/jetbrains-mono/400.css";
-
 import "./styles/tokens.css";
 import "./styles/components.css";
 import "./styles/insights-motion.css";
@@ -52,6 +45,9 @@ async function bootstrap() {
 
   app.use(router);
   app.mount("#app");
+
+  // 字体不挡首屏：挂载后再加载（dev / prod 均受益）
+  void import("./styles/fonts.css");
 }
 
 bootstrap();

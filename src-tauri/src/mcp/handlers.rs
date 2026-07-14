@@ -11,7 +11,7 @@ use crate::vault::VaultStatus;
 
 use super::auth;
 use super::config::McpConfig;
-use super::runtime::{McpMode, McpRequestSettings};
+use super::runtime::McpRequestSettings;
 use crate::AppState;
 
 type McpHttpError = (StatusCode, &'static str, String);
@@ -89,6 +89,23 @@ struct ConvertMentionBody {
 struct MigrateFolderBody {
     old_prefix: String,
     new_prefix: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct EnsureFolderBody {
+    /// 文件夹路径；可省略 `projects/` 前缀（将自动挂到知识库下）
+    #[serde(alias = "folder")]
+    path: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct DeleteFolderBody {
+    /// 文件夹路径；可省略 `projects/` 前缀
+    #[serde(alias = "folder")]
+    path: String,
+    /// 目录内文档迁往何处；默认上级目录（无上级则 inbox）
+    #[serde(default)]
+    move_documents_to: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -208,9 +225,6 @@ pub fn handle_bridge_request(
             token: cfg.token.clone(),
             write_enabled: cfg.write_enabled,
             bridge_enabled: cfg.enabled,
-            require_bridge_enabled: true,
-            mode: McpMode::Bridge,
-            last_activity: None,
         },
         Err(_) => {
             let response = error_response(
@@ -245,7 +259,7 @@ fn dispatch(
     request: &mut Request,
     settings: &McpRequestSettings,
 ) -> Result<McpHttpResponse, McpHttpError> {
-    if settings.require_bridge_enabled && !settings.bridge_enabled {
+    if !settings.bridge_enabled {
         return Err((
             StatusCode(503),
             "MCP_DISABLED",
@@ -294,18 +308,11 @@ fn dispatch(
         })?
         .session_dek();
 
-    settings.touch_activity();
-
-    let mode_label = match settings.mode {
-        McpMode::Bridge => "bridge",
-        McpMode::Standalone => "standalone",
-    };
-
     match (method.as_str(), path) {
         ("GET", "/status") => {
             let body = StatusResponse {
-                mode: mode_label,
-                mcp_enabled: settings.bridge_enabled || settings.mode == McpMode::Standalone,
+                mode: "bridge",
+                mcp_enabled: settings.bridge_enabled,
                 write_enabled: settings.write_enabled,
                 vault: vault_status,
             };
@@ -490,9 +497,15 @@ fn dispatch(
         ("POST", "/documents") => {
             ensure_write_enabled(settings)?;
             let body: CreateDocumentBody = read_json_body(request)?;
+            let data_dir = crate::db::data_dir().map_err(map_data_dir_error)?;
+            let folder = body
+                .folder
+                .unwrap_or_else(|| "inbox".to_string());
+            let (folder, _) =
+                prefs::ensure_folder_path(&data_dir, &folder).map_err(map_string_error)?;
             let mut service = doc_service_lock(app_state)?;
             let doc = service
-                .create_document(body.title, body.folder, dek.as_ref())
+                .create_document(body.title, Some(folder), dek.as_ref())
                 .map_err(map_app_error)?;
             Ok(json_response(StatusCode(201), &doc))
         }
@@ -509,13 +522,95 @@ fn dispatch(
         ("POST", "/folders/migrate") => {
             ensure_write_enabled(settings)?;
             let body: MigrateFolderBody = read_json_body(request)?;
+            let data_dir = crate::db::data_dir().map_err(map_data_dir_error)?;
+            let old_prefix = prefs::normalize_folder_id(&body.old_prefix);
+            let new_prefix = prefs::normalize_folder_id(&body.new_prefix);
             let mut service = doc_service_lock(app_state)?;
             let migrated = service
-                .migrate_documents_folder(&body.old_prefix, &body.new_prefix, dek.as_ref())
+                .migrate_documents_folder(&old_prefix, &new_prefix, dek.as_ref())
                 .map_err(map_app_error)?;
+            let tree = prefs::migrate_folder_prefix_in_tree(&data_dir, &old_prefix, &new_prefix)
+                .map_err(map_string_error)?;
             Ok(json_response(
                 StatusCode(200),
-                &serde_json::json!({ "migratedCount": migrated.len(), "documents": migrated }),
+                &serde_json::json!({
+                    "migratedCount": migrated.len(),
+                    "documents": migrated,
+                    "oldPrefix": old_prefix,
+                    "newPrefix": new_prefix,
+                    "tree": tree,
+                }),
+            ))
+        }
+        ("POST", "/folders/ensure") => {
+            ensure_write_enabled(settings)?;
+            let body: EnsureFolderBody = read_json_body(request)?;
+            let data_dir = crate::db::data_dir().map_err(map_data_dir_error)?;
+            let (folder, tree) =
+                prefs::ensure_folder_path(&data_dir, &body.path).map_err(map_string_error)?;
+            Ok(json_response(
+                StatusCode(200),
+                &serde_json::json!({ "folder": folder, "tree": tree }),
+            ))
+        }
+        ("POST", "/folders/delete") => {
+            ensure_write_enabled(settings)?;
+            let body: DeleteFolderBody = read_json_body(request)?;
+            let data_dir = crate::db::data_dir().map_err(map_data_dir_error)?;
+            let folder = prefs::normalize_folder_id(&body.path);
+            if folder == "inbox" || folder == "projects" {
+                return Err((
+                    StatusCode(400),
+                    "BAD_REQUEST",
+                    "不能删除系统根目录 inbox / projects".into(),
+                ));
+            }
+            let dest = body
+                .move_documents_to
+                .as_deref()
+                .map(prefs::normalize_folder_id)
+                .or_else(|| prefs::parent_folder_id(&folder))
+                .unwrap_or_else(|| "inbox".into());
+            if dest == folder || dest.starts_with(&format!("{folder}/")) {
+                return Err((
+                    StatusCode(400),
+                    "BAD_REQUEST",
+                    "文档目标目录不能是待删目录自身或其子路径".into(),
+                ));
+            }
+            prefs::ensure_folder_path(&data_dir, &dest).map_err(map_string_error)?;
+
+            let mut service = doc_service_lock(app_state)?;
+            let docs = service.list_documents().map_err(map_app_error)?;
+            let prefix = format!("{folder}/");
+            let mut moved = Vec::new();
+            for doc in docs {
+                if doc.folder == folder || doc.folder.starts_with(&prefix) {
+                    let meta = service
+                        .move_document(&doc.id, dest.clone(), dek.as_ref())
+                        .map_err(map_app_error)?;
+                    moved.push(meta);
+                }
+            }
+
+            let (folder, removed, _tree) =
+                prefs::delete_folder_path(&data_dir, &folder).map_err(map_string_error)?;
+            let mut pruned = Vec::new();
+            if let Some(parent) = prefs::parent_folder_id(&folder) {
+                pruned = prefs::prune_empty_folder_chain(&data_dir, &parent)
+                    .map_err(map_string_error)?;
+            }
+            let tree = prefs::get_folder_tree(&data_dir).map_err(map_string_error)?;
+            Ok(json_response(
+                StatusCode(200),
+                &serde_json::json!({
+                    "folder": folder,
+                    "removedFolderIds": removed,
+                    "prunedEmptyAncestors": pruned,
+                    "movedDocuments": moved,
+                    "movedTo": dest,
+                    "tree": tree,
+                }),
             ))
         }
         ("PUT", path) if path.starts_with("/documents/") && path.ends_with("/tags") => {
@@ -560,9 +655,12 @@ fn dispatch(
             ensure_write_enabled(settings)?;
             let id = parse_document_id(path, "move")?;
             let body: MoveBody = read_json_body(request)?;
+            let data_dir = crate::db::data_dir().map_err(map_data_dir_error)?;
+            let (folder, _) =
+                prefs::ensure_folder_path(&data_dir, &body.folder).map_err(map_string_error)?;
             let mut service = doc_service_lock(app_state)?;
             let doc = service
-                .move_document(&id, body.folder, dek.as_ref())
+                .move_document(&id, folder, dek.as_ref())
                 .map_err(map_app_error)?;
             Ok(json_response(StatusCode(200), &doc))
         }
