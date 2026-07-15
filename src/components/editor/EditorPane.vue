@@ -301,12 +301,12 @@ async function retrySave() {
         <span class="text-text-secondary">{{ activeTitle }}</span>
       </nav>
 
-      <div class="flex items-center gap-2">
+      <div class="flex min-w-0 items-start gap-3">
         <input
           v-if="editingTitle"
           v-model="titleDraft"
           type="text"
-          class="field-input focus-ring w-full rounded-md border border-border bg-surface-1 px-3 py-1 text-[2rem] font-semibold leading-tight"
+          class="field-input focus-ring min-w-0 flex-1 rounded-md border border-border bg-surface-1 px-3 py-1 text-[2rem] font-semibold leading-tight"
           data-testid="title-input"
           aria-label="文档标题"
           @keydown.enter="commitTitle"
@@ -314,16 +314,15 @@ async function retrySave() {
         />
         <h1
           v-else
-          class="cursor-text text-[2rem] font-semibold leading-tight tracking-tight text-[var(--color-text)]"
+          class="min-w-0 flex-1 cursor-text text-[2rem] font-semibold leading-tight tracking-tight text-[var(--color-text)]"
           data-testid="doc-title"
           @click="startEditTitle"
         >
           {{ activeTitle }}
         </h1>
-      </div>
-
-      <div class="mt-2 flex items-center justify-end gap-2">
-        <RevisionHistoryPanel :doc-id="documents.activeId" />
+        <div class="mt-2 shrink-0">
+          <RevisionHistoryPanel :doc-id="documents.activeId" />
+        </div>
       </div>
     </header>
 
@@ -456,7 +455,7 @@ async function retrySave() {
               v-model:theme-id="wechatThemeId"
               :content="documents.content"
               embedded
-              :show-toolbar="false"
+              :show-toolbar="true"
               class="h-full min-h-0"
               @insert="insertWechatModuleSnippet"
             />
@@ -492,6 +491,7 @@ async function retrySave() {
             v-model:theme-id="wechatThemeId"
             :content="documents.content"
             embedded
+            :show-toolbar="true"
             class="h-full min-h-0"
             @insert="insertWechatModuleSnippet"
           />

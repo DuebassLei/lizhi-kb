@@ -18,16 +18,12 @@ import { useDocumentsStore } from "../../stores/documents";
 import { useEditorStore } from "../../stores/editor";
 import { useUiStore, type WorkspaceViewMode } from "../../stores/ui";
 import { useChatStore } from "../../stores/chat";
-import { useWechatTheme } from "../../composables/useWechatTheme";
-import { insertModuleSnippet } from "../../services/wechatExport";
 import BtnIcon from "../ui/BtnIcon.vue";
 import ExportMenu from "./ExportMenu.vue";
-import WechatToolbarMenu from "../wechat/WechatToolbarMenu.vue";
 const ui = useUiStore();
 const editor = useEditorStore();
 const documents = useDocumentsStore();
 const chat = useChatStore();
-const { themeId: wechatThemeId } = useWechatTheme();
 
 const modes: { id: WorkspaceViewMode; label: string }[] = [
   { id: "edit", label: "编辑" },
@@ -77,11 +73,6 @@ function toggleSplitPreview() {
 
 function togglePreviewOnly() {
   ui.togglePreviewOnly();
-}
-
-function insertModuleSnippetInDoc(snippet: string) {
-  documents.updateContent(insertModuleSnippet(documents.content, snippet));
-  void editor.saveNow();
 }
 
 function onSelectView(mode: WorkspaceViewMode) {
@@ -247,14 +238,6 @@ const isPinned = computed(() =>
               知识卡片
             </button>
           </div>
-
-          <WechatToolbarMenu
-            :visible="ui.splitPreviewKind === 'wechat'"
-            variant="toolbar"
-            v-model:theme-id="wechatThemeId"
-            :content="documents.content"
-            @insert="insertModuleSnippetInDoc"
-          />
         </div>
       </template>
     </div>

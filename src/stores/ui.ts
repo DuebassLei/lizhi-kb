@@ -47,7 +47,7 @@ export const useUiStore = defineStore("ui", () => {
   const commandPaletteOpen = ref(false);
   const focusMode = ref(false);
   const typewriterMode = ref(false);
-  const tocVisible = ref(true);
+  const tocVisible = ref(false);
   const insightsHeroBackground = ref<string | null>(loadInsightsHeroBackground());
   const splitPreviewVisible = ref(loadStoredSplitPreview());
   const splitGraphVisible = ref(loadStoredSplitGraph());

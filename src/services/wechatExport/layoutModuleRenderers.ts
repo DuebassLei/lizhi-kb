@@ -1,5 +1,6 @@
 import { marked } from "marked";
 import { getThemeAccent, getThemeBg, type WechatThemeId } from "./themes";
+import { renderSupportPlugin } from "./supportPluginRender";
 
 export interface ModuleBody {
   label?: string;
@@ -274,6 +275,190 @@ function renderTableCard(body: ModuleBody, themeId: WechatThemeId): string {
   return cardFrame(accent, bg, inner, false);
 }
 
+/** 开场钩子 / 导语 */
+function renderLead(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const title = body.fields.title || body.label || "开场";
+  const content = moduleText(body);
+  let inner = `<p style="margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:0.12em;color:${accent}">OPENING</p>`;
+  inner += `<p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#64748b">${esc(title)}</p>`;
+  if (content) {
+    inner += `<p style="margin:0;font-size:16px;font-weight:500;color:#0f172a;line-height:1.75;white-space:pre-wrap">${esc(content)}</p>`;
+  }
+  return (
+    `<section class="layout-module" style="margin:16px 0;padding:18px 16px;border-radius:10px;` +
+    `background:linear-gradient(135deg, color-mix(in srgb, ${accent} 12%, #fff) 0%, #fff 70%);` +
+    `border:1px solid color-mix(in srgb, ${accent} 22%, #e2e8f0)">${inner}</section>`
+  );
+}
+
+/** 本期要点 */
+function renderSummary(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const bg = `color-mix(in srgb, ${accent} 6%, #fff)`;
+  const title = body.fields.title || body.label || "本期要点";
+  let inner = `<p class="layout-module-title" style="margin:0 0 12px;font-size:15px;font-weight:700;color:${accent}">📋 ${esc(title)}</p>`;
+  const points = body.rows.length
+    ? body.rows.map((r) => r.filter(Boolean).join(" · ")).filter(Boolean)
+    : moduleText(body).split("\n").map((l) => l.replace(/^[-*·]\s*/, "").trim()).filter(Boolean);
+  inner += `<section style="display:flex;flex-direction:column;gap:8px">`;
+  points.forEach((p, idx) => {
+    inner += `<section style="display:flex;gap:10px;align-items:flex-start">`;
+    inner += `<span style="flex-shrink:0;min-width:1.25rem;font-size:12px;font-weight:700;color:${accent}">${idx + 1}.</span>`;
+    inner += `<p style="margin:0;font-size:14px;color:#334155;line-height:1.6">${esc(p)}</p>`;
+    inner += `</section>`;
+  });
+  inner += `</section>`;
+  return cardFrame(accent, bg, inner, false);
+}
+
+/** FAQ 问答 */
+function renderFaq(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const title = body.fields.title || body.label || "常见问题";
+  let inner = `<p class="layout-module-title" style="margin:0 0 12px;font-size:15px;font-weight:700;color:${accent}">❓ ${esc(title)}</p>`;
+  const pairs: { q: string; a: string }[] = [];
+  for (const row of body.rows) {
+    if (row.length >= 2) pairs.push({ q: row[0], a: row.slice(1).join(" ") });
+    else if (row[0]?.startsWith("Q:") || row[0]?.startsWith("问")) {
+      pairs.push({ q: row[0].replace(/^(Q:|问[:：]?)\s*/, ""), a: "" });
+    } else if (pairs.length && (row[0]?.startsWith("A:") || row[0]?.startsWith("答"))) {
+      pairs[pairs.length - 1].a = row[0].replace(/^(A:|答[:：]?)\s*/, "");
+    } else if (pairs.length && !pairs[pairs.length - 1].a) {
+      pairs[pairs.length - 1].a = row[0];
+    }
+  }
+  pairs.forEach((pair, idx) => {
+    inner += `<section style="margin:${idx ? "12px" : "0"} 0 0;padding:12px;border-radius:8px;background:#f8fafc">`;
+    inner += `<p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#0f172a">Q：${esc(pair.q)}</p>`;
+    if (pair.a) inner += `<p style="margin:0;font-size:13px;color:#475569;line-height:1.65">A：${esc(pair.a)}</p>`;
+    inner += `</section>`;
+  });
+  return cardFrame(accent, "#fff", inner, false);
+}
+
+/** 行动号召 CTA */
+function renderCta(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const title = body.fields.title || body.label || "接下来你可以";
+  const action = body.fields.action || body.fields.button || body.rows[0]?.[0] || "关注我，获取下一篇";
+  const desc = body.fields.desc || body.fields.body || body.rows[0]?.[1] || moduleText(body);
+  let inner = `<p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#fff">${esc(title)}</p>`;
+  if (desc && desc !== action) {
+    inner += `<p style="margin:0 0 12px;font-size:13px;color:rgba(255,255,255,0.88);line-height:1.6">${esc(desc)}</p>`;
+  }
+  inner += `<p style="margin:0;display:inline-block;padding:8px 16px;border-radius:999px;background:#fff;color:${accent};font-size:13px;font-weight:700">${esc(action)}</p>`;
+  return (
+    `<section class="layout-module" style="margin:20px 0;padding:20px 16px;border-radius:12px;text-align:center;` +
+    `background:linear-gradient(135deg, ${accent} 0%, color-mix(in srgb, ${accent} 70%, #0f172a) 100%)">${inner}</section>`
+  );
+}
+
+/** 行动清单 */
+function renderChecklist(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const bg = `color-mix(in srgb, ${accent} 5%, #fff)`;
+  const title = body.fields.title || body.label || "行动清单";
+  let inner = `<p class="layout-module-title" style="margin:0 0 12px;font-size:15px;font-weight:700;color:${accent}">☑️ ${esc(title)}</p>`;
+  const items = body.rows.length
+    ? body.rows.map((r) => r.filter(Boolean).join(" · ")).filter(Boolean)
+    : moduleText(body).split("\n").map((l) => l.replace(/^[-*\[\] xX]\s*/, "").trim()).filter(Boolean);
+  items.forEach((item) => {
+    inner += `<p style="margin:0 0 8px;font-size:14px;color:#334155;line-height:1.55;display:flex;gap:8px;align-items:flex-start">`;
+    inner += `<span style="flex-shrink:0;width:16px;height:16px;margin-top:2px;border:1.5px solid ${accent};border-radius:4px;background:#fff"></span>`;
+    inner += `<span>${esc(item)}</span></p>`;
+  });
+  return cardFrame(accent, bg, inner, false);
+}
+
+/** 数据亮点 */
+function renderStats(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const title = body.fields.title || body.label;
+  let inner = "";
+  if (title) {
+    inner += `<p class="layout-module-title" style="margin:0 0 12px;font-size:14px;font-weight:600;color:${accent}">${esc(title)}</p>`;
+  }
+  const items = body.rows.length
+    ? body.rows
+    : [[body.fields.value || "00", body.fields.label || body.fields.desc || "指标说明"]];
+  inner += `<section style="display:flex;flex-wrap:wrap;gap:10px">`;
+  items.forEach((row) => {
+    const value = row[0] || "";
+    const label = row[1] || "";
+    const note = row[2] || "";
+    inner += `<section style="flex:1;min-width:100px;padding:14px 12px;border-radius:10px;text-align:center;` +
+      `background:color-mix(in srgb, ${accent} 8%, #fff);border:1px solid color-mix(in srgb, ${accent} 20%, #e2e8f0)">`;
+    inner += `<p style="margin:0 0 4px;font-size:24px;font-weight:800;color:${accent};line-height:1.2">${esc(value)}</p>`;
+    if (label) inner += `<p style="margin:0;font-size:12px;font-weight:600;color:#334155">${esc(label)}</p>`;
+    if (note) inner += `<p style="margin:4px 0 0;font-size:11px;color:#94a3b8">${esc(note)}</p>`;
+    inner += `</section>`;
+  });
+  inner += `</section>`;
+  return cardFrame(accent, "#fff", inner, false);
+}
+
+/** 误区纠正 */
+function renderMyth(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const title = body.fields.title || body.label || "误区纠正";
+  const myth = body.fields.myth || body.fields.wrong || body.rows[0]?.[0] || "常见误区";
+  const truth = body.fields.truth || body.fields.right || body.rows[0]?.[1] || body.rows[1]?.[0] || "正确理解";
+  let inner = `<p class="layout-module-title" style="margin:0 0 12px;font-size:15px;font-weight:700;color:${accent}">🧭 ${esc(title)}</p>`;
+  inner += `<section style="margin:0 0 10px;padding:12px;border-radius:8px;background:#fef2f2;border-left:3px solid #dc2626">`;
+  inner += `<p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#dc2626">✖ 误区</p>`;
+  inner += `<p style="margin:0;font-size:14px;color:#7f1d1d;line-height:1.6">${esc(myth)}</p></section>`;
+  inner += `<section style="padding:12px;border-radius:8px;background:#f0fdf4;border-left:3px solid #16a34a">`;
+  inner += `<p style="margin:0 0 4px;font-size:11px;font-weight:700;color:#16a34a">✔ 正解</p>`;
+  inner += `<p style="margin:0;font-size:14px;color:#14532d;line-height:1.6">${esc(truth)}</p></section>`;
+  return cardFrame(accent, "#fff", inner, false);
+}
+
+/** 作者说 / 编后语 */
+function renderAuthorNote(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const title = body.fields.title || body.label || "作者说";
+  const author = body.fields.author || "作者";
+  const content = moduleText(body);
+  let inner = `<p style="margin:0 0 8px;font-size:12px;font-weight:700;color:${accent}">✍️ ${esc(title)}</p>`;
+  if (content) {
+    inner += `<p style="margin:0;font-size:14px;color:#475569;line-height:1.75;font-style:italic;white-space:pre-wrap">${esc(content)}</p>`;
+  }
+  inner += `<p style="margin:12px 0 0;font-size:12px;color:#94a3b8;text-align:right">— ${esc(author)}</p>`;
+  return (
+    `<section class="layout-module" style="margin:16px 0;padding:16px;border-radius:10px;` +
+    `border:1px dashed color-mix(in srgb, ${accent} 40%, #cbd5e1);background:#fafafa">${inner}</section>`
+  );
+}
+
+/** 互动提问 */
+function renderEngage(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const title = body.fields.title || body.label || "聊聊你的看法";
+  const question = body.fields.question || body.rows[0]?.[0] || moduleText(body) || "你怎么看这个问题？";
+  const hint = body.fields.hint || body.rows[0]?.[1] || "欢迎在评论区留言";
+  let inner = `<p style="margin:0 0 8px;font-size:13px;font-weight:700;color:${accent}">💬 ${esc(title)}</p>`;
+  inner += `<p style="margin:0 0 8px;font-size:15px;font-weight:600;color:#0f172a;line-height:1.65">${esc(question)}</p>`;
+  inner += `<p style="margin:0;font-size:12px;color:#64748b">${esc(hint)}</p>`;
+  return cardFrame(accent, `color-mix(in srgb, ${accent} 7%, #fff)`, inner, false);
+}
+
+/** 金句 */
+function renderGolden(body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const content = moduleText(body) || body.fields.quote || "在此写下一句金句";
+  const source = body.fields.source || body.fields.author || "";
+  let inner = `<p style="margin:0;font-size:18px;font-weight:700;color:#0f172a;line-height:1.55;text-align:center">「${esc(content)}」</p>`;
+  if (source) {
+    inner += `<p style="margin:12px 0 0;font-size:12px;color:#94a3b8;text-align:center">— ${esc(source)}</p>`;
+  }
+  return (
+    `<section class="layout-module" style="margin:20px 0;padding:22px 18px;border-radius:12px;text-align:center;` +
+    `background:color-mix(in srgb, ${accent} 8%, #fff);` +
+    `border-top:3px solid ${accent};border-bottom:3px solid ${accent}">${inner}</section>`
+  );
+}
+
 function renderFallback(name: string, body: ModuleBody, themeId: WechatThemeId): string {
   const accent = getThemeAccent(themeId);
   const bg = `color-mix(in srgb, ${accent} 8%, #fff)`;
@@ -318,6 +503,32 @@ const RENDERERS: Record<string, (body: ModuleBody, themeId: WechatThemeId) => st
   codecard: renderCodeCard,
   "table-card": renderTableCard,
   tablecard: renderTableCard,
+  /* 自媒体 / 写作 */
+  lead: renderLead,
+  hook: renderLead,
+  opening: renderLead,
+  summary: renderSummary,
+  "key-points": renderSummary,
+  keypoints: renderSummary,
+  faq: renderFaq,
+  qa: renderFaq,
+  cta: renderCta,
+  checklist: renderChecklist,
+  todo: renderChecklist,
+  stats: renderStats,
+  metric: renderStats,
+  metrics: renderStats,
+  myth: renderMyth,
+  "author-note": renderAuthorNote,
+  author: renderAuthorNote,
+  engage: renderEngage,
+  interact: renderEngage,
+  golden: renderGolden,
+  "golden-line": renderGolden,
+  support: (_b, _t) => renderSupportPlugin(_b),
+  "support-plugin": (_b, _t) => renderSupportPlugin(_b),
+  share: (_b, _t) => renderSupportPlugin(_b),
+  "share-plugin": (_b, _t) => renderSupportPlugin(_b),
 };
 
 export function renderLayoutModule(

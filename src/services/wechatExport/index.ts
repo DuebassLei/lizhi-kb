@@ -14,4 +14,11 @@ export {
   type WechatThemeId,
   type WechatThemeCategory,
 } from "./themes";
-export { LAYOUT_MODULE_SNIPPETS, insertModuleSnippet } from "./moduleSnippets";
+export {
+  LAYOUT_MODULE_SNIPPETS,
+  LAYOUT_MODULE_GROUPS,
+  insertModuleSnippet,
+  type LayoutModuleSnippet,
+  type LayoutModuleKind,
+  type LayoutModuleGroupId,
+} from "./moduleSnippets";
