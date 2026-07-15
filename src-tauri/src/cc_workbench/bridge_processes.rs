@@ -5,7 +5,9 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::Serialize;
 
 use super::paths::resolve_bridge_script;
-use super::process_utils::{hidden_command, kill_process_tree};
+#[cfg(windows)]
+use super::process_utils::hidden_command;
+use super::process_utils::kill_process_tree;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

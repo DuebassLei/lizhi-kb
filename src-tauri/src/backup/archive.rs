@@ -378,8 +378,7 @@ fn apply_settings_merge(
     merge_secrets_file(
         data_dir,
         staging,
-        AI_SECRETS_FILENAME,
-        AI_SECRETS_ENC_FILENAME,
+        (AI_SECRETS_FILENAME, AI_SECRETS_ENC_FILENAME),
         password,
         recovery_phrase,
         current_dek,
@@ -392,8 +391,7 @@ fn apply_settings_merge(
     merge_secrets_file(
         data_dir,
         staging,
-        CC_SECRETS_FILENAME,
-        CC_SECRETS_ENC_FILENAME,
+        (CC_SECRETS_FILENAME, CC_SECRETS_ENC_FILENAME),
         password,
         recovery_phrase,
         current_dek,
@@ -418,8 +416,7 @@ fn apply_settings_merge(
 fn merge_secrets_file<F>(
     data_dir: &Path,
     staging: &Path,
-    plain_name: &str,
-    enc_name: &str,
+    (plain_name, enc_name): (&str, &str),
     password: &str,
     recovery_phrase: Option<&str>,
     current_session_dek: Option<[u8; DEK_LEN]>,
