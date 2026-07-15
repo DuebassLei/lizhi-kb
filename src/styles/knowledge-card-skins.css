@@ -1,0 +1,680 @@
+/* 知识卡片 · 统一皮肤 skin-*（标题 + Markdown 语法一整套） */
+
+/* ── wechat：左齐色条标题 + ✓ 清单 ── */
+.knowledge-card.skin-wechat .card-block.block-heading {
+  text-align: left;
+}
+.knowledge-card.skin-wechat .card-block.block-heading h1 {
+  letter-spacing: -0.03em;
+}
+.knowledge-card.skin-wechat.has-hero .card-block.block-heading.is-hero::after {
+  content: "";
+  display: block;
+  width: 3.2em;
+  height: 8px;
+  margin-top: 0.5em;
+  border-radius: 999px;
+  background: var(--card-accent);
+}
+.knowledge-card.skin-wechat .card-block.block-heading h2 {
+  padding-left: 0.55em;
+  border-left: 7px solid var(--card-accent);
+  line-height: 1.35;
+}
+
+/* ── xhs：色条 Hero + 胶囊 H2 ── */
+.knowledge-card.skin-xhs .card-block.block-heading {
+  text-align: left;
+}
+.knowledge-card.skin-xhs.has-hero .card-block.block-heading.is-hero::after {
+  content: "";
+  display: block;
+  width: 2.8em;
+  height: 7px;
+  margin-top: 0.5em;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--card-accent), transparent);
+}
+.knowledge-card.skin-xhs .card-block.block-heading h2 {
+  display: inline-block;
+  padding: 0.12em 0.55em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-accent) 16%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--card-accent) 35%, transparent);
+}
+
+/* ── cover：居中超大标题 ── */
+.knowledge-card.skin-cover .card-block.block-heading {
+  text-align: center;
+}
+.knowledge-card.skin-cover.has-hero .card-block.block-heading.is-hero h1 {
+  font-size: calc(var(--card-font-size) * var(--card-h1, 2) * 1.28);
+  letter-spacing: -0.04em;
+  max-width: 18em;
+  margin-left: auto;
+  margin-right: auto;
+}
+.knowledge-card.skin-cover.has-hero .card-block.block-heading.is-hero::after {
+  content: "";
+  display: block;
+  width: 1.6em;
+  height: 1.6em;
+  margin: 0.7em auto 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--card-accent) 55%, transparent);
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--card-accent) 18%, transparent);
+}
+.knowledge-card.skin-cover .card-block.block-heading.is-hero + .card-block.block-paragraph {
+  text-align: center;
+  max-width: 22em;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── letter：居中衬线仪式标题 ── */
+.knowledge-card.skin-letter .card-block.block-heading {
+  text-align: center;
+}
+.knowledge-card.skin-letter .card-block.block-heading h1 {
+  letter-spacing: 0.18em;
+  font-weight: 700;
+}
+.knowledge-card.skin-letter.has-hero .card-block.block-heading.is-hero::before {
+  content: "✦ ✦ ✦";
+  display: block;
+  margin-bottom: 0.55em;
+  font-size: 0.42em;
+  letter-spacing: 0.55em;
+  color: color-mix(in srgb, var(--card-accent) 70%, transparent);
+}
+.knowledge-card.skin-letter.has-hero .card-block.block-heading.is-hero::after {
+  content: "";
+  display: block;
+  width: 4.5em;
+  height: 1px;
+  margin: 0.75em auto 0;
+  background: linear-gradient(90deg, transparent, var(--card-accent), transparent);
+}
+.knowledge-card.skin-letter .card-block.block-heading h2 {
+  letter-spacing: 0.12em;
+  font-weight: 600;
+}
+
+/* ── ink：红印底线标题 ── */
+.knowledge-card.skin-ink .card-block.block-heading h1 {
+  display: inline-block;
+  border-bottom: 3px solid var(--card-accent);
+  padding-bottom: 0.28em;
+  letter-spacing: 0.08em;
+}
+.knowledge-card.skin-ink .card-block.block-heading h2 {
+  display: inline-block;
+  border-bottom: 1px solid color-mix(in srgb, var(--card-accent) 55%, transparent);
+  padding-bottom: 0.15em;
+  letter-spacing: 0.06em;
+}
+
+/* ── sticker：贴纸标题 ── */
+.knowledge-card.skin-sticker .card-block.block-heading {
+  text-align: left;
+}
+.knowledge-card.skin-sticker.has-hero .card-block.block-heading.is-hero h1 {
+  display: inline-block;
+  padding: 0.2em 0.55em;
+  border-radius: 0.35em 0.85em 0.35em 0.85em;
+  background: color-mix(in srgb, var(--card-accent) 16%, transparent);
+  border: 2.5px solid color-mix(in srgb, var(--card-accent) 45%, transparent);
+  transform: rotate(-1.2deg);
+  box-shadow: 3px 4px 0 color-mix(in srgb, var(--card-accent) 22%, transparent);
+}
+.knowledge-card.skin-sticker .card-block.block-heading h2 {
+  display: inline-block;
+  padding: 0.08em 0.4em;
+  border-radius: 0.5em;
+  background: color-mix(in srgb, var(--card-highlight, var(--card-accent)) 35%, transparent);
+  transform: rotate(0.6deg);
+}
+
+/* ── retro：块状窗口标题 ── */
+.knowledge-card.skin-retro .card-block.block-heading {
+  text-align: left;
+}
+.knowledge-card.skin-retro.has-hero .card-block.block-heading.is-hero h1 {
+  display: block;
+  padding: 0.35em 0.55em;
+  border: 3px solid var(--card-accent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card-accent) 8%, #fff);
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--card-accent) 35%, transparent);
+}
+.knowledge-card.skin-retro .card-block.block-heading h2 {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--card-accent) 14%, #fff);
+  border: 2px solid color-mix(in srgb, var(--card-accent) 40%, #fff);
+}
+
+/* ── nebula：渐变字 + 色带 ── */
+.knowledge-card.skin-nebula .card-block.block-heading {
+  text-align: left;
+}
+.knowledge-card.skin-nebula.has-hero .card-block.block-heading.is-hero h1 {
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+}
+.knowledge-card.skin-nebula.has-hero .card-block.block-heading.is-hero::after {
+  content: "";
+  display: block;
+  width: 100%;
+  max-width: 8em;
+  height: 4px;
+  margin-top: 0.55em;
+  border-radius: 999px;
+  background: var(--card-heading-gradient, var(--card-accent));
+}
+.knowledge-card.skin-nebula .card-block.block-heading h2 {
+  letter-spacing: -0.02em;
+}
+
+/* ── neon：居中霓虹标题 ── */
+.knowledge-card.skin-neon .card-block.block-heading {
+  text-align: center;
+}
+.knowledge-card.skin-neon.has-hero .card-block.block-heading.is-hero h1 {
+  letter-spacing: 0.04em;
+  text-shadow:
+    0 0 18px color-mix(in srgb, var(--card-accent) 55%, transparent),
+    0 0 42px color-mix(in srgb, var(--card-heading) 35%, transparent);
+}
+.knowledge-card.skin-neon.has-heading-gradient.has-hero .card-block.block-heading.is-hero h1 {
+  text-shadow: none;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--card-accent) 45%, transparent));
+}
+.knowledge-card.skin-neon .card-block.block-heading h2 {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: calc(var(--card-font-size) * var(--card-h2, 1.6) * 0.92);
+}
+
+/* ── tech：等宽编号标题 ── */
+.knowledge-card.skin-tech .card-block.block-heading {
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+.knowledge-card.skin-tech .card-block.block-heading h1 {
+  letter-spacing: -0.04em;
+  border-bottom: 2px dashed color-mix(in srgb, var(--card-accent) 40%, transparent);
+  padding-bottom: 0.3em;
+}
+.knowledge-card.skin-tech .card-block.block-heading h2::before {
+  content: "// ";
+  color: var(--card-accent);
+  font-weight: 700;
+}
+
+/* ── plain：极简标题 ── */
+.knowledge-card.skin-plain .card-block.block-heading {
+  text-align: left;
+}
+.knowledge-card.skin-plain .card-block.block-heading h1,
+.knowledge-card.skin-plain .card-block.block-heading h2 {
+  letter-spacing: -0.02em;
+}
+
+/* ── letter：信笺文雅（加粗/列表/引用/代码）── */
+.knowledge-card.skin-letter strong {
+  color: var(--card-accent);
+  font-weight: 700;
+  background: none;
+}
+.knowledge-card.skin-letter em {
+  color: color-mix(in srgb, var(--card-accent) 70%, var(--card-text));
+  font-style: italic;
+}
+.knowledge-card.skin-letter .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+  text-align: left;
+  display: inline-block;
+  width: 100%;
+  max-width: 22em;
+  margin-inline: auto;
+}
+.knowledge-card.skin-letter .card-block.block-list ul > li {
+  padding: 0.25em 0 0.25em 1.5em;
+  position: relative;
+  border-bottom: 1px dotted color-mix(in srgb, var(--card-accent) 28%, transparent);
+}
+.knowledge-card.skin-letter .card-block.block-list ul > li::before {
+  content: "❧";
+  position: absolute;
+  left: 0.15em;
+  color: var(--card-accent);
+  font-size: 0.85em;
+}
+.knowledge-card.skin-letter .card-block.block-blockquote {
+  border-left: none;
+  border-top: 1px solid color-mix(in srgb, var(--card-accent) 35%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--card-accent) 35%, transparent);
+  border-radius: 0;
+  background: transparent;
+  padding: 0.85em 1.2em;
+  font-style: italic;
+  text-align: center;
+}
+.knowledge-card.skin-letter .card-block.block-hr hr,
+.knowledge-card.skin-letter .card-block.block-hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--card-accent), transparent);
+  opacity: 0.55;
+}
+.knowledge-card.skin-letter .card-block.block-code pre {
+  border: 1px dashed color-mix(in srgb, var(--card-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--card-code-bg) 88%, transparent);
+}
+
+/* ── ink：水墨 ── */
+.knowledge-card.skin-ink strong {
+  color: var(--card-accent);
+  font-weight: 700;
+  border-bottom: 2px solid color-mix(in srgb, var(--card-accent) 45%, transparent);
+}
+.knowledge-card.skin-ink .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+.knowledge-card.skin-ink .card-block.block-list ul > li {
+  position: relative;
+  padding: 0.35em 0 0.35em 1.6em;
+}
+.knowledge-card.skin-ink .card-block.block-list ul > li::before {
+  content: "●";
+  position: absolute;
+  left: 0.2em;
+  color: var(--card-accent);
+  font-size: 0.55em;
+  top: 0.7em;
+}
+.knowledge-card.skin-ink .card-block.block-blockquote {
+  border-left: 3px solid var(--card-accent);
+  background: transparent;
+  padding: 0.4em 0 0.4em 1.1em;
+  font-style: italic;
+  border-radius: 0;
+}
+.knowledge-card.skin-ink .card-block.block-code pre {
+  border-left: 4px solid var(--card-accent);
+  border-radius: 0;
+}
+
+/* ── retro：复古窗口 / 荧光笔 ── */
+.knowledge-card.skin-retro strong {
+  background: var(--card-highlight, #fff59d);
+  color: var(--card-text);
+  padding: 0.05em 0.25em;
+  border-radius: 2px;
+  font-weight: 700;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.knowledge-card.skin-retro .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+.knowledge-card.skin-retro .card-block.block-list ul > li {
+  position: relative;
+  margin: 0.45em 0;
+  padding: 0.45em 0.7em 0.45em 1.7em;
+  border: 2px solid color-mix(in srgb, var(--card-accent) 35%, #fff);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--card-accent) 6%, #fff);
+}
+.knowledge-card.skin-retro .card-block.block-list ul > li::before {
+  content: "★";
+  position: absolute;
+  left: 0.45em;
+  top: 0.45em;
+  color: var(--card-accent);
+  font-size: 0.85em;
+}
+.knowledge-card.skin-retro .card-block.block-blockquote {
+  border: 2px solid color-mix(in srgb, var(--card-accent) 45%, #fff);
+  border-radius: 12px;
+  border-left-width: 2px;
+  background: color-mix(in srgb, var(--card-accent) 8%, #fff);
+  padding: 0.75em 1em;
+}
+.knowledge-card.skin-retro .card-block.block-code pre {
+  border: 2px solid color-mix(in srgb, var(--card-accent) 40%, #fff);
+  border-radius: 10px;
+}
+.knowledge-card.skin-retro .card-block.block-heading h3 {
+  display: inline-block;
+  padding: 0.2em 0.55em;
+  border: 2px solid color-mix(in srgb, var(--card-accent) 40%, #fff);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--card-accent) 10%, #fff);
+}
+
+/* ── nebula：彩色圆点 + 荧光笔 ── */
+.knowledge-card.skin-nebula strong {
+  background: var(--card-highlight, #fef08a);
+  color: var(--card-text);
+  padding: 0.05em 0.28em;
+  border-radius: 4px;
+  font-weight: 700;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+.knowledge-card.skin-nebula .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0.15em;
+}
+.knowledge-card.skin-nebula .card-block.block-list ul > li {
+  position: relative;
+  padding: 0.35em 0 0.35em 1.45em;
+}
+.knowledge-card.skin-nebula .card-block.block-list ul > li::before {
+  content: "";
+  position: absolute;
+  left: 0.15em;
+  top: 0.65em;
+  width: 0.55em;
+  height: 0.55em;
+  border-radius: 50%;
+  background: var(--card-accent);
+}
+.knowledge-card.skin-nebula .card-block.block-list ul > li:nth-child(3n + 1)::before {
+  background: #7c3aed;
+}
+.knowledge-card.skin-nebula .card-block.block-list ul > li:nth-child(3n + 2)::before {
+  background: #3b82f6;
+}
+.knowledge-card.skin-nebula .card-block.block-list ul > li:nth-child(3n + 3)::before {
+  background: #ec4899;
+}
+.knowledge-card.skin-nebula .card-block.block-blockquote {
+  border-left: 5px solid transparent;
+  border-image: linear-gradient(180deg, #7c3aed, #ec4899) 1;
+  background: color-mix(in srgb, var(--card-accent) 8%, #fff);
+  border-radius: 0 14px 14px 0;
+}
+.knowledge-card.skin-nebula .card-block.block-code pre {
+  border: 1px solid color-mix(in srgb, var(--card-accent) 28%, transparent);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--card-accent) 12%, transparent);
+}
+
+/* ── neon：发光强调 ── */
+.knowledge-card.skin-neon strong {
+  color: var(--card-accent);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--card-accent) 55%, transparent);
+  font-weight: 700;
+}
+.knowledge-card.skin-neon .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+.knowledge-card.skin-neon .card-block.block-list ul > li {
+  position: relative;
+  padding: 0.3em 0 0.3em 1.5em;
+}
+.knowledge-card.skin-neon .card-block.block-list ul > li::before {
+  content: "◆";
+  position: absolute;
+  left: 0.15em;
+  color: var(--card-accent);
+  font-size: 0.7em;
+  top: 0.45em;
+  text-shadow: 0 0 8px color-mix(in srgb, var(--card-accent) 60%, transparent);
+}
+.knowledge-card.skin-neon .card-block.block-blockquote {
+  border: 1px solid color-mix(in srgb, var(--card-accent) 45%, transparent);
+  border-left-width: 1px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card-accent) 10%, transparent);
+  box-shadow: inset 0 0 24px color-mix(in srgb, var(--card-accent) 12%, transparent);
+}
+.knowledge-card.skin-neon .card-block.block-code pre {
+  border: 1px solid color-mix(in srgb, var(--card-accent) 50%, transparent);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--card-accent) 18%, transparent);
+}
+
+/* ── tech：Markdown 标签感 ── */
+.knowledge-card.skin-tech strong {
+  background: var(--card-highlight, #fde68a);
+  padding: 0.05em 0.2em;
+  border-radius: 3px;
+  font-weight: 700;
+}
+.knowledge-card.skin-tech .card-block.block-heading h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+}
+.knowledge-card.skin-tech .card-block.block-heading h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.15em 0.45em;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--card-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 25%, transparent);
+  font-family: var(--card-heading-font);
+}
+.knowledge-card.skin-tech .card-block.block-heading h3::before {
+  content: "⚙";
+  color: var(--card-accent);
+  font-size: 0.85em;
+}
+.knowledge-card.skin-tech .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+.knowledge-card.skin-tech .card-block.block-list ul > li {
+  position: relative;
+  padding: 0.28em 0 0.28em 1.55em;
+  font-variant-numeric: tabular-nums;
+}
+.knowledge-card.skin-tech .card-block.block-list ul > li::before {
+  content: "[ ]";
+  position: absolute;
+  left: 0;
+  font-family: var(--card-heading-font);
+  font-size: 0.78em;
+  color: var(--card-accent);
+  letter-spacing: -0.04em;
+}
+.knowledge-card.skin-tech .card-block.block-blockquote {
+  border-left: 3px solid var(--card-accent);
+  background: var(--card-quote-bg);
+  border-radius: 0 8px 8px 0;
+  font-family: var(--card-heading-font);
+  font-size: 0.92em;
+}
+.knowledge-card.skin-tech .card-block.block-code pre {
+  border: 1px solid color-mix(in srgb, var(--card-accent) 28%, #e7e5e4);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+.knowledge-card.skin-tech .card-block.block-code pre::before {
+  content: "```md";
+  display: block;
+  margin-bottom: 0.45em;
+  font-size: 0.75em;
+  color: color-mix(in srgb, var(--card-accent) 75%, var(--card-text));
+  opacity: 0.7;
+}
+
+/* ── wechat：绿色清单 ── */
+.knowledge-card.skin-wechat strong {
+  color: var(--card-accent);
+  font-weight: 700;
+}
+.knowledge-card.skin-wechat .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+.knowledge-card.skin-wechat .card-block.block-list ul > li {
+  position: relative;
+  padding: 0.32em 0 0.32em 1.7em;
+}
+.knowledge-card.skin-wechat .card-block.block-list ul > li::before {
+  content: "✓";
+  position: absolute;
+  left: 0.15em;
+  top: 0.28em;
+  width: 1.15em;
+  height: 1.15em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--card-accent) 16%, transparent);
+  color: var(--card-accent);
+  font-size: 0.72em;
+  font-weight: 800;
+}
+.knowledge-card.skin-wechat .card-block.block-blockquote {
+  border-left: 5px solid var(--card-accent);
+  background: var(--card-quote-bg);
+  border-radius: 0 14px 14px 0;
+}
+.knowledge-card.skin-wechat .card-block.block-code pre {
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 18%, transparent);
+}
+
+/* ── xhs：种草星标 ── */
+.knowledge-card.skin-xhs strong {
+  background: linear-gradient(180deg, transparent 55%, color-mix(in srgb, var(--card-accent) 35%, transparent) 55%);
+  font-weight: 800;
+}
+.knowledge-card.skin-xhs .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+.knowledge-card.skin-xhs .card-block.block-list ul > li {
+  position: relative;
+  padding: 0.35em 0 0.35em 1.55em;
+}
+.knowledge-card.skin-xhs .card-block.block-list ul > li::before {
+  content: "✦";
+  position: absolute;
+  left: 0.1em;
+  color: var(--card-accent);
+  font-size: 0.85em;
+  top: 0.35em;
+}
+.knowledge-card.skin-xhs .card-block.block-blockquote {
+  border: none;
+  border-radius: 16px;
+  background: var(--card-quote-bg);
+  padding: 0.85em 1.1em;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--card-accent) 12%, transparent);
+}
+.knowledge-card.skin-xhs .card-block.block-code pre {
+  border-radius: 14px;
+  border: 2px solid color-mix(in srgb, var(--card-accent) 25%, transparent);
+}
+
+/* ── cover：海报轻量 ── */
+.knowledge-card.skin-cover strong {
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--card-accent) 70%, transparent);
+  text-underline-offset: 0.18em;
+}
+.knowledge-card.skin-cover .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+  text-align: center;
+}
+.knowledge-card.skin-cover .card-block.block-list ul > li {
+  display: inline-block;
+  margin: 0.25em 0.35em;
+  padding: 0.25em 0.75em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-accent) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 35%, transparent);
+}
+.knowledge-card.skin-cover .card-block.block-blockquote {
+  border: none;
+  text-align: center;
+  background: color-mix(in srgb, var(--card-accent) 14%, transparent);
+  border-radius: 999px;
+  padding: 0.65em 1.4em;
+}
+.knowledge-card.skin-cover .card-block.block-code pre {
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--card-code-bg) 70%, transparent);
+}
+
+/* ── sticker：手帐 ── */
+.knowledge-card.skin-sticker strong {
+  background: var(--card-highlight, #fef08a);
+  padding: 0.08em 0.3em;
+  border-radius: 0.4em 0.75em 0.4em 0.75em;
+  font-weight: 800;
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--card-accent) 25%, transparent);
+}
+.knowledge-card.skin-sticker .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+.knowledge-card.skin-sticker .card-block.block-list ul > li {
+  position: relative;
+  margin: 0.4em 0;
+  padding: 0.35em 0.55em 0.35em 1.6em;
+  border: 1.5px dashed color-mix(in srgb, var(--card-accent) 45%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--card-accent) 6%, transparent);
+  transform: rotate(-0.3deg);
+}
+.knowledge-card.skin-sticker .card-block.block-list ul > li:nth-child(even) {
+  transform: rotate(0.4deg);
+}
+.knowledge-card.skin-sticker .card-block.block-list ul > li::before {
+  content: "♡";
+  position: absolute;
+  left: 0.4em;
+  color: var(--card-accent);
+}
+.knowledge-card.skin-sticker .card-block.block-blockquote {
+  border: 2px dashed color-mix(in srgb, var(--card-accent) 50%, transparent);
+  border-left-width: 2px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--card-highlight, var(--card-accent)) 40%, transparent);
+  transform: rotate(0.5deg);
+}
+.knowledge-card.skin-sticker .card-block.block-code pre {
+  border: 2px dashed color-mix(in srgb, var(--card-accent) 40%, transparent);
+  border-radius: 12px;
+}
+
+/* ── plain：极简压装饰 ── */
+.knowledge-card.skin-plain strong {
+  font-weight: 700;
+  color: inherit;
+  background: none;
+}
+.knowledge-card.skin-plain .card-block.block-list ul {
+  list-style-type: disc;
+  padding-left: 1.4em;
+}
+.knowledge-card.skin-plain .card-block.block-list li::marker {
+  color: var(--card-text);
+}
+.knowledge-card.skin-plain .card-block.block-blockquote {
+  border-left: 2px solid color-mix(in srgb, var(--card-text) 25%, transparent);
+  background: transparent;
+  border-radius: 0;
+  padding: 0.2em 0 0.2em 1em;
+}
+.knowledge-card.skin-plain .card-block.block-code pre {
+  border: none;
+  border-radius: 4px;
+}

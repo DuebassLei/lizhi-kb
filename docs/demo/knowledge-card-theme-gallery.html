@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>狸知 · 知识卡片主题画廊（设计稿）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=ZCOOL+QingKe+HuangYou&family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700;900&family=Press+Start+2P&family=JetBrains+Mono:wght@400;600;700&family=Bangers&family=Fredoka:wght@400;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #12141a;
+      --ink: #e8e6e1;
+      --muted: #9a968c;
+      --line: #2a2d36;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Noto Sans SC", system-ui, sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1e2433 0%, transparent 55%),
+        radial-gradient(900px 500px at 90% 0%, #1a2830 0%, transparent 50%),
+        var(--bg);
+      color: var(--ink);
+      line-height: 1.5;
+    }
+    .page {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 40px 24px 96px;
+    }
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+    }
+    .hero p {
+      margin: 0 0 28px;
+      color: var(--muted);
+      max-width: 52em;
+      font-size: 14px;
+    }
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 36px;
+    }
+    .legend a {
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 12px;
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #1a1d26;
+    }
+    .legend a:hover { border-color: #5b6478; }
+    .cat { margin-bottom: 56px; scroll-margin-top: 24px; }
+    .cat-head {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin-bottom: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    .cat-head h2 { margin: 0; font-size: 20px; }
+    .cat-head span { color: var(--muted); font-size: 13px; }
+    .cat-note {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 20px;
+    }
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: 1fr; justify-items: center; }
+    }
+    .slot {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-width: 0;
+    }
+    .meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-height: 52px;
+    }
+    .meta strong { font-size: 14px; }
+    .meta em {
+      font-style: normal;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    /* 预览缩放：设计稿按 360×480（3:4 社交媒体常用） */
+    .frame {
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 3 / 4;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 24px 48px rgba(0,0,0,.45);
+      background: #000;
+      position: relative;
+    }
+    .card {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      padding: 28px 24px 22px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card h3 {
+      margin: 0;
+      line-height: 1.2;
+    }
+    .card p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.65;
+    }
+    .card ul {
+      margin: 0;
+      padding-left: 1.1em;
+      font-size: 12.5px;
+      line-height: 1.7;
+    }
+    .card blockquote {
+      margin: 0;
+      font-size: 12.5px;
+      line-height: 1.55;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .foot {
+      margin-top: auto;
+      font-size: 10px;
+      opacity: 0.7;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* ========== 1 卡通 ========== */
+    /* 1A 漫画分镜 */
+    .c-comic {
+      background: #fff8ef;
+      color: #1a1208;
+      font-family: "Noto Sans SC", sans-serif;
+      border: 4px solid #111;
+      padding: 16px;
+      gap: 10px;
+    }
+    .c-comic::before {
+      content: "";
+      position: absolute;
+      inset: 8px;
+      border: 2px solid #111;
+      pointer-events: none;
+    }
+    .c-comic .halftone {
+      position: absolute;
+      right: -20px; top: -20px;
+      width: 140px; height: 140px;
+      background: radial-gradient(circle, #111 1.2px, transparent 1.3px) 0 0 / 8px 8px;
+      opacity: 0.12;
+      transform: rotate(12deg);
+    }
+    .c-comic .burst {
+      position: absolute;
+      top: 18px; right: 18px;
+      width: 64px; height: 64px;
+      background: #ffd400;
+      clip-path: polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);
+      display: grid; place-items: center;
+      font-family: Bangers, "ZCOOL KuaiLe", cursive;
+      font-size: 14px;
+      color: #111;
+      z-index: 2;
+    }
+    .c-comic .panel {
+      position: relative;
+      z-index: 1;
+      border: 3px solid #111;
+      background: #fff;
+      padding: 14px 14px 12px;
+      box-shadow: 4px 4px 0 #111;
+    }
+    .c-comic h3 {
+      font-family: Bangers, "ZCOOL KuaiLe", cursive;
+      font-size: 28px;
+      letter-spacing: 0.04em;
+      text-shadow: 2px 2px 0 #ffd400;
+    }
+    .c-comic .bubble {
+      position: relative;
+      background: #fff;
+      border: 2.5px solid #111;
+      border-radius: 18px;
+      padding: 10px 12px;
+      margin-top: 4px;
+    }
+    .c-comic .bubble::after {
+      content: "";
+      position: absolute;
+      left: 18px; bottom: -10px;
+      border: 6px solid transparent;
+      border-top-color: #111;
+    }
+    .c-comic blockquote {
+      border-left: 4px solid #ff4d6d;
+      padding-left: 10px;
+      font-weight: 700;
+      background: #ffe8ee;
+      padding: 8px 10px;
+    }
+    .c-comic ul { list-style: none; padding-left: 0; }
+    .c-comic li::before { content: "▸ "; font-weight: 900; }
+
+    /* 1B 贴纸手帐 */
+    .c-sticker {
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(90,140,180,.18) 28px),
+        #f4f7fb;
+      color: #2c3a4a;
+      font-family: "Fredoka", "Noto Sans SC", sans-serif;
+      padding: 32px 22px 20px;
+    }
+    .c-sticker .tape {
+      position: absolute;
+      top: 10px; left: 50%;
+      transform: translateX(-50%) rotate(-2deg);
+      width: 88px; height: 22px;
+      background: rgba(255, 214, 120, 0.55);
+      border: 1px dashed rgba(180,120,40,.35);
+      z-index: 3;
+    }
+    .c-sticker .polaroid {
+      background: #fff;
+      border: 1px solid #d9e2ec;
+      padding: 12px 12px 28px;
+      transform: rotate(-1.5deg);
+      box-shadow: 0 10px 24px rgba(40,60,90,.12);
+    }
+    .c-sticker .badge {
+      position: absolute;
+      right: 18px; top: 48px;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      background: #ff8fab;
+      color: #fff;
+      display: grid; place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      transform: rotate(12deg);
+      box-shadow: 0 4px 0 #e56b8a;
+      z-index: 2;
+    }
+    .c-sticker h3 {
+      font-size: 22px;
+      color: #24527a;
+    }
+    .c-sticker blockquote {
+      background: #fff3c4;
+      border-radius: 8px;
+      padding: 8px 10px;
+      border: 2px dashed #e8c45a;
+      transform: rotate(0.8deg);
+    }
+    .c-sticker ul { list-style: none; padding: 0; }
+    .c-sticker li {
+      display: flex; gap: 8px; align-items: flex-start;
+      margin-bottom: 4px;
+    }
+    .c-sticker li::before {
+      content: "";
+      width: 14px; height: 14px; margin-top: 3px; flex: none;
+      border-radius: 4px;
+      background: conic-gradient(from 30deg, #7bdff2, #b2f7ef, #eff7f6, #f7d6e0, #7bdff2);
+      border: 1.5px solid #4a6fa5;
+    }
+
+    /* 1C 像素 RPG */
+    .c-pixel {
+      background: #1d2b3a;
+      color: #e8f4ff;
+      font-family: "Press Start 2P", monospace;
+      image-rendering: pixelated;
+      padding: 20px 16px;
+      gap: 14px;
+      border: 6px solid #0b1220;
+      box-shadow: inset 0 0 0 3px #4fd1c5;
+    }
+    .c-pixel .hp {
+      display: flex; gap: 6px; align-items: center;
+      font-size: 7px; color: #7ee787;
+    }
+    .c-pixel .bar {
+      flex: 1; height: 10px; background: #0b1220;
+      border: 2px solid #7ee787;
+      position: relative;
+    }
+    .c-pixel .bar > i {
+      display: block; height: 100%; width: 72%;
+      background: repeating-linear-gradient(90deg, #7ee787 0 6px, #3d9a4a 6px 8px);
+    }
+    .c-pixel h3 {
+      font-size: 11px;
+      line-height: 1.55;
+      color: #ffe566;
+      text-shadow: 2px 2px 0 #000;
+    }
+    .c-pixel p, .c-pixel li, .c-pixel blockquote, .c-pixel .foot {
+      font-family: "Noto Sans SC", sans-serif;
+      font-size: 12px;
+    }
+    .c-pixel .window {
+      background: #0f1a26;
+      border: 3px solid #89b4fa;
+      padding: 10px;
+      box-shadow: 4px 4px 0 #000;
+    }
+    .c-pixel blockquote {
+      border: 2px dashed #f9e2af;
+      padding: 8px;
+      color: #f9e2af;
+      background: rgba(249,226,175,.08);
+    }
+    .c-pixel ul { padding-left: 0; list-style: none; }
+    .c-pixel li::before { content: "◆ "; color: #4fd1c5; font-size: 10px; }
+
+    /* ========== 2 专业 ========== */
+    /* 2A 期刊专栏 */
+    .p-editorial {
+      background: #f7f4ef;
+      color: #1c1916;
+      font-family: "Noto Serif SC", serif;
+      padding: 26px 24px 20px;
+      gap: 14px;
+    }
+    .p-editorial .mast {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-bottom: 2px solid #1c1916;
+      padding-bottom: 8px;
+      font-family: "Noto Sans SC", sans-serif;
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .p-editorial h3 {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      max-width: 10em;
+    }
+    .p-editorial .deck {
+      font-family: "Noto Sans SC", sans-serif;
+      font-size: 12px;
+      color: #5a534a;
+      border-left: 3px solid #c45c26;
+      padding-left: 10px;
+    }
+    .p-editorial .cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      font-size: 11.5px;
+      line-height: 1.65;
+    }
+    .p-editorial blockquote {
+      grid-column: 1 / -1;
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.4;
+      border-top: 1px solid #1c1916;
+      border-bottom: 1px solid #1c1916;
+      padding: 10px 0;
+      margin: 4px 0;
+    }
+    .p-editorial .foot {
+      border-top: 1px solid #cfc6bb;
+      padding-top: 8px;
+      font-family: "Noto Sans SC", sans-serif;
+    }
+
+    /* 2B 投行简报 */
+    .p-brief {
+      background: #0f1115;
+      color: #eceae4;
+      font-family: "Noto Sans SC", sans-serif;
+      padding: 0;
+      gap: 0;
+    }
+    .p-brief .rail {
+      display: grid;
+      grid-template-columns: 8px 1fr;
+      height: 100%;
+    }
+    .p-brief .rail > i { background: #c9a227; }
+    .p-brief .inner { padding: 24px 22px 18px; display: flex; flex-direction: column; gap: 12px; height: 100%; }
+    .p-brief .tag {
+      color: #c9a227;
+      border: 1px solid rgba(201,162,39,.45);
+      padding: 3px 8px;
+      width: fit-content;
+      border-radius: 2px;
+      font-weight: 700;
+    }
+    .p-brief h3 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+    .p-brief .kpis {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .p-brief .kpi {
+      border: 1px solid #2a2f3a;
+      background: #161a22;
+      padding: 8px 10px;
+    }
+    .p-brief .kpi b {
+      display: block;
+      font-size: 18px;
+      color: #c9a227;
+      font-variant-numeric: tabular-nums;
+    }
+    .p-brief .kpi span { font-size: 10px; color: #9aa0ad; }
+    .p-brief blockquote {
+      background: #161a22;
+      border-left: 2px solid #c9a227;
+      padding: 8px 10px;
+      color: #c5c9d4;
+      font-size: 12px;
+    }
+    .p-brief ul { color: #c5c9d4; }
+    .p-brief .foot { color: #7a8190; border-top: 1px solid #2a2f3a; padding-top: 8px; }
+
+    /* 2C 学术讲义 */
+    .p-lecture {
+      background: #faf8f2;
+      color: #222;
+      font-family: "Noto Serif SC", serif;
+      padding: 22px 20px 18px 52px;
+      gap: 10px;
+      background-image:
+        linear-gradient(#e8e2d4 1px, transparent 1px);
+      background-size: 100% 28px;
+      background-position: 0 22px;
+    }
+    .p-lecture .margin-num {
+      position: absolute;
+      left: 14px; top: 26px;
+      width: 28px;
+      font-family: "Noto Sans SC", sans-serif;
+      font-size: 11px;
+      color: #8a8478;
+      writing-mode: vertical-rl;
+      letter-spacing: 0.2em;
+    }
+    .p-lecture .red-margin {
+      position: absolute;
+      left: 44px; top: 0; bottom: 0;
+      width: 1.5px;
+      background: #d64545;
+      opacity: 0.55;
+    }
+    .p-lecture h3 {
+      font-size: 20px;
+      font-weight: 700;
+      background: #faf8f2;
+      display: inline;
+      box-decoration-break: clone;
+      -webkit-box-decoration-break: clone;
+      padding: 0 2px;
+    }
+    .p-lecture p, .p-lecture li {
+      font-size: 12.5px;
+      background: #faf8f2;
+    }
+    .p-lecture blockquote {
+      font-style: italic;
+      border: none;
+      padding: 0 0 0 12px;
+      border-left: 2px solid #222;
+      background: transparent;
+    }
+    .p-lecture .fn {
+      font-family: "Noto Sans SC", sans-serif;
+      font-size: 10px;
+      color: #6b655c;
+      border-top: 1px solid #cfc7b8;
+      padding-top: 6px;
+      margin-top: auto;
+    }
+
+    /* ========== 3 趣味 ========== */
+    /* 3A 涂鸦黑板 */
+    .f-chalk {
+      background:
+        radial-gradient(circle at 20% 30%, rgba(255,255,255,.04), transparent 40%),
+        #243024;
+      color: #f2f0e6;
+      font-family: "Caveat", "Ma Shan Zheng", cursive;
+      padding: 26px 22px;
+      gap: 10px;
+      border: 10px solid #5c4030;
+      box-shadow: inset 0 0 40px rgba(0,0,0,.35);
+    }
+    .f-chalk h3 {
+      font-size: 34px;
+      color: #fff;
+      transform: rotate(-1.5deg);
+      text-shadow: 0 0 1px rgba(255,255,255,.35);
+    }
+    .f-chalk p, .f-chalk li, .f-chalk .foot {
+      font-family: "Noto Sans SC", sans-serif;
+      font-size: 12.5px;
+      color: #e6e2d6;
+    }
+    .f-chalk .doodle {
+      position: absolute;
+      right: 20px; top: 70px;
+      width: 70px; height: 70px;
+      border: 2px dashed #f0c93a;
+      border-radius: 50%;
+      transform: rotate(18deg);
+      opacity: 0.7;
+    }
+    .f-chalk .doodle::after {
+      content: "要点!";
+      position: absolute;
+      inset: 0;
+      display: grid; place-items: center;
+      font-size: 16px;
+      color: #f0c93a;
+    }
+    .f-chalk blockquote {
+      border: none;
+      color: #9ad0ff;
+      font-family: Caveat, cursive;
+      font-size: 20px;
+      transform: rotate(1deg);
+    }
+    .f-chalk ul { list-style: none; padding: 0; }
+    .f-chalk li::before { content: "→ "; color: #f0c93a; }
+
+    /* 3B 弹珠汽水 */
+    .f-soda {
+      background: linear-gradient(180deg, #ff6b4a 0 38%, #fff8f0 38%);
+      color: #2a1a14;
+      font-family: "ZCOOL KuaiLe", "Fredoka", sans-serif;
+      padding: 22px 20px;
+      gap: 12px;
+      overflow: hidden;
+    }
+    .f-soda .rip {
+      position: absolute;
+      left: 0; right: 0; top: 34%;
+      height: 28px;
+      background:
+        radial-gradient(circle at 12px 0, transparent 11px, #fff8f0 12px) 0 0 / 24px 28px repeat-x;
+      transform: translateY(-50%);
+    }
+    .f-soda .pop {
+      position: absolute;
+      top: 12px; right: 14px;
+      background: #ffe566;
+      color: #2a1a14;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 6px 10px;
+      border-radius: 999px;
+      transform: rotate(8deg);
+      box-shadow: 3px 3px 0 #2a1a14;
+    }
+    .f-soda h3 {
+      font-size: 26px;
+      color: #fff;
+      text-shadow: 3px 3px 0 #2a1a14;
+      max-width: 8em;
+    }
+    .f-soda .body {
+      margin-top: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .f-soda p, .f-soda li, .f-soda .foot {
+      font-family: "Noto Sans SC", sans-serif;
+    }
+    .f-soda blockquote {
+      background: #2a1a14;
+      color: #ffe566;
+      border-radius: 12px 12px 12px 2px;
+      padding: 10px 12px;
+      font-family: "ZCOOL KuaiLe", cursive;
+      font-size: 15px;
+    }
+    .f-soda ul { list-style: none; padding: 0; }
+    .f-soda li {
+      background: #fff;
+      border: 2px solid #2a1a14;
+      border-radius: 10px;
+      padding: 6px 10px;
+      margin-bottom: 6px;
+      box-shadow: 2px 2px 0 #2a1a14;
+    }
+
+    /* 3C 桌游说明书 */
+    .f-board {
+      background: #efe6d4;
+      color: #2b2418;
+      font-family: "Noto Sans SC", sans-serif;
+      padding: 18px;
+      gap: 10px;
+      border: 3px solid #2b2418;
+    }
+    .f-board .box-title {
+      background: #2b2418;
+      color: #efe6d4;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .f-board .box-title h3 {
+      font-family: "ZCOOL QingKe HuangYou", sans-serif;
+      font-size: 20px;
+      font-weight: 400;
+    }
+    .f-board .dice {
+      width: 28px; height: 28px;
+      background: #fff;
+      color: #2b2418;
+      border-radius: 4px;
+      display: grid; place-items: center;
+      font-weight: 900;
+      font-size: 14px;
+    }
+    .f-board .steps {
+      display: grid;
+      gap: 8px;
+    }
+    .f-board .step {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 8px;
+      align-items: start;
+      background: #fffaf0;
+      border: 1.5px solid #2b2418;
+      padding: 8px;
+    }
+    .f-board .step b {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #e85d04;
+      color: #fff;
+      display: grid; place-items: center;
+      font-size: 13px;
+    }
+    .f-board blockquote {
+      background: #fff;
+      border: 2px dashed #2b2418;
+      padding: 8px 10px;
+      font-size: 12px;
+    }
+
+    /* ========== 4 可爱 ========== */
+    /* 4A 奶油便签 — 薄荷绿 × 草莓，避开奶油橙红套路 */
+    .k-memo {
+      background: linear-gradient(160deg, #e8fff6 0%, #fff5f8 55%, #ffe8f1 100%);
+      color: #3d3550;
+      font-family: "Fredoka", "Noto Sans SC", sans-serif;
+      padding: 36px 22px 20px;
+      border-radius: 28px;
+      gap: 12px;
+    }
+    .k-memo .paperclip {
+      position: absolute;
+      top: 8px; left: 22px;
+      width: 14px; height: 36px;
+      border: 3px solid #7ec8e3;
+      border-radius: 10px;
+      transform: rotate(-18deg);
+      background: transparent;
+    }
+    .k-memo .blob {
+      position: absolute;
+      right: -30px; bottom: -20px;
+      width: 120px; height: 120px;
+      background: radial-gradient(circle at 30% 30%, #ffb3c6, #ff8fab 70%);
+      border-radius: 60% 40% 55% 45%;
+      opacity: 0.35;
+    }
+    .k-memo h3 {
+      font-size: 24px;
+      color: #5c4d7a;
+    }
+    .k-memo blockquote {
+      background: rgba(255,255,255,.75);
+      border-radius: 16px;
+      padding: 10px 12px;
+      border: none;
+      box-shadow: 0 6px 0 rgba(126,200,227,.35);
+    }
+    .k-memo ul { list-style: none; padding: 0; }
+    .k-memo li::before { content: "♡ "; color: #ff8fab; }
+
+    /* 4B 猫爪便签 */
+    .k-paw {
+      background: #fff9f0;
+      color: #4a3728;
+      font-family: "ZCOOL KuaiLe", "Noto Sans SC", sans-serif;
+      padding: 36px 22px 18px;
+      gap: 10px;
+      border: 3px solid #f0c9a0;
+      border-radius: 22px 22px 40px 22px;
+    }
+    .k-paw .ears {
+      position: absolute;
+      top: -2px; left: 24px; right: 24px;
+      height: 28px;
+      display: flex;
+      justify-content: space-between;
+      pointer-events: none;
+    }
+    .k-paw .ears i {
+      width: 36px; height: 28px;
+      background: #fff9f0;
+      border: 3px solid #f0c9a0;
+      border-bottom: none;
+      border-radius: 18px 18px 0 0;
+    }
+    .k-paw .ears i:last-child { margin-right: 18px; }
+    .k-paw .ears i:first-child { margin-left: 18px; }
+    .k-paw h3 { font-size: 24px; color: #c45c26; }
+    .k-paw p, .k-paw li, .k-paw .foot { font-family: "Noto Sans SC", sans-serif; font-size: 12.5px; }
+    .k-paw ul { list-style: none; padding: 0; }
+    .k-paw li {
+      position: relative;
+      padding-left: 28px;
+      margin-bottom: 6px;
+    }
+    .k-paw li::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 4px;
+      width: 16px; height: 14px;
+      background:
+        radial-gradient(circle at 30% 35%, #4a3728 2.5px, transparent 2.6px),
+        radial-gradient(circle at 70% 35%, #4a3728 2.5px, transparent 2.6px),
+        radial-gradient(circle at 50% 70%, #4a3728 4px, transparent 4.1px),
+        radial-gradient(circle at 18% 60%, #4a3728 2px, transparent 2.1px),
+        radial-gradient(circle at 82% 60%, #4a3728 2px, transparent 2.1px);
+      opacity: 0.55;
+    }
+    .k-paw blockquote {
+      background: #ffe8d6;
+      border-radius: 12px 12px 12px 4px;
+      padding: 10px;
+      border: none;
+    }
+
+    /* 4C 气球派对 */
+    .k-party {
+      background: #1a1430;
+      color: #fff8ff;
+      font-family: "Fredoka", "Noto Sans SC", sans-serif;
+      padding: 28px 22px;
+      gap: 12px;
+      overflow: hidden;
+    }
+    .k-party .balloons {
+      position: absolute;
+      top: -10px; right: 8px;
+      display: flex; gap: 2px;
+      z-index: 1;
+    }
+    .k-party .balloons i {
+      width: 28px; height: 36px;
+      border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+      position: relative;
+    }
+    .k-party .balloons i:nth-child(1) { background: #ff6b9d; transform: rotate(-8deg); }
+    .k-party .balloons i:nth-child(2) { background: #7ec8e3; transform: translateY(8px) rotate(6deg); }
+    .k-party .balloons i:nth-child(3) { background: #ffe566; transform: rotate(10deg); }
+    .k-party .balloons i::after {
+      content: "";
+      position: absolute;
+      left: 50%; bottom: -10px;
+      width: 1px; height: 18px;
+      background: rgba(255,255,255,.35);
+    }
+    .k-party .confetti span {
+      position: absolute;
+      width: 6px; height: 6px;
+      border-radius: 1px;
+      opacity: 0.7;
+    }
+    .k-party h3 {
+      position: relative;
+      z-index: 2;
+      font-size: 24px;
+      max-width: 8em;
+      background: linear-gradient(90deg, #ff6b9d, #ffe566, #7ec8e3);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .k-party .panel {
+      position: relative;
+      z-index: 2;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 18px;
+      padding: 12px;
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .k-party p, .k-party li { font-size: 12.5px; color: #f0e6ff; }
+    .k-party blockquote {
+      background: rgba(255,107,157,.2);
+      border-radius: 12px;
+      padding: 8px 10px;
+      border: none;
+      color: #ffd0e0;
+    }
+    .k-party ul { list-style: none; padding: 0; }
+    .k-party li::before { content: "✦ "; color: #ffe566; }
+
+    /* ========== 5 科技 ========== */
+    /* 5A 终端 CLI */
+    .t-cli {
+      background: #0c0f0c;
+      color: #7CFF9A;
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      padding: 0;
+      gap: 0;
+      border: 1px solid #1f3324;
+    }
+    .t-cli .titlebar {
+      background: #141a14;
+      border-bottom: 1px solid #1f3324;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      color: #6a7a6a;
+    }
+    .t-cli .dot { width: 8px; height: 8px; border-radius: 50%; }
+    .t-cli .dot.r { background: #ff5f56; }
+    .t-cli .dot.y { background: #ffbd2e; }
+    .t-cli .dot.g { background: #27c93f; }
+    .t-cli .scan {
+      position: absolute;
+      inset: 32px 0 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent 0 2px,
+        rgba(0,0,0,.18) 2px 3px
+      );
+      pointer-events: none;
+      z-index: 2;
+    }
+    .t-cli .inner {
+      position: relative;
+      z-index: 1;
+      padding: 16px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      height: calc(100% - 32px);
+    }
+    .t-cli .prompt { color: #5ad4ff; font-size: 11px; }
+    .t-cli h3 {
+      font-size: 15px;
+      color: #e8ffe8;
+      font-weight: 700;
+    }
+    .t-cli p, .t-cli li {
+      font-size: 11.5px;
+      color: #9dffb5;
+      line-height: 1.6;
+    }
+    .t-cli blockquote {
+      border: 1px solid #2a5a38;
+      background: rgba(124,255,154,.06);
+      padding: 8px;
+      color: #c8ffd4;
+      font-size: 11px;
+    }
+    .t-cli ul { list-style: none; padding: 0; }
+    .t-cli li::before { content: "$ "; color: #5ad4ff; }
+    .t-cli .cursor {
+      display: inline-block;
+      width: 8px; height: 14px;
+      background: #7CFF9A;
+      vertical-align: -2px;
+      animation: blink 1s steps(1) infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* 5B HUD 仪表 */
+    .t-hud {
+      background:
+        linear-gradient(rgba(0,255,200,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,200,.03) 1px, transparent 1px),
+        #061018;
+      background-size: 24px 24px, 24px 24px, auto;
+      color: #c8fff2;
+      font-family: "Noto Sans SC", sans-serif;
+      padding: 22px 18px;
+      gap: 12px;
+    }
+    .t-hud .corner {
+      position: absolute;
+      width: 18px; height: 18px;
+      border: 2px solid #2affc8;
+      opacity: 0.85;
+    }
+    .t-hud .corner.tl { top: 10px; left: 10px; border-right: none; border-bottom: none; }
+    .t-hud .corner.tr { top: 10px; right: 10px; border-left: none; border-bottom: none; }
+    .t-hud .corner.bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
+    .t-hud .corner.br { bottom: 10px; right: 10px; border-left: none; border-top: none; }
+    .t-hud .status {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      color: #2affc8;
+    }
+    .t-hud .status span {
+      border: 1px solid rgba(42,255,200,.35);
+      padding: 2px 6px;
+      background: rgba(42,255,200,.06);
+    }
+    .t-hud h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #eafff8;
+      text-shadow: 0 0 18px rgba(42,255,200,.35);
+    }
+    .t-hud blockquote {
+      border: 1px solid rgba(42,255,200,.3);
+      background: rgba(6,30,40,.8);
+      padding: 8px 10px;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+      font-size: 12px;
+      color: #9dffea;
+    }
+    .t-hud ul { color: #a8e8da; }
+    .t-hud li::marker { color: #2affc8; }
+
+    /* 5C 电路板 */
+    .t-pcb {
+      background:
+        radial-gradient(circle at 80% 20%, rgba(255,180,60,.12), transparent 40%),
+        #0a3d2e;
+      color: #e8fff4;
+      font-family: "Noto Sans SC", sans-serif;
+      padding: 22px 18px;
+      gap: 12px;
+      overflow: hidden;
+    }
+    .t-pcb .trace {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, transparent 40px, rgba(255,180,60,.25) 40px, rgba(255,180,60,.25) 41px, transparent 41px) 0 60px / 100% 1px,
+        linear-gradient(0deg, transparent 80px, rgba(255,180,60,.2) 80px, rgba(255,180,60,.2) 81px, transparent 81px) 120px 0 / 1px 100%;
+      opacity: 0.7;
+      pointer-events: none;
+    }
+    .t-pcb .pad {
+      position: absolute;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,180,60,.55);
+      border-radius: 50%;
+      right: 28px; top: 70px;
+    }
+    .t-pcb .pad::after {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      background: rgba(255,180,60,.8);
+      border-radius: 50%;
+    }
+    .t-pcb .chip {
+      position: relative;
+      z-index: 1;
+      background: #062820;
+      border: 1.5px solid rgba(255,180,60,.45);
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: 0 0 0 6px rgba(0,0,0,.15);
+    }
+    .t-pcb .chip::before {
+      content: "U1";
+      position: absolute;
+      top: -8px; left: 10px;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 9px;
+      color: #ffb43c;
+      background: #0a3d2e;
+      padding: 0 4px;
+    }
+    .t-pcb h3 {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 16px;
+      color: #ffb43c;
+    }
+    .t-pcb p, .t-pcb li { font-size: 12px; color: #c8ebe0; }
+    .t-pcb blockquote {
+      border-left: 3px solid #ffb43c;
+      padding-left: 10px;
+      color: #ffe0a8;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 11px;
+    }
+    .t-pcb ul { list-style: none; padding: 0; }
+    .t-pcb li::before {
+      content: "⊕ ";
+      color: #ffb43c;
+      font-family: "JetBrains Mono", monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <h1>知识卡片主题 · 设计画廊</h1>
+      <p>
+        五类方向 × 每类三套。同组用<strong>结构 / 装饰语言 / 排版气质</strong>区分，不只换色。
+        统一演示内容，便于横向比较。觉得哪几套可以进主题商店，直接点名 ID 即可扩展正式主题。
+      </p>
+      <nav class="legend">
+        <a href="#cartoon">① 卡通</a>
+        <a href="#pro">② 专业</a>
+        <a href="#fun">③ 趣味</a>
+        <a href="#cute">④ 可爱</a>
+        <a href="#tech">⑤ 科技</a>
+      </nav>
+    </header>
+
+    <!-- 卡通 -->
+    <section class="cat" id="cartoon">
+      <div class="cat-head">
+        <h2>① 卡通</h2>
+        <span>漫画分镜 · 贴纸手帐 · 像素 RPG</span>
+      </div>
+      <p class="cat-note">差异点：线框叙事 / 拼贴倾斜 / 8-bit 状态栏，不是同造型换配色。</p>
+      <div class="grid">
+        <div class="slot">
+          <div class="meta">
+            <strong>cartoon-comic · 漫画分镜</strong>
+            <em>粗描边、网点、对白泡泡、爆炸星标 — 漫画页气质</em>
+          </div>
+          <div class="frame">
+            <article class="card c-comic">
+              <div class="halftone"></div>
+              <div class="burst">哇!</div>
+              <div class="panel">
+                <div class="tag">漫画卡 · 01</div>
+                <h3>一次读懂知识卡片</h3>
+                <div class="bubble">把 Markdown 变成可分享的视觉卡片。</div>
+                <blockquote>标题抢眼，正文一屏说清。</blockquote>
+                <ul>
+                  <li>导出社交图更醒目</li>
+                  <li>主题皮肤决定「角色扮演」</li>
+                  <li>同一类要有结构差异</li>
+                </ul>
+              </div>
+              <div class="foot"><span>狸知知识库</span><span>01 / 03</span></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>cartoon-sticker · 贴纸手帐</strong>
+            <em>胶带、拍立得框、圆形印章贴纸 — 拼贴手帐</em>
+          </div>
+          <div class="frame">
+            <article class="card c-sticker">
+              <div class="tape"></div>
+              <div class="badge">已贴!</div>
+              <div class="polaroid">
+                <div class="tag">手帐卡 · 02</div>
+                <h3>一次读懂知识卡片</h3>
+                <p>把 Markdown 变成可分享的视觉卡片。</p>
+                <blockquote>标题抢眼，正文一屏说清。</blockquote>
+                <ul>
+                  <li>导出社交图更醒目</li>
+                  <li>主题皮肤决定「角色扮演」</li>
+                  <li>同一类要有结构差异</li>
+                </ul>
+              </div>
+              <div class="foot"><span>狸知知识库</span><span>02 / 03</span></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>cartoon-pixel · 像素 RPG</strong>
+            <em>像素字标题、血条、对话窗边框 — 游戏 UI</em>
+          </div>
+          <div class="frame">
+            <article class="card c-pixel">
+              <div class="hp"><span>HP</span><div class="bar"><i></i></div></div>
+              <h3>一次读懂知识卡片</h3>
+              <div class="window">
+                <p>把 Markdown 变成可分享的视觉卡片。</p>
+                <blockquote>标题抢眼，正文一屏说清。</blockquote>
+                <ul>
+                  <li>导出社交图更醒目</li>
+                  <li>主题皮肤决定角色扮演</li>
+                  <li>同一类要有结构差异</li>
+                </ul>
+              </div>
+              <div class="foot"><span>LIZHI QUEST</span><span>SAVE 03</span></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 专业 -->
+    <section class="cat" id="pro">
+      <div class="cat-head">
+        <h2>② 专业</h2>
+        <span>期刊专栏 · 投行简报 · 学术讲义</span>
+      </div>
+      <p class="cat-note">差异点：杂志报头双栏 / 深色 KPI 条 / 横线本红栏批注 — 三种工作介质。</p>
+      <div class="grid">
+        <div class="slot">
+          <div class="meta">
+            <strong>pro-editorial · 期刊专栏</strong>
+            <em>刊头、大字标题、双栏正文、跨栏引语 — 杂志编辑感</em>
+          </div>
+          <div class="frame">
+            <article class="card p-editorial">
+              <div class="mast"><span>狸知月刊</span><span>Vol. 07 · Essay</span></div>
+              <h3>一次读懂知识卡片</h3>
+              <p class="deck">把 Markdown 变成可分享的视觉卡片。标题抢眼，正文一屏说清。</p>
+              <div class="cols">
+                <p>导出社交图更醒目；主题皮肤决定「角色扮演」。</p>
+                <p>同一类主题不能只换色，要在结构与气质上各自成立。</p>
+                <blockquote>「好的卡片主题，是一套完整的视觉语法。」</blockquote>
+              </div>
+              <div class="foot"><span>知识卡片设计稿</span><span>P.12</span></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>pro-brief · 投行简报</strong>
+            <em>侧色条、KPI 模块、深色董事会风 — 决策信息卡</em>
+          </div>
+          <div class="frame">
+            <article class="card p-brief">
+              <div class="rail">
+                <i></i>
+                <div class="inner">
+                  <div class="tag">BRIEFING</div>
+                  <h3>一次读懂知识卡片</h3>
+                  <p style="font-size:13px;color:#c5c9d4">把 Markdown 变成可分享的视觉卡片。</p>
+                  <div class="kpis">
+                    <div class="kpi"><b>3:4</b><span>社交主比例</span></div>
+                    <div class="kpi"><b>×N</b><span>主题皮肤</span></div>
+                  </div>
+                  <blockquote>标题抢眼，正文一屏说清。</blockquote>
+                  <ul>
+                    <li>导出更醒目</li>
+                    <li>结构差异优先于配色</li>
+                  </ul>
+                  <div class="foot"><span>LIZHI · CONFIDENTIAL</span><span>01</span></div>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>pro-lecture · 学术讲义</strong>
+            <em>横线笔记本、红栏、竖排页边编号、脚注 — 课堂讲义</em>
+          </div>
+          <div class="frame">
+            <article class="card p-lecture">
+              <div class="margin-num">LECTURE 03</div>
+              <div class="red-margin"></div>
+              <h3>一次读懂知识卡片</h3>
+              <p>把 Markdown 变成可分享的视觉卡片。标题抢眼，正文一屏说清。</p>
+              <blockquote>好的卡片主题，是一套完整的视觉语法。</blockquote>
+              <ul>
+                <li>导出社交图更醒目</li>
+                <li>主题皮肤决定角色扮演</li>
+                <li>同一类要有结构差异</li>
+              </ul>
+              <div class="fn">注：本页为设计预览稿，非正式主题 ID。</div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 趣味 -->
+    <section class="cat" id="fun">
+      <div class="cat-head">
+        <h2>③ 趣味</h2>
+        <span>涂鸦黑板 · 弹珠汽水 · 桌游说明书</span>
+      </div>
+      <p class="cat-note">差异点：粉笔手写 / 罐装分割造型 / 步骤棋盘编号 — 三种「玩」法。</p>
+      <div class="grid">
+        <div class="slot">
+          <div class="meta">
+            <strong>fun-chalk · 涂鸦黑板</strong>
+            <em>木框黑板、粉笔字、虚线圈重点 — 课堂涂鸦</em>
+          </div>
+          <div class="frame">
+            <article class="card f-chalk">
+              <div class="doodle"></div>
+              <h3>一次读懂知识卡片</h3>
+              <p>把 Markdown 变成可分享的视觉卡片。</p>
+              <blockquote>标题抢眼，正文一屏说清～</blockquote>
+              <ul>
+                <li>导出更醒目</li>
+                <li>皮肤 = 角色扮演</li>
+                <li>结构先于配色</li>
+              </ul>
+              <div class="foot"><span>狸知黑板报</span><span>擦写区</span></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>fun-soda · 弹珠汽水</strong>
+            <em>上半截亮色罐身、波浪接缝、贴纸泡泡 — 包装饮料感</em>
+          </div>
+          <div class="frame">
+            <article class="card f-soda">
+              <div class="pop">POP!</div>
+              <div class="rip" aria-hidden="true"></div>
+              <h3>一次读懂知识卡片</h3>
+              <div class="body">
+                <p>把 Markdown 变成可分享的视觉卡片。</p>
+                <blockquote>标题抢眼，一屏说清！</blockquote>
+                <ul>
+                  <li>导出社交图更醒目</li>
+                  <li>结构差异优先</li>
+                  <li>喝一口灵感</li>
+                </ul>
+              </div>
+              <div class="foot"><span>LIZHI SODA</span><span>330ml</span></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>fun-boardgame · 桌游说明书</strong>
+            <em>盒盖标题栏、骰子、圆形步骤编号 — 规则说明书</em>
+          </div>
+          <div class="frame">
+            <article class="card f-board">
+              <div class="box-title">
+                <h3>知识卡片</h3>
+                <div class="dice">6</div>
+              </div>
+              <p style="font-size:12px;margin:0">把 Markdown 变成可分享的视觉卡片。</p>
+              <blockquote>目标：标题抢眼，正文一屏说清。</blockquote>
+              <div class="steps">
+                <div class="step"><b>1</b><span>选主题皮肤（结构差异优先）</span></div>
+                <div class="step"><b>2</b><span>导出社交图，更醒目</span></div>
+                <div class="step"><b>3</b><span>同一类不要只换颜色</span></div>
+              </div>
+              <div class="foot"><span>PLAYERS 1+</span><span>15 MIN</span></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 可爱 -->
+    <section class="cat" id="cute">
+      <div class="cat-head">
+        <h2>④ 可爱</h2>
+        <span>奶油便签 · 猫爪便签 · 气球派对</span>
+      </div>
+      <p class="cat-note">差异点：软渐变夹子 / 猫耳外形+爪印列表 / 夜色气球玻璃面板 — 三种可爱载体。</p>
+      <div class="grid">
+        <div class="slot">
+          <div class="meta">
+            <strong>cute-memo · 奶油便签</strong>
+            <em>大圆角、回形针、柔和Blob、♡ 列表 — 便签纸</em>
+          </div>
+          <div class="frame">
+            <article class="card k-memo">
+              <div class="paperclip"></div>
+              <div class="blob"></div>
+              <div class="tag">MEMO</div>
+              <h3>一次读懂知识卡片</h3>
+              <p>把 Markdown 变成可分享的视觉卡片。</p>
+              <blockquote>标题抢眼，正文一屏说清。</blockquote>
+              <ul>
+                <li>导出更醒目</li>
+                <li>皮肤决定角色</li>
+                <li>结构先于配色</li>
+              </ul>
+              <div class="foot"><span>狸知便签</span><span>♡</span></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>cute-paw · 猫爪便签</strong>
+            <em>猫耳外形、爪印作项目符号 — 吉祥物外形</em>
+          </div>
+          <div class="frame" style="overflow:visible;background:transparent;box-shadow:none">
+            <article class="card k-paw" style="top:10px;height:calc(100% - 10px)">
+              <div class="ears"><i></i><i></i></div>
+              <h3>一次读懂知识卡片</h3>
+              <p>把 Markdown 变成可分享的视觉卡片。</p>
+              <blockquote>标题抢眼，正文一屏说清喵～</blockquote>
+              <ul>
+                <li>导出社交图更醒目</li>
+                <li>主题皮肤决定角色扮演</li>
+                <li>同一类要有结构差异</li>
+              </ul>
+              <div class="foot"><span>狸知猫猫</span><span>paw</span></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>cute-party · 气球派对</strong>
+            <em>深底、气球群、玻璃面板、渐变标题 — 派对邀请感</em>
+          </div>
+          <div class="frame">
+            <article class="card k-party">
+              <div class="balloons"><i></i><i></i><i></i></div>
+              <h3>一次读懂知识卡片</h3>
+              <div class="panel">
+                <p>把 Markdown 变成可分享的视觉卡片。</p>
+                <blockquote>标题抢眼，正文一屏说清。</blockquote>
+                <ul>
+                  <li>导出更醒目</li>
+                  <li>皮肤 = 角色扮演</li>
+                  <li>结构差异优先</li>
+                </ul>
+              </div>
+              <div class="foot"><span>PARTY CARD</span><span>✦</span></div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 科技 -->
+    <section class="cat" id="tech">
+      <div class="cat-head">
+        <h2>⑤ 科技</h2>
+        <span>终端 CLI · HUD 仪表 · 电路板</span>
+      </div>
+      <p class="cat-note">差异点：CRT 终端窗 / 角标网格 HUD / 焊盘走线芯片框 — 三种科技隐喻。</p>
+      <div class="grid">
+        <div class="slot">
+          <div class="meta">
+            <strong>tech-cli · 终端 CLI</strong>
+            <em>窗标题栏、扫描线、绿色荧光、命令前缀 — 程序员终端</em>
+          </div>
+          <div class="frame">
+            <article class="card t-cli">
+              <div class="titlebar">
+                <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+                <span style="margin-left:8px">lizhi-kb — zsh</span>
+              </div>
+              <div class="scan"></div>
+              <div class="inner">
+                <div class="prompt">~/notes › cat card.md</div>
+                <h3># 一次读懂知识卡片</h3>
+                <p>把 Markdown 变成可分享的视觉卡片。</p>
+                <blockquote>&gt; 标题抢眼，正文一屏说清。</blockquote>
+                <ul>
+                  <li>导出更醒目</li>
+                  <li>皮肤 = 角色扮演</li>
+                  <li>结构差异优先</li>
+                </ul>
+                <div class="foot"><span>ready<span class="cursor"></span></span><span>UTF-8</span></div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>tech-hud · HUD 仪表</strong>
+            <em>四角括号、网格底、状态徽章、切角面板 — 科幻 HUD</em>
+          </div>
+          <div class="frame">
+            <article class="card t-hud">
+              <i class="corner tl"></i><i class="corner tr"></i>
+              <i class="corner bl"></i><i class="corner br"></i>
+              <div class="status">
+                <span>SYS.OK</span>
+                <span>RATIO 3:4</span>
+                <span>MODE CARD</span>
+              </div>
+              <h3>一次读懂知识卡片</h3>
+              <p style="font-size:13px;color:#a8e8da">把 Markdown 变成可分享的视觉卡片。</p>
+              <blockquote>标题抢眼，正文一屏说清。</blockquote>
+              <ul>
+                <li>导出社交图更醒目</li>
+                <li>主题皮肤决定角色扮演</li>
+                <li>同一类要有结构差异</li>
+              </ul>
+              <div class="foot"><span>LIZHI // HUD</span><span>v0.1</span></div>
+            </article>
+          </div>
+        </div>
+
+        <div class="slot">
+          <div class="meta">
+            <strong>tech-pcb · 电路板</strong>
+            <em>焊盘绿底、铜走线、芯片丝印 U1 — PCB 版图</em>
+          </div>
+          <div class="frame">
+            <article class="card t-pcb">
+              <div class="trace"></div>
+              <div class="pad"></div>
+              <div class="chip">
+                <h3>一次读懂知识卡片</h3>
+                <p>把 Markdown 变成可分享的视觉卡片。</p>
+                <blockquote>// 标题抢眼 · 一屏说清</blockquote>
+                <ul>
+                  <li>导出更醒目</li>
+                  <li>皮肤决定角色</li>
+                  <li>结构先于配色</li>
+                </ul>
+                <div class="foot"><span>PCB REV A</span><span>Cu</span></div>
+              </div>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

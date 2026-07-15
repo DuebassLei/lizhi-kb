@@ -1,0 +1,469 @@
+/* 知识卡片基础样式 — 由 CSS 变量驱动 */
+
+.knowledge-card {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--card-native-width, 1080px);
+  height: var(--card-native-height, 1440px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--card-bg, #fff);
+  background-size: cover;
+  color: var(--card-text, #333);
+  font-family: var(--card-font-family, sans-serif);
+  font-size: var(--card-font-size, 28px);
+  font-weight: var(--card-text-weight, 400);
+  line-height: var(--card-line-height, 1.75);
+  border: var(--card-border-width, 0) var(--card-border-style, none) var(--card-border-color, transparent);
+  border-radius: var(--card-border-radius, 0);
+  padding: var(--card-padding-top, 56px) var(--card-padding-right, 48px)
+    var(--card-padding-bottom, 48px) var(--card-padding-left, 48px);
+  box-shadow: 0 28px 64px rgba(15, 18, 28, 0.18);
+}
+
+.knowledge-card__shell {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.knowledge-card-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-block-gap, 24px);
+  text-align: var(--card-text-align, left);
+}
+
+.knowledge-card-content.is-centered {
+  align-items: center;
+  text-align: center;
+}
+
+.knowledge-card-content.is-centered .card-block {
+  width: 100%;
+}
+
+/* Nebula：外框渐变 + 内白卡 */
+.knowledge-card.chrome-nebula {
+  background: var(--card-frame);
+  border: none;
+  padding: 36px;
+  box-shadow: none;
+}
+.knowledge-card.chrome-nebula .knowledge-card__shell {
+  background: var(--card-bg);
+  border-radius: calc(var(--card-border-radius) - 4px);
+  padding: var(--card-padding-top) var(--card-padding-right) var(--card-padding-bottom)
+    var(--card-padding-left);
+  box-shadow: 0 18px 50px rgba(76, 29, 149, 0.18);
+}
+
+/* 信笺双线内框 */
+.knowledge-card.has-double-inset .knowledge-card__shell {
+  outline: 1px dotted color-mix(in srgb, var(--card-border-color) 70%, transparent);
+  outline-offset: -18px;
+}
+
+/* Tech 顶栏色条 */
+.knowledge-card.has-top-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: var(--card-accent);
+  z-index: 4;
+}
+
+.knowledge-card .card-block {
+  margin: 0;
+}
+
+.knowledge-card .card-block.block-heading {
+  color: var(--card-heading, inherit);
+  font-family: var(--card-heading-font, inherit);
+  font-weight: var(--card-heading-weight, 700);
+}
+
+.knowledge-card .card-block.block-heading h1 {
+  font-size: calc(var(--card-font-size) * var(--card-h1, 2));
+  margin: 0;
+  line-height: 1.22;
+  letter-spacing: -0.02em;
+}
+.knowledge-card .card-block.block-heading h2 {
+  font-size: calc(var(--card-font-size) * var(--card-h2, 1.6));
+  margin: 0;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.knowledge-card .card-block.block-heading h3 {
+  font-size: calc(var(--card-font-size) * var(--card-h3, 1.35));
+  margin: 0;
+}
+.knowledge-card .card-block.block-heading h4,
+.knowledge-card .card-block.block-heading h5,
+.knowledge-card .card-block.block-heading h6 {
+  font-size: calc(var(--card-font-size) * var(--card-h4, 1.15));
+  margin: 0;
+}
+
+/* ── Hero 通用（具体装饰由 skin-* 决定）── */
+
+.knowledge-card.has-hero .card-block.block-heading.is-hero h1 {
+  font-size: calc(var(--card-font-size) * var(--card-h1, 2) * 1.12);
+  line-height: 1.18;
+  font-weight: 900;
+}
+
+.knowledge-card.has-hero .card-block.block-heading.is-hero + .card-block.block-paragraph {
+  font-size: 1.05em;
+  opacity: 0.92;
+}
+
+/* 标题渐变（主题提供 --card-heading-gradient 时） */
+.knowledge-card.has-heading-gradient .card-block.block-heading h1,
+.knowledge-card.has-heading-gradient .card-block.block-heading h2 {
+  background-image: var(--card-heading-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.knowledge-card .card-block p {
+  margin: 0;
+}
+
+.knowledge-card .card-block a {
+  color: var(--card-accent);
+}
+
+.knowledge-card .card-block pre,
+.knowledge-card .card-block code {
+  background: var(--card-code-bg);
+  color: var(--card-code-text);
+  border-radius: 8px;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.85em;
+}
+
+.knowledge-card .card-block pre {
+  padding: 16px 20px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.knowledge-card .card-block code {
+  padding: 0.1em 0.35em;
+}
+
+.knowledge-card .card-block pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.knowledge-card .card-block blockquote {
+  margin: 0;
+  padding: 12px 20px;
+  border-left: 6px solid var(--card-quote-border);
+  background: var(--card-quote-bg);
+  border-radius: 0 12px 12px 0;
+}
+
+.knowledge-card .card-block ul,
+.knowledge-card .card-block ol {
+  margin: 0;
+  padding-left: 1.45em;
+}
+
+.knowledge-card .card-block.block-list li {
+  margin: 0.28em 0;
+  padding-left: 0.15em;
+}
+
+.knowledge-card .card-block.block-list li::marker {
+  color: var(--card-accent);
+  font-weight: 700;
+}
+
+.knowledge-card .card-block.block-list ul {
+  list-style-type: disc;
+}
+
+.knowledge-card .card-block.block-hr {
+  border: none;
+  margin: 0.2em 0;
+}
+.knowledge-card .card-block.block-hr hr {
+  border: none;
+  height: 1px;
+  background: color-mix(in srgb, var(--card-text) 18%, transparent);
+  margin: 0;
+}
+
+.knowledge-card .card-block table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: 0.85em;
+  table-layout: fixed;
+  display: table;
+}
+
+.knowledge-card .card-block thead {
+  display: table-header-group;
+}
+
+.knowledge-card .card-block tbody {
+  display: table-row-group;
+}
+
+.knowledge-card .card-block tr {
+  display: table-row;
+}
+
+.knowledge-card .card-block th,
+.knowledge-card .card-block td {
+  display: table-cell;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  padding: 8px 12px;
+  vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.knowledge-card .card-block img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+}
+
+.knowledge-card__header {
+  flex: 0 0 auto;
+  margin-bottom: 16px;
+  font-size: 0.75em;
+  color: var(--card-accent);
+  opacity: 0.85;
+}
+
+.knowledge-card__header--banner {
+  background: color-mix(in srgb, var(--card-accent) 18%, transparent);
+  margin: calc(-1 * var(--card-padding-top) / 4) calc(-1 * var(--card-padding-right) / 2) 16px;
+  padding: 12px 20px;
+  border-radius: 12px;
+}
+
+.knowledge-card__footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+  font-size: 0.7em;
+  opacity: 0.75;
+  color: var(--card-text);
+  gap: 12px;
+}
+
+.knowledge-card__footer-spacer {
+  flex: 1;
+}
+
+.knowledge-card__progress {
+  height: 6px;
+  width: 100%;
+  background: color-mix(in srgb, var(--card-text) 15%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.knowledge-card__progress > span {
+  display: block;
+  height: 100%;
+  background: var(--card-accent);
+}
+
+.knowledge-card__corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.knowledge-card__corner--tl {
+  top: 20px;
+  left: 20px;
+}
+.knowledge-card__corner--tr {
+  top: 20px;
+  right: 20px;
+}
+.knowledge-card__corner--bl {
+  bottom: 20px;
+  left: 20px;
+}
+.knowledge-card__corner--br {
+  bottom: 20px;
+  right: 20px;
+}
+
+.knowledge-card__corner.dot {
+  border-radius: 50%;
+  background: var(--card-accent);
+  opacity: 0.55;
+}
+
+.knowledge-card__corner.flower {
+  border: 2px solid var(--card-accent);
+  border-radius: 50% 0 50% 0;
+  opacity: 0.5;
+}
+
+.knowledge-card__corner.triangle {
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 16px solid var(--card-accent);
+  background: transparent;
+  opacity: 0.45;
+}
+
+.knowledge-card__corner.wave {
+  border-radius: 40% 60%;
+  border: 2px dashed var(--card-accent);
+  opacity: 0.45;
+}
+
+.knowledge-card__scale-warn {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  z-index: 3;
+}
+
+.knowledge-card__footer--letter-meta {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  opacity: 0.9;
+  border-top: 1px solid color-mix(in srgb, var(--card-border-color) 40%, transparent);
+  padding-top: 20px;
+}
+
+.knowledge-card__letter-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  text-align: left;
+  font-size: 0.95em;
+  letter-spacing: 0.02em;
+}
+
+.knowledge-card__meta-label {
+  font-size: 0.75em;
+  letter-spacing: 0.16em;
+  opacity: 0.55;
+  margin-bottom: 4px;
+}
+
+.knowledge-card__page-pill {
+  align-self: flex-end;
+  opacity: 0.65;
+}
+
+.knowledge-card__footer--brand {
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 0.55em;
+  opacity: 0.55;
+}
+
+.knowledge-card__brand-line {
+  font-weight: 700;
+}
+
+/* 复古聊天底栏 */
+.knowledge-card__chatbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px calc(-1 * var(--card-padding-right)) calc(-1 * var(--card-padding-bottom) + 28px)
+    calc(-1 * var(--card-padding-left));
+  padding: 14px 18px;
+  background: color-mix(in srgb, var(--card-accent) 12%, #fff);
+  border-top: 2px solid color-mix(in srgb, var(--card-accent) 30%, #fff);
+  font-size: 0.55em;
+}
+
+.knowledge-card__chat-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--card-accent), #ffb6d5);
+  flex-shrink: 0;
+}
+
+.knowledge-card__chat-input {
+  flex: 1;
+  background: #fff;
+  border: 2px solid color-mix(in srgb, var(--card-accent) 35%, #fff);
+  border-radius: 999px;
+  padding: 8px 16px;
+  color: color-mix(in srgb, var(--card-text) 70%, transparent);
+}
+
+.knowledge-card__chat-tools {
+  letter-spacing: 0.2em;
+  color: var(--card-accent);
+  opacity: 0.8;
+}
+
+.knowledge-card__header--badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card-accent) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--card-accent) 45%, transparent);
+  font-size: 0.65em;
+  letter-spacing: 0.08em;
+}
+
+/* 对角水印叠层 */
+.knowledge-card__watermark {
+  position: absolute;
+  right: 28px;
+  bottom: 36px;
+  z-index: 1;
+  pointer-events: none;
+  font-size: 0.48em;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--card-text) 28%, transparent);
+  transform: rotate(-12deg);
+  transform-origin: center;
+  user-select: none;
+}
