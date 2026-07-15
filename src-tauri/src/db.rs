@@ -99,6 +99,35 @@ const MIGRATIONS: &[&str] = &[
     CREATE INDEX IF NOT EXISTS idx_launch_records_status ON launch_records(status);
     CREATE INDEX IF NOT EXISTS idx_launch_records_client ON launch_records(client_name);
     ",
+    "
+    CREATE TABLE IF NOT EXISTS mubu_docs (
+        id TEXT PRIMARY KEY NOT NULL,
+        title TEXT NOT NULL,
+        style_json TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS mubu_nodes (
+        id TEXT PRIMARY KEY NOT NULL,
+        doc_id TEXT NOT NULL,
+        parent_id TEXT,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        text TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT '',
+        collapsed INTEGER NOT NULL DEFAULT 0,
+        is_todo INTEGER NOT NULL DEFAULT 0,
+        is_done INTEGER NOT NULL DEFAULT 0,
+        heading_level INTEGER NOT NULL DEFAULT 0,
+        decor_json TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (doc_id) REFERENCES mubu_docs(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_mubu_nodes_doc_parent
+        ON mubu_nodes (doc_id, parent_id, sort_order);
+    CREATE INDEX IF NOT EXISTS idx_mubu_docs_updated
+        ON mubu_docs (updated_at DESC);
+    ",
 ];
 
 pub fn data_dir() -> Result<PathBuf, AppError> {
@@ -184,6 +213,7 @@ fn run_migrations(conn: &Connection) -> SqliteResult<()> {
     }
     migrate_documents_columns(conn)?;
     migrate_requirements_columns(conn)?;
+    migrate_mubu_columns(conn)?;
     Ok(())
 }
 
@@ -248,6 +278,35 @@ fn migrate_requirements_columns(conn: &Connection) -> SqliteResult<()> {
             "ALTER TABLE requirements ADD COLUMN linked_document_ids TEXT",
             [],
         )?;
+    }
+    Ok(())
+}
+
+/// 幕布节点增强字段（兼容已建库）
+fn migrate_mubu_columns(conn: &Connection) -> SqliteResult<()> {
+    let mut stmt = conn.prepare("PRAGMA table_info(mubu_nodes)")?;
+    let cols: Vec<String> = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    let add_int = |name: &str, default: &str| -> SqliteResult<()> {
+        if !cols.iter().any(|c| c == name) {
+            conn.execute(
+                &format!(
+                    "ALTER TABLE mubu_nodes ADD COLUMN {name} INTEGER NOT NULL DEFAULT {default}"
+                ),
+                [],
+            )?;
+        }
+        Ok(())
+    };
+    add_int("is_todo", "0")?;
+    add_int("is_done", "0")?;
+    add_int("heading_level", "0")?;
+
+    if !cols.iter().any(|c| c == "decor_json") {
+        conn.execute("ALTER TABLE mubu_nodes ADD COLUMN decor_json TEXT", [])?;
     }
     Ok(())
 }

@@ -6,12 +6,20 @@ export interface HeadingItem {
   lineIndex: number;
 }
 
+export type OutlineNodeKind = "heading" | "body" | "list";
+
 export interface HeadingTreeNode {
   id: string;
   text: string;
   slug: string;
-  /** Markdown heading level 1–6; root is 0 */
+  /** Markdown heading level 1–6; root is 0；正文/列表为相对层级 */
   level: number;
+  /** 0-based line index in Markdown source; omitted for synthetic root */
+  lineIndex?: number;
+  /** 大纲节点类型：标题树仅 heading；导图大纲可含 body/list */
+  kind?: OutlineNodeKind;
+  /** 幕布式「描述/备注」：挂在主题下，不单独成导图分支 */
+  note?: string;
   isRoot?: boolean;
   children: HeadingTreeNode[];
 }
@@ -120,10 +128,11 @@ export function buildHeadingTree(docTitle: string, content: string): HeadingTree
       stack.pop();
     }
     const node: HeadingTreeNode = {
-      id: `h-${idx}-${h.slug}`,
+      id: `h-${idx}-${h.lineIndex}-${h.slug}`,
       text: h.text,
       slug: h.slug,
       level: h.level,
+      lineIndex: h.lineIndex,
       children: [],
     };
     idx += 1;

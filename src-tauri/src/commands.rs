@@ -21,6 +21,9 @@ use crate::credentials::{
     UpdateCredentialEntryPatch,
 };
 use crate::journal::{CreateJournalEntryInput, JournalEntry, UpdateJournalEntryPatch};
+use crate::mubu::{
+    CreateMubuDocInput, MubuDoc, MubuNode, SaveMubuTreeInput, UpdateMubuDocPatch,
+};
 
 use crate::mcp::McpBridge;
 
@@ -1521,6 +1524,77 @@ pub fn delete_credential_entry(state: State<Arc<AppState>>, id: String) -> Resul
         .lock()
         .map_err(|_| "document service lock poisoned".to_string())?
         .delete_credential_entry(&id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_mubu_docs(state: State<Arc<AppState>>) -> Result<Vec<MubuDoc>, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .list_mubu_docs()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn create_mubu_doc(
+    state: State<Arc<AppState>>,
+    input: CreateMubuDocInput,
+) -> Result<MubuDoc, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .create_mubu_doc(input)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_mubu_doc(
+    state: State<Arc<AppState>>,
+    id: String,
+    patch: UpdateMubuDocPatch,
+) -> Result<MubuDoc, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .update_mubu_doc(&id, patch)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_mubu_doc(state: State<Arc<AppState>>, id: String) -> Result<(), String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .delete_mubu_doc(&id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_mubu_tree(state: State<Arc<AppState>>, doc_id: String) -> Result<Vec<MubuNode>, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .get_mubu_tree(&doc_id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_mubu_tree(
+    state: State<Arc<AppState>>,
+    doc_id: String,
+    input: SaveMubuTreeInput,
+) -> Result<MubuDoc, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .save_mubu_tree(&doc_id, input)
         .map_err(|e| e.to_string())
 }
 

@@ -48,7 +48,7 @@ export function useSvgPanZoom(_containerRef: Ref<HTMLElement | null>): PanZoomSt
 
   function onPointerDown(e: PointerEvent) {
     const target = e.target as HTMLElement;
-    if (target.closest("[data-graph-node]")) return;
+    if (target.closest("[data-graph-node], [data-mindmap-node]")) return;
     panning = true;
     panStart = { x: e.clientX, y: e.clientY };
     offsetStart = { x: offsetX.value, y: offsetY.value };

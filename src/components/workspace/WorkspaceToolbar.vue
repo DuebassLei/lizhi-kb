@@ -23,7 +23,6 @@ import { insertModuleSnippet } from "../../services/wechatExport";
 import BtnIcon from "../ui/BtnIcon.vue";
 import ExportMenu from "./ExportMenu.vue";
 import WechatToolbarMenu from "../wechat/WechatToolbarMenu.vue";
-
 const ui = useUiStore();
 const editor = useEditorStore();
 const documents = useDocumentsStore();
@@ -33,6 +32,7 @@ const { themeId: wechatThemeId } = useWechatTheme();
 const modes: { id: WorkspaceViewMode; label: string }[] = [
   { id: "edit", label: "编辑" },
   { id: "graph", label: "图谱" },
+  { id: "mindmap", label: "导图" },
 ];
 
 const activeTitle = computed(
@@ -85,7 +85,7 @@ function insertModuleSnippetInDoc(snippet: string) {
 }
 
 function onSelectView(mode: WorkspaceViewMode) {
-  if (mode === "graph") {
+  if (mode === "graph" || mode === "mindmap") {
     ui.setSplitGraph(false);
   }
   ui.setWorkspaceView(mode);
@@ -235,6 +235,16 @@ const isPinned = computed(() =>
               @click="ui.setSplitPreviewKind('wechat')"
             >
               公众号
+            </button>
+            <button
+              type="button"
+              class="focus-ring shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 transition-colors"
+              :class="ui.splitPreviewKind === 'card' ? 'bg-surface-2 text-[var(--color-text)]' : 'text-muted hover:text-[var(--color-text)]'"
+              :aria-pressed="ui.splitPreviewKind === 'card'"
+              data-testid="toolbar-preview-kind-card"
+              @click="ui.setSplitPreviewKind('card')"
+            >
+              知识卡片
             </button>
           </div>
 

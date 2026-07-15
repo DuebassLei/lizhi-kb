@@ -19,6 +19,8 @@ import EditorPane from "../components/editor/EditorPane.vue";
 
 import LocalGraphView from "../components/graph/LocalGraphView.vue";
 
+import MindMapView from "../components/mindmap/MindMapView.vue";
+
 import { useUiStore } from "../stores/ui";
 
 import { useEditorStore } from "../stores/editor";
@@ -47,6 +49,10 @@ const mainView = computed(() => {
 
       return LocalGraphView;
 
+    case "mindmap":
+
+      return MindMapView;
+
     default:
 
       return EditorPane;
@@ -59,10 +65,10 @@ const mainView = computed(() => {
 
 function applyPreviewFromRoute() {
   const preview = route.query.preview;
-  if (preview === "wechat") {
+  if (preview === "wechat" || preview === "card") {
     ui.setWorkspaceView("edit");
     ui.setSplitPreview(true);
-    ui.setSplitPreviewKind("wechat");
+    ui.setSplitPreviewKind(preview);
   }
 }
 

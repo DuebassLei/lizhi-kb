@@ -22,6 +22,8 @@ mod journal;
 
 mod credentials;
 
+mod mubu;
+
 pub mod mcp;
 
 mod link_index;
@@ -103,6 +105,14 @@ pub enum AppError {
     #[error("{0}")]
 
     CredentialValidation(String),
+
+    #[error("幕布文档不存在")]
+
+    MubuNotFound(String),
+
+    #[error("{0}")]
+
+    MubuValidation(String),
 
     #[error("invalid asset id: {0}")]
 
@@ -430,6 +440,13 @@ pub fn run() {
             commands::update_credential_entry,
 
             commands::delete_credential_entry,
+
+            commands::list_mubu_docs,
+            commands::create_mubu_doc,
+            commands::update_mubu_doc,
+            commands::delete_mubu_doc,
+            commands::get_mubu_tree,
+            commands::save_mubu_tree,
 
             commands::get_mcp_config,
 

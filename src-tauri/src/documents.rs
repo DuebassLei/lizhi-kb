@@ -511,7 +511,8 @@ impl DocumentService {
         content: &str,
         dek: Option<&[u8; DEK_LEN]>,
     ) -> Result<SaveResult, AppError> {
-        self.save_document_with_options(id, content, dek, true)
+        // 库标题与正文 H1 独立；MCP 可通过 sync_title_from_h1 显式同步
+        self.save_document_with_options(id, content, dek, false)
     }
 
     pub fn save_document_with_options(
@@ -1140,6 +1141,10 @@ fn migrate_plaintext_db_to_vault(data_dir: &Path, dek: &[u8; DEK_LEN]) -> Result
     copy_table(&src, &dst, "edit_activity")?;
     copy_table(&src, &dst, "requirements")?;
     copy_table(&src, &dst, "journal_entries")?;
+    copy_table(&src, &dst, "credential_entries")?;
+    copy_table(&src, &dst, "launch_records")?;
+    copy_table(&src, &dst, "mubu_docs")?;
+    copy_table(&src, &dst, "mubu_nodes")?;
     drop(src);
     drop(dst);
     fs::remove_file(plain_path)?;

@@ -11,10 +11,10 @@
 | 项 | 值 |
 |----|-----|
 | 工作目录 | 本目录（`lizhi-kb/` 代码路径） |
-| 产品 spec | `docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md` |
+| 产品 spec（唯一） | `docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md` |
+| 品牌 / UI | `docs/brand/lizhi-brand-design.md` |
 | Agent 工作台 spec | `docs/superpowers/specs/2026-07-10-cc-workbench-design.md` |
 | AI 助手 spec | `docs/superpowers/specs/2026-07-08-lizhi-ai-chat-design.md` |
-| 原始 PRD | `docs/design/初版设计.md` |
 | 备份设计 | `docs/design/2026-07-08-backup-extension.md` |
 | 数据目录 | `~/.lizhi-kb/`（加密库，勿提交） |
 
@@ -72,7 +72,11 @@ packages/ai-bridge/   Agent SDK 桥接（同步至 src-tauri/resources/ai-bridge
 tests/e2e/        Playwright
 ```
 
-**路由 IA**：`/welcome` → `/unlock` → `/insights`（默认）→ `/workspace`（编辑/图谱为视图切换）→ `/settings`；并列 **`/cc-workbench`**（Agent 工作台，侧栏入口）
+**路由 IA**：`/welcome` → `/unlock` → `/insights`（默认）→ `/workspace`（编辑/图谱为视图切换）→ `/settings`；并列 **`/mubu`**（幕布）、**`/cc-workbench`**（Agent 工作台）等侧栏入口
+
+### 幕布
+
+独立路由，主题树 + 笔记/导图；数据 `mubu_*` 表，与 Markdown 知识库解耦。SSOT：[2026-07-15-mubu-design.md](./docs/superpowers/specs/2026-07-15-mubu-design.md)。
 
 ### Agent 工作台（Claude Code）
 

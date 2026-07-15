@@ -1,0 +1,169 @@
+/* 工作区局部知识图谱 — 克制圆形节点，对齐改版前可读性 */
+
+.lg-view {
+  --lg-edge: color-mix(in srgb, var(--color-link) 55%, var(--color-muted));
+  --lg-dot: color-mix(in srgb, var(--color-text) 4.5%, transparent);
+  background: var(--color-base);
+}
+
+.lg-toolbar {
+  border-bottom: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface-0) 90%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.lg-toolbar__meta {
+  min-width: 0;
+}
+
+.lg-toolbar__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+}
+
+.lg-toolbar__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.lg-btn {
+  display: inline-flex;
+  height: 1.6rem;
+  min-width: 1.6rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.35rem;
+  border: 1px solid transparent;
+  padding: 0 0.45rem;
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+
+.lg-btn:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.lg-btn:focus-visible {
+  outline: 2px solid var(--color-link);
+  outline-offset: 2px;
+}
+
+.lg-zoom {
+  min-width: 2.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.6875rem;
+  color: var(--color-muted);
+}
+
+.lg-canvas {
+  background-color: var(--color-base);
+  background-image: radial-gradient(var(--lg-dot) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.lg-hint {
+  pointer-events: none;
+  position: absolute;
+  bottom: 0.75rem;
+  left: 1rem;
+  font-size: 0.625rem;
+  color: var(--color-muted);
+}
+
+.lg-empty-msg {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.lg-edge {
+  stroke: var(--lg-edge);
+  stroke-width: 1.5;
+  stroke-opacity: 0.42;
+  stroke-linecap: round;
+  transition:
+    stroke-opacity 150ms ease,
+    stroke-width 150ms ease;
+}
+
+.lg-edge--hub {
+  stroke-opacity: 0.55;
+}
+
+.lg-edge--dim {
+  stroke-opacity: 0.12;
+}
+
+.lg-edge--lit {
+  stroke: var(--color-link-hover);
+  stroke-width: 2;
+  stroke-opacity: 0.9;
+}
+
+.lg-node-g {
+  cursor: pointer;
+  outline: none;
+}
+
+.lg-node-g:focus-visible .lg-node {
+  stroke: var(--color-link-hover);
+  stroke-width: 2.5;
+}
+
+.lg-node {
+  fill: var(--color-panel);
+  stroke: var(--color-link);
+  stroke-width: 2;
+  transition:
+    fill 140ms ease,
+    stroke 140ms ease,
+    filter 140ms ease;
+}
+
+.lg-node-g:hover .lg-node,
+.lg-node-g--hot .lg-node {
+  fill: color-mix(in srgb, var(--color-link) 18%, var(--color-panel));
+  stroke: var(--color-link-hover);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-link) 35%, transparent));
+}
+
+.lg-node--center {
+  fill: var(--color-paw);
+  stroke: var(--color-paw);
+  filter: drop-shadow(0 0 8px var(--color-paw-muted));
+}
+
+.lg-node-g:hover .lg-node--center,
+.lg-node-g--hot .lg-node--center {
+  fill: color-mix(in srgb, var(--color-paw) 92%, white);
+  stroke: var(--color-paw);
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--color-paw) 50%, transparent));
+}
+
+.lg-label {
+  fill: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  paint-order: stroke fill;
+  stroke: color-mix(in srgb, var(--color-base) 78%, transparent);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  pointer-events: none;
+  user-select: none;
+}
+
+.lg-label--center {
+  fill: var(--color-text);
+  font-weight: 510;
+}

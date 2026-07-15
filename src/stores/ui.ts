@@ -8,11 +8,6 @@ import {
 } from "../utils/insightsHeroBackground";
 import { applyTheme, loadStoredTheme } from "../utils/theme";
 import {
-  loadStoredPreviewTheme,
-  savePreviewTheme,
-  type PreviewThemeId,
-} from "../utils/previewTheme";
-import {
   loadStoredWatermarkNickname,
   loadStoredWatermarkOn,
   normalizeWatermarkNickname,
@@ -37,9 +32,8 @@ import {
 import type { QuickNavId, QuickNavVisibility } from "../constants/quickNav";
 
 export type EditorMode = "edit" | "preview";
-export type WorkspaceViewMode = "edit" | "graph";
+export type WorkspaceViewMode = "edit" | "graph" | "mindmap";
 export type ThemeId = "dark" | "light" | "warm" | "eye" | "reading";
-export type { PreviewThemeId };
 
 export const useUiStore = defineStore("ui", () => {
   const theme = ref<ThemeId>(loadStoredTheme());
@@ -55,13 +49,14 @@ export const useUiStore = defineStore("ui", () => {
   const typewriterMode = ref(false);
   const tocVisible = ref(true);
   const insightsHeroBackground = ref<string | null>(loadInsightsHeroBackground());
-  const previewTheme = ref<PreviewThemeId>(loadStoredPreviewTheme());
   const splitPreviewVisible = ref(loadStoredSplitPreview());
   const splitGraphVisible = ref(loadStoredSplitGraph());
   const splitPreviewKind = ref<SplitPreviewKind>(loadStoredSplitPreviewKind());
   const previewOnlyMode = ref(false);
   const toast = ref<{ type: "success" | "error"; message: string } | null>(null);
   const pendingHeadingScroll = ref<string | null>(null);
+  /** 导图正文/列表节点：按行号滚到编辑器 */
+  const pendingLineScroll = ref<number | null>(null);
   /** 侧栏等非编辑器区域请求在光标处插入 markdown */
   const pendingEditorInsert = ref<string | null>(null);
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -168,11 +163,6 @@ export const useUiStore = defineStore("ui", () => {
     applyTheme(t);
   }
 
-  function setPreviewTheme(t: PreviewThemeId) {
-    previewTheme.value = t;
-    savePreviewTheme(t);
-  }
-
   function setWatermarkNickname(raw: string) {
     watermarkNickname.value = normalizeWatermarkNickname(raw);
   }
@@ -215,6 +205,15 @@ export const useUiStore = defineStore("ui", () => {
     pendingHeadingScroll.value = null;
   }
 
+  function requestLineScroll(lineIndex: number) {
+    if (!Number.isFinite(lineIndex) || lineIndex < 0) return;
+    pendingLineScroll.value = Math.floor(lineIndex);
+  }
+
+  function clearLineScroll() {
+    pendingLineScroll.value = null;
+  }
+
   function requestEditorInsert(markdown: string) {
     const trimmed = markdown.trim();
     if (!trimmed) return;
@@ -227,7 +226,6 @@ export const useUiStore = defineStore("ui", () => {
 
   return {
     theme,
-    previewTheme,
     splitPreviewVisible,
     splitGraphVisible,
     splitPreviewKind,
@@ -266,13 +264,15 @@ export const useUiStore = defineStore("ui", () => {
     setPreviewOnly,
     setSplitPreviewKind,
     setTheme,
-    setPreviewTheme,
     setWatermarkNickname,
     toast,
     showToast,
     pendingHeadingScroll,
     requestHeadingScroll,
     clearHeadingScroll,
+    pendingLineScroll,
+    requestLineScroll,
+    clearLineScroll,
     pendingEditorInsert,
     requestEditorInsert,
     clearEditorInsert,

@@ -26,6 +26,7 @@
 | 编辑热力图 | DB `edit_activity` | 已有 |
 | **密码本** | DB `credential_entries` | 已有（随 vault.db） |
 | **上线记录** | DB `launch_records` | 已有（随 vault.db） |
+| **幕布** | DB `mubu_docs` + `mubu_nodes` | 已有（随 vault.db；`merge-documents` 整树合并） |
 | 链接图谱 / 搜索索引 | DB | 已有（可重建） |
 | **文件夹树 + 文档排序** | `localStorage` `lizhi-kb-folders` | → `vault-ui-state.json` |
 | **文档标签** | `localStorage` `lizhi-kb-doc-tags` | → `vault-ui-state.json` |
@@ -129,7 +130,7 @@ Tauri 运行时双写：`localStorage`（即时 UI）+ 磁盘文件（备份 SSO
 ### `merge-documents`（v2 已实现）
 
 文档级合并：按 `documents.id` 并集；`updated_at` 较新者胜；缺失资源按文件名去重复制。  
-同时执行与 `merge` 相同的设置合并，并按 `updated_at` 合并 DB 表 `requirements`、`journal_entries`、`edit_activity`、`credential_entries`、`launch_records`（后两者若备份中不存在则跳过）。  
+同时执行与 `merge` 相同的设置合并，并按 `updated_at` 合并 DB 表 `requirements`、`journal_entries`、`edit_activity`、`credential_entries`、`launch_records`、`mubu_docs`/`mubu_nodes`（幕布按篇整树替换；后几项若备份中不存在则跳过）。  
 `revisions/` 按文档 id + 版本 id 并集合并：本地已有同 id 快照则保留，缺失则导入（必要时用当前库 DEK 重密封）。  
 加密备份需输入主密码以读取备份内容。成功后刷新文档列表，无需重启。
 
@@ -169,7 +170,8 @@ Tauri 运行时双写：`localStorage`（即时 UI）+ 磁盘文件（备份 SSO
 - [x] `merge` 恢复后当前文档不变，设置从备份合并
 - [x] v1 备份仍可 `replace` 导入
 - [x] Tier 2：对话历史、看板背景、图谱坐标、置顶/最近文档纳入 `vault-ui-state.json`
-- [x] `merge-documents`：按 `updated_at` 合并文档与资源，并合并设置及密码本/上线记录
+- [x] `merge-documents`：按 `updated_at` 合并文档与资源，并合并设置及密码本/上线记录/幕布
+- [x] 幕布：`replace` 随库恢复；`merge-documents` 按篇整树合并
 - [x] `launch_records` 合并时若 `record_number` 与本地冲突则跳过该条（不覆盖已有单号）
 - [x] 导出含 `revisions/`（若存在）；`merge-documents` 并集合并历史快照
 - [x] `merge` 含 `cc-workbench.json` / `cc-secrets.json`

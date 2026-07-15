@@ -1,35 +1,107 @@
 ﻿<script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { ListTree } from "@lucide/vue";
-import type { HeadingItem } from "../../utils/headings";
+import { ChevronDown, ChevronRight, ListTree } from "@lucide/vue";
+import type { HeadingTreeNode } from "../../utils/headings";
 
 const props = defineProps<{
-  headings: HeadingItem[];
+  tree: HeadingTreeNode;
 }>();
 
 const emit = defineEmits<{
   select: [payload: { text: string; lineIndex: number }];
 }>();
 
+interface FlatTocRow {
+  node: HeadingTreeNode;
+  depth: number;
+}
+
 const activeKey = ref<string | null>(null);
+/** 默认折叠；用标题序号作稳定 key，避免行号变动冲掉展开状态 */
+const collapsedKeys = ref<Set<string>>(new Set());
 
-const headingCount = computed(() => props.headings.length);
+const headingCount = computed(() => countNodes(props.tree));
 
-function itemKey(h: HeadingItem, index: number) {
-  return `${h.slug}-${index}`;
+function nodeCollapseKey(node: HeadingTreeNode): string {
+  const m = /^h-(\d+)-/.exec(node.id);
+  return m?.[1] ?? node.id;
 }
 
-function levelIndent(level: number) {
-  return `${(level - 1) * 0.65}rem`;
+function collectCollapsibleKeys(root: HeadingTreeNode): string[] {
+  const keys: string[] = [];
+  function walk(nodes: HeadingTreeNode[]) {
+    for (const n of nodes) {
+      if (!n.children.length) continue;
+      keys.push(nodeCollapseKey(n));
+      walk(n.children);
+    }
+  }
+  walk(root.children ?? []);
+  return keys;
 }
 
-function onSelect(h: HeadingItem, index: number) {
-  activeKey.value = itemKey(h, index);
-  emit("select", { text: h.text, lineIndex: h.lineIndex });
+const flatRows = computed(() => {
+  const rows: FlatTocRow[] = [];
+  function walk(nodes: HeadingTreeNode[], depth: number) {
+    for (const node of nodes) {
+      rows.push({ node, depth });
+      if (node.children.length && !collapsedKeys.value.has(nodeCollapseKey(node))) {
+        walk(node.children, depth + 1);
+      }
+    }
+  }
+  walk(props.tree.children ?? [], 0);
+  return rows;
+});
+
+function countNodes(node: HeadingTreeNode): number {
+  let n = node.isRoot ? 0 : 1;
+  for (const c of node.children) n += countNodes(c);
+  return n;
+}
+
+function levelIndent(depth: number) {
+  return `${depth * 0.65}rem`;
+}
+
+function isCollapsed(node: HeadingTreeNode): boolean {
+  return collapsedKeys.value.has(nodeCollapseKey(node));
+}
+
+function toggleCollapse(node: HeadingTreeNode) {
+  const key = nodeCollapseKey(node);
+  const next = new Set(collapsedKeys.value);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  collapsedKeys.value = next;
+}
+
+function onSelect(node: HeadingTreeNode) {
+  if (node.lineIndex === undefined) return;
+  activeKey.value = node.id;
+  emit("select", { text: node.text, lineIndex: node.lineIndex });
 }
 
 watch(
-  () => props.headings,
+  () => collectCollapsibleKeys(props.tree).join(","),
+  (sig, prevSig) => {
+    const keys = sig ? sig.split(",") : [];
+    const prevKeys = new Set(prevSig ? prevSig.split(",") : []);
+    const next = new Set(collapsedKeys.value);
+    for (const key of keys) {
+      if (!prevKeys.has(key)) next.add(key);
+    }
+    const valid = new Set(keys);
+    for (const key of [...next]) {
+      if (!valid.has(key)) next.delete(key);
+    }
+    collapsedKeys.value = next;
+  },
+  { immediate: true },
+);
+
+watch(
+  () => props.tree.id + ":" + headingCount.value,
   () => {
     activeKey.value = null;
   },
@@ -52,25 +124,43 @@ watch(
     <nav class="toc-panel__body scrollbar-thin" aria-label="文档大纲">
       <ul v-if="headingCount" class="toc-list">
         <li
-          v-for="(h, i) in headings"
-          :key="itemKey(h, i)"
+          v-for="{ node, depth } in flatRows"
+          :key="node.id"
           class="toc-list__item"
-          :style="{ '--toc-indent': levelIndent(h.level) }"
+          :style="{ '--toc-indent': levelIndent(depth) }"
         >
-          <button
-            type="button"
-            class="toc-item focus-ring"
-            :class="{
-              'toc-item--active': activeKey === itemKey(h, i),
-              [`toc-item--h${h.level}`]: true,
-            }"
-            :title="h.text"
-            @click="onSelect(h, i)"
-          >
-            <span class="toc-item__rail" aria-hidden="true" />
-            <span class="toc-item__dot" aria-hidden="true" />
-            <span class="toc-item__label">{{ h.text }}</span>
-          </button>
+          <div class="flex min-w-0 items-stretch">
+            <button
+              v-if="node.children.length"
+              type="button"
+              class="focus-ring flex w-5 shrink-0 items-center justify-center text-muted hover:text-[var(--color-text)]"
+              :aria-label="isCollapsed(node) ? '展开' : '折叠'"
+              @click.stop="toggleCollapse(node)"
+            >
+              <ChevronRight
+                v-if="isCollapsed(node)"
+                class="size-3"
+                aria-hidden="true"
+              />
+              <ChevronDown v-else class="size-3" aria-hidden="true" />
+            </button>
+            <span v-else class="w-5 shrink-0" aria-hidden="true" />
+
+            <button
+              type="button"
+              class="toc-item focus-ring min-w-0 flex-1"
+              :class="{
+                'toc-item--active': activeKey === node.id,
+                [`toc-item--h${node.level}`]: true,
+              }"
+              :title="node.text"
+              @click="onSelect(node)"
+            >
+              <span class="toc-item__rail" aria-hidden="true" />
+              <span class="toc-item__dot" aria-hidden="true" />
+              <span class="toc-item__label">{{ node.text }}</span>
+            </button>
+          </div>
         </li>
       </ul>
 

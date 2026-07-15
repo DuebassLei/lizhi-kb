@@ -33,6 +33,12 @@ const router = createRouter({
       meta: { title: "看板", requiresUnlock: true, layer: "app" },
     },
     {
+      path: "/mubu",
+      name: "mubu",
+      component: () => import("../views/MubuView.vue"),
+      meta: { title: "幕布", requiresUnlock: true, layer: "app" },
+    },
+    {
       path: "/journal",
       name: "journal",
       component: () => import("../views/JournalView.vue"),
@@ -53,6 +59,10 @@ const router = createRouter({
     {
       path: "/wechat-studio",
       redirect: { path: "/workspace", query: { preview: "wechat" } },
+    },
+    {
+      path: "/knowledge-cards",
+      redirect: { path: "/workspace", query: { preview: "card" } },
     },
     {
       path: "/requirements",

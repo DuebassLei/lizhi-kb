@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractHeadings, findHeadingLineIndex } from "./headings";
+import { buildHeadingTree, extractHeadings, findHeadingLineIndex } from "./headings";
 
 describe("extractHeadings", () => {
   it("extracts real headings", () => {
@@ -33,5 +33,20 @@ describe("findHeadingLineIndex", () => {
     const content = "# First\n## Target\n```\n## Target\n```\n## Target";
     const headings = extractHeadings(content);
     expect(findHeadingLineIndex(content, "Target", 1)).toBe(headings[2].lineIndex);
+  });
+});
+
+describe("buildHeadingTree", () => {
+  it("builds nested tree with line indexes", () => {
+    const content = "# One\n## Two\n### Three\n## Four";
+    const tree = buildHeadingTree("Doc", content);
+    expect(tree.isRoot).toBe(true);
+    expect(tree.text).toBe("Doc");
+    expect(tree.children).toHaveLength(1);
+    expect(tree.children[0].text).toBe("One");
+    expect(tree.children[0].lineIndex).toBe(0);
+    expect(tree.children[0].children[0].text).toBe("Two");
+    expect(tree.children[0].children[0].children[0].text).toBe("Three");
+    expect(tree.children[0].children[1].text).toBe("Four");
   });
 });

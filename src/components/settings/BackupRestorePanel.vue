@@ -217,7 +217,7 @@ async function refreshAfterMerge(mode: "merge" | "merge-documents", result?: Imp
     const assetCount = result?.mergedAssets ?? 0;
     ui.showToast(
       "success",
-      `已合并 ${docCount} 篇文档${assetCount ? `、${assetCount} 个资源` : ""}、密码本、上线记录及设置`,
+      `已合并 ${docCount} 篇文档${assetCount ? `、${assetCount} 个资源` : ""}、密码本、上线记录、幕布及设置`,
     );
   } else {
     ui.showToast("success", "已合并 AI、CC 工作台、文件夹、标签与对话记录等设置");
@@ -437,12 +437,12 @@ const busy = () => exporting.value || exportingMd.value || exportingMdFolder.val
 
 <template>
 
-  <section id="settings-backup" class="settings-section mb-8 max-w-lg scroll-mt-6" data-testid="backup-restore-panel">
+  <section id="settings-backup" class="settings-section mb-8 scroll-mt-6" data-testid="backup-restore-panel">
 
-    <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">备份与恢复</h2>
+    <h2 class="settings-panel__title mb-3">备份与恢复</h2>
 
-    <p class="mb-3 text-sm text-muted">
-      导出完整备份（.lizhi）含文档、资源、历史版本、需求/小记、密码本、上线记录、文件夹与标签、AI/CC/MCP 配置。历史版本较多时备份体积会增大。
+    <p class="settings-panel__desc mb-3">
+      导出完整备份（.lizhi）含文档、资源、历史版本、需求/小记、密码本、上线记录、幕布、文件夹与标签、AI/CC/MCP 配置。历史版本较多时备份体积会增大。
       换机请用「从备份恢复」整库替换；「合并备份设置」或「合并备份文档」可保留当前库并导入备份内容。
       <template v-if="vault.encryptionEnabled">
         已启用主密码时，整库恢复与合并加密备份需验证主密码；文档、数据库与 AI/CC 密钥（ai-secrets / cc-secrets）在备份内保持加密。
@@ -614,9 +614,9 @@ const busy = () => exporting.value || exportingMd.value || exportingMdFolder.val
 
     <div id="settings-migration" class="settings-section mt-6 scroll-mt-6 border-t border-border pt-6">
 
-      <h3 class="mb-2 text-sm font-medium text-text-primary">迁移到其他笔记软件</h3>
+      <h3 class="settings-panel__title mb-2">迁移到其他笔记软件</h3>
 
-      <p class="mb-3 text-sm text-muted">
+      <p class="settings-panel__desc mb-3">
 
         导出 Markdown：单文件合并，或按文件夹结构写入多个 .md 文件（桌面版）。
 

@@ -3,7 +3,6 @@ import { computed, ref, watch } from "vue";
 import { useDocumentsStore } from "../../stores/documents";
 import { useUiStore } from "../../stores/ui";
 import { fetchLocalGraph, type GraphPayload } from "../../services/knowledgeIndexService";
-import HintBanner from "../common/HintBanner.vue";
 import { isTauriRuntime } from "../../services/vaultService";
 import { buildLocalGraph } from "../../composables/useGraphCanvas";
 import { useLinksStore } from "../../stores/links";
@@ -13,6 +12,10 @@ import {
   useNodeDrag,
   useSvgPanZoom,
 } from "../../composables/useSvgPanZoom";
+import "../../styles/graph.css";
+
+const CX = 300;
+const CY = 250;
 
 const documents = useDocumentsStore();
 const links = useLinksStore();
@@ -25,6 +28,7 @@ const nodeDrag = useNodeDrag();
 const customPositions = ref(loadGraphNodePositions());
 const remoteGraph = ref<GraphPayload | null>(null);
 const graphLoading = ref(false);
+const hoveredId = ref<string | null>(null);
 let graphSeq = 0;
 
 async function loadGraph(centerId: string | null) {
@@ -77,10 +81,22 @@ const graphNodes = computed(() => {
   });
 });
 
+const neighborIds = computed(() => {
+  const id = hoveredId.value;
+  if (!id) return null;
+  const set = new Set<string>([id]);
+  for (const e of baseGraph.value.edges) {
+    if (e.from === id) set.add(e.to);
+    if (e.to === id) set.add(e.from);
+  }
+  return set;
+});
+
 watch(
   () => documents.activeId,
   (id) => {
     customPositions.value = loadGraphNodePositions();
+    hoveredId.value = null;
     panZoom.resetView();
     void loadGraph(id);
   },
@@ -120,62 +136,54 @@ function onContainerPointerUp(e: PointerEvent) {
   panZoom.onPointerUp(e);
 }
 
+function truncTitle(title: string) {
+  return title.length > 12 ? `${title.slice(0, 11)}…` : title;
+}
+
+function edgeClass(from: string, to: string) {
+  const hub = nodeById(from)?.isCenter || nodeById(to)?.isCenter;
+  const neighbors = neighborIds.value;
+  if (!neighbors) return hub ? "lg-edge lg-edge--hub" : "lg-edge";
+  const lit = neighbors.has(from) && neighbors.has(to);
+  if (lit) return "lg-edge lg-edge--lit";
+  return "lg-edge lg-edge--dim";
+}
+
+function nodeRadius(node: { isCenter: boolean; depth: number }) {
+  if (node.isCenter) return 16;
+  if (node.depth === 1) return 13;
+  return 11;
+}
+
 const centerTitle = computed(
   () => documents.tree.find((d) => d.id === documents.activeId)?.title ?? "",
 );
 </script>
 
 <template>
-  <div class="relative flex h-full flex-col bg-base" data-testid="local-graph">
-    <div v-if="!documents.activeId" class="flex flex-1 items-center justify-center text-sm text-muted">
-      请先打开一篇文档以查看局部图谱
+  <div class="lg-view relative flex h-full flex-col" data-testid="local-graph">
+    <div v-if="!documents.activeId" class="flex flex-1 items-center justify-center">
+      <p class="lg-empty-msg">请先打开一篇文档以查看局部图谱</p>
     </div>
-    <div
-      v-else-if="graphLoading"
-      class="flex flex-1 items-center justify-center text-sm text-muted"
-    >
-      正在加载图谱…
+    <div v-else-if="graphLoading" class="flex flex-1 items-center justify-center">
+      <p class="lg-empty-msg">正在加载图谱…</p>
     </div>
-    <div
-      v-else-if="!graphNodes.length"
-      class="flex flex-1 items-center justify-center text-sm text-muted"
-    >
-      暂无链接关系 · 使用 [[文档名]] 创建双链
+    <div v-else-if="!graphNodes.length" class="flex flex-1 items-center justify-center">
+      <p class="lg-empty-msg">暂无链接关系 · 使用 [[文档名]] 创建双链</p>
     </div>
+
     <div v-else class="flex min-h-0 flex-1 flex-col">
-      <HintBanner
-        class="mx-4 mt-2 shrink-0"
-        variant="info"
-        title="图谱为只读视图"
-        message="点击节点打开文档；正文编辑请切回「编辑」视图。"
-        test-id="graph-edit-hint"
-      />
-      <div class="flex shrink-0 items-center justify-between border-b border-border px-4 py-2">
-        <p class="text-xs text-muted">以「{{ centerTitle }}」为中心 · 2 层深度</p>
-        <div class="flex items-center gap-1 text-xs" data-testid="graph-zoom-controls">
-          <button
-            type="button"
-            class="rounded px-2 py-0.5 text-muted hover:bg-surface-2 hover:text-[var(--color-text)]"
-            title="缩小"
-            @click="panZoom.zoomOut()"
-          >
-            −
-          </button>
-          <span class="min-w-[3rem] text-center text-muted">{{ Math.round(panZoom.scale.value * 100) }}%</span>
-          <button
-            type="button"
-            class="rounded px-2 py-0.5 text-muted hover:bg-surface-2 hover:text-[var(--color-text)]"
-            title="放大"
-            @click="panZoom.zoomIn()"
-          >
-            +
-          </button>
-          <button
-            type="button"
-            class="rounded px-2 py-0.5 text-muted hover:bg-surface-2 hover:text-[var(--color-text)]"
-            title="重置视图"
-            @click="panZoom.resetView()"
-          >
+      <div class="lg-toolbar flex shrink-0 items-center justify-between gap-3 px-4 py-2">
+        <div class="lg-toolbar__meta min-w-0">
+          <p class="lg-toolbar__title" data-testid="graph-edit-hint">
+            以「{{ centerTitle }}」为中心 · 2 层深度 · 点击节点打开文档
+          </p>
+        </div>
+        <div class="lg-toolbar__actions" data-testid="graph-zoom-controls">
+          <button type="button" class="lg-btn" title="缩小" @click="panZoom.zoomOut()">−</button>
+          <span class="lg-zoom">{{ Math.round(panZoom.scale.value * 100) }}%</span>
+          <button type="button" class="lg-btn" title="放大" @click="panZoom.zoomIn()">+</button>
+          <button type="button" class="lg-btn" title="重置视图" @click="panZoom.resetView()">
             重置
           </button>
         </div>
@@ -183,7 +191,7 @@ const centerTitle = computed(
 
       <div
         ref="containerRef"
-        class="relative min-h-0 flex-1 cursor-grab overflow-hidden active:cursor-grabbing"
+        class="lg-canvas relative min-h-0 flex-1 cursor-grab overflow-hidden active:cursor-grabbing"
         @wheel="panZoom.onWheel"
         @pointerdown="panZoom.onPointerDown"
         @pointermove="onContainerPointerMove"
@@ -194,49 +202,63 @@ const centerTitle = computed(
           class="absolute left-1/2 top-1/2 origin-center"
           :style="{ transform: `translate(-50%, -50%) ${panZoom.transformStyle.value}` }"
         >
-          <svg width="600" height="500" class="overflow-visible">
-            <g v-for="edge in baseGraph.edges" :key="`${edge.from}-${edge.to}`">
+          <svg
+            width="600"
+            height="500"
+            class="overflow-visible"
+            role="img"
+            :aria-label="`「${centerTitle}」的局部知识图谱`"
+          >
+            <g class="lg-edges">
               <line
-                :x1="300 + (nodeById(edge.from)?.x ?? 0)"
-                :y1="250 + (nodeById(edge.from)?.y ?? 0)"
-                :x2="300 + (nodeById(edge.to)?.x ?? 0)"
-                :y2="250 + (nodeById(edge.to)?.y ?? 0)"
-                stroke="var(--color-muted)"
-                stroke-opacity="0.35"
-                stroke-width="1.5"
+                v-for="edge in baseGraph.edges"
+                :key="`${edge.from}-${edge.to}`"
+                :x1="CX + (nodeById(edge.from)?.x ?? 0)"
+                :y1="CY + (nodeById(edge.from)?.y ?? 0)"
+                :x2="CX + (nodeById(edge.to)?.x ?? 0)"
+                :y2="CY + (nodeById(edge.to)?.y ?? 0)"
+                :class="edgeClass(edge.from, edge.to)"
               />
             </g>
+
             <g
               v-for="node in graphNodes"
               :key="node.id"
               data-graph-node
-              class="cursor-pointer select-none"
+              class="lg-node-g"
+              :class="{ 'lg-node-g--hot': hoveredId === node.id }"
+              tabindex="0"
+              role="button"
+              :aria-label="node.title"
               @click="openNode(node.id)"
+              @keydown.enter.prevent="openNode(node.id)"
+              @keydown.space.prevent="openNode(node.id)"
               @pointerdown="onNodePointerDown(node.id, $event)"
+              @pointerenter="hoveredId = node.id"
+              @pointerleave="hoveredId = null"
+              @focus="hoveredId = node.id"
+              @blur="hoveredId = null"
             >
               <circle
-                :cx="300 + node.x"
-                :cy="250 + node.y"
-                :r="node.isCenter ? 16 : 12"
-                :fill="node.isCenter ? 'var(--color-paw)' : 'var(--color-panel)'"
-                :stroke="node.isCenter ? 'var(--color-paw)' : 'var(--color-link)'"
-                stroke-width="2"
+                :cx="CX + node.x"
+                :cy="CY + node.y"
+                :r="nodeRadius(node)"
+                class="lg-node"
+                :class="{ 'lg-node--center': node.isCenter }"
               />
               <text
-                :x="300 + node.x"
-                :y="250 + node.y + 28"
+                :x="CX + node.x"
+                :y="CY + node.y + nodeRadius(node) + 14"
                 text-anchor="middle"
-                fill="var(--color-text)"
-                font-size="11"
+                class="lg-label"
+                :class="{ 'lg-label--center': node.isCenter }"
               >
-                {{ node.title.length > 12 ? node.title.slice(0, 11) + "…" : node.title }}
+                {{ truncTitle(node.title) }}
               </text>
             </g>
           </svg>
         </div>
-        <p class="pointer-events-none absolute bottom-3 left-4 text-[10px] text-muted">
-          滚轮缩放 · 拖拽空白平移 · 拖拽节点 reposition
-        </p>
+        <p class="lg-hint">滚轮缩放 · 拖空白平移 · 拖节点 reposition</p>
       </div>
     </div>
   </div>

@@ -76,6 +76,7 @@ pub fn merge_documents_from_staging(
     merge_edit_activity(&backup_conn, &current_conn)?;
     merge_credential_entries(&backup_conn, &current_conn)?;
     merge_launch_records(&backup_conn, &current_conn)?;
+    merge_mubu(&backup_conn, &current_conn)?;
     invalidate_derived_indexes(&current_conn)?;
 
     let asset_merged = merge_assets(
@@ -441,6 +442,125 @@ fn merge_launch_records(backup: &Connection, current: &Connection) -> Result<(),
         )?;
     }
     Ok(())
+}
+
+fn merge_mubu(backup: &Connection, current: &Connection) -> Result<(), VaultError> {
+    if !table_exists(backup, "mubu_docs")? || !table_exists(backup, "mubu_nodes")? {
+        return Ok(());
+    }
+
+    let mut stmt = backup.prepare(
+        "SELECT id, title, style_json, created_at, updated_at FROM mubu_docs",
+    )?;
+    let docs = stmt
+        .query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, i64>(3)?,
+                row.get::<_, i64>(4)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+
+    for (id, title, style_json, created_at, updated_at) in docs {
+        let existing: Option<i64> = current
+            .query_row(
+                "SELECT updated_at FROM mubu_docs WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .optional()?;
+        if !existing.map(|t| updated_at > t).unwrap_or(true) {
+            continue;
+        }
+
+        current.execute(
+            "INSERT INTO mubu_docs (id, title, style_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(id) DO UPDATE SET
+               title=excluded.title, style_json=excluded.style_json,
+               created_at=excluded.created_at, updated_at=excluded.updated_at",
+            params![id, title, style_json, created_at, updated_at],
+        )?;
+
+        current.execute("DELETE FROM mubu_nodes WHERE doc_id = ?1", params![id])?;
+
+        let enrich = table_has_column(backup, "mubu_nodes", "is_todo")?;
+        if enrich {
+            let mut node_stmt = backup.prepare(
+                "SELECT id, doc_id, parent_id, sort_order, text, note, collapsed,
+                 is_todo, is_done, heading_level, decor_json, created_at, updated_at
+                 FROM mubu_nodes WHERE doc_id = ?1",
+            )?;
+            let nodes = node_stmt.query_map(params![id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, i32>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, i32>(6)?,
+                    row.get::<_, i32>(7)?,
+                    row.get::<_, i32>(8)?,
+                    row.get::<_, i32>(9)?,
+                    row.get::<_, Option<String>>(10)?,
+                    row.get::<_, i64>(11)?,
+                    row.get::<_, i64>(12)?,
+                ))
+            })?;
+            for node in nodes {
+                let n = node?;
+                current.execute(
+                    "INSERT INTO mubu_nodes
+                     (id, doc_id, parent_id, sort_order, text, note, collapsed,
+                      is_todo, is_done, heading_level, decor_json, created_at, updated_at)
+                     VALUES (?1,?2,?3,?4,?5,'',?6,?7,?8,?9,?10,?11,?12)",
+                    params![n.0, n.1, n.2, n.3, n.4, n.5, n.6, n.7, n.8, n.9, n.10, n.11],
+                )?;
+            }
+        } else {
+            let mut node_stmt = backup.prepare(
+                "SELECT id, doc_id, parent_id, sort_order, text, note, collapsed, created_at, updated_at
+                 FROM mubu_nodes WHERE doc_id = ?1",
+            )?;
+            let nodes = node_stmt.query_map(params![id], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, i32>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, i32>(6)?,
+                    row.get::<_, i64>(7)?,
+                    row.get::<_, i64>(8)?,
+                ))
+            })?;
+            for node in nodes {
+                let n = node?;
+                current.execute(
+                    "INSERT INTO mubu_nodes
+                     (id, doc_id, parent_id, sort_order, text, note, collapsed,
+                      is_todo, is_done, heading_level, decor_json, created_at, updated_at)
+                     VALUES (?1,?2,?3,?4,?5,'',?6,0,0,0,NULL,?7,?8)",
+                    params![n.0, n.1, n.2, n.3, n.4, n.5, n.6, n.7],
+                )?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn table_has_column(conn: &Connection, table: &str, column: &str) -> Result<bool, VaultError> {
+    let mut stmt = conn.prepare(&format!("PRAGMA table_info({table})"))?;
+    let cols = stmt.query_map([], |row| row.get::<_, String>(1))?;
+    for c in cols {
+        if c? == column {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn merge_edit_activity(backup: &Connection, current: &Connection) -> Result<(), VaultError> {
@@ -836,6 +956,87 @@ mod tests {
             )
             .unwrap();
         assert_eq!(launch_title, "v1.0 发版");
+
+        let _ = fs::remove_dir_all(source);
+        let _ = fs::remove_dir_all(target);
+    }
+
+    #[test]
+    fn merge_imports_newer_mubu_doc_with_tree() {
+        let source = temp_dir();
+        let mut svc = VaultService::new(source.clone());
+        svc.create_vault(String::new(), None, None).unwrap();
+        let src_conn = db::open_plaintext_connection(&source).unwrap();
+        src_conn
+            .execute(
+                "INSERT INTO mubu_docs (id, title, style_json, created_at, updated_at)
+                 VALUES ('mubu-1', '备份篇', NULL, 1, 300)",
+                [],
+            )
+            .unwrap();
+        src_conn
+            .execute(
+                "INSERT INTO mubu_nodes
+                 (id, doc_id, parent_id, sort_order, text, note, collapsed, created_at, updated_at)
+                 VALUES ('n-root', 'mubu-1', NULL, 0, '备份篇', '', 0, 1, 300)",
+                [],
+            )
+            .unwrap();
+        src_conn
+            .execute(
+                "INSERT INTO mubu_nodes
+                 (id, doc_id, parent_id, sort_order, text, note, collapsed, created_at, updated_at)
+                 VALUES ('n-child', 'mubu-1', 'n-root', 0, '子主题', '备注', 0, 1, 300)",
+                [],
+            )
+            .unwrap();
+
+        let target = temp_dir();
+        let mut svc2 = VaultService::new(target.clone());
+        svc2.create_vault(String::new(), None, None).unwrap();
+        let target_conn = db::open_plaintext_connection(&target).unwrap();
+        target_conn
+            .execute(
+                "INSERT INTO mubu_docs (id, title, style_json, created_at, updated_at)
+                 VALUES ('mubu-1', '本地旧', NULL, 1, 100)",
+                [],
+            )
+            .unwrap();
+        target_conn
+            .execute(
+                "INSERT INTO mubu_nodes
+                 (id, doc_id, parent_id, sort_order, text, note, collapsed, created_at, updated_at)
+                 VALUES ('n-old', 'mubu-1', NULL, 0, '本地旧', '', 0, 1, 100)",
+                [],
+            )
+            .unwrap();
+
+        merge_documents_from_staging(&target, &source, "", None).unwrap();
+
+        let title: String = target_conn
+            .query_row(
+                "SELECT title FROM mubu_docs WHERE id = 'mubu-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(title, "备份篇");
+        let count: i64 = target_conn
+            .query_row(
+                "SELECT count(*) FROM mubu_nodes WHERE doc_id = 'mubu-1'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 2);
+        let child: String = target_conn
+            .query_row(
+                "SELECT text FROM mubu_nodes WHERE id = 'n-child'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(child, "子主题");
 
         let _ = fs::remove_dir_all(source);
         let _ = fs::remove_dir_all(target);
