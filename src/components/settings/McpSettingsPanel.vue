@@ -126,19 +126,19 @@ onMounted(() => {
 </script>
 
 <template>
-  <section id="settings-mcp" class="settings-section mb-8 max-w-lg scroll-mt-6" data-testid="mcp-settings-panel">
+  <section id="settings-mcp" class="settings-section mb-8 scroll-mt-6" data-testid="mcp-settings-panel">
     <div class="mb-3 flex items-center gap-2">
       <Bot class="h-4 w-4 text-link" aria-hidden="true" />
-      <h2 class="text-sm font-medium uppercase tracking-wide text-text-secondary">AI 集成 / MCP</h2>
+      <h2 class="settings-panel__title">AI 集成 / MCP</h2>
     </div>
 
     <div v-if="loading" class="text-sm text-muted">加载中…</div>
 
     <div
       v-else-if="config"
-      class="space-y-4 rounded-lg border border-border bg-surface-0 p-4"
+      class="settings-list-card space-y-4 p-4"
     >
-      <p class="text-sm text-muted">
+      <p class="settings-panel__desc">
         供 Cursor、Claude Desktop 等 AI 工具通过 MCP 访问本机知识库（Bridge）。仅绑定
         <code class="rounded bg-surface-1 px-1">127.0.0.1</code>；须保持狸知运行且 vault
         已解锁。适配器已随安装包分发，本机需安装 Node.js。文档正文会进入 AI 上下文，请谨慎开启。

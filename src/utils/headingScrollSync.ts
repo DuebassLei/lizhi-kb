@@ -43,9 +43,11 @@ export function findActiveHeading(
     else break;
   }
   if (!active) return null;
-  const occurrence = headings.filter(
-    (h) => h.text === active!.text && h.lineIndex < active!.lineIndex,
-  ).length;
+  let occurrence = 0;
+  for (const h of headings) {
+    if (h.lineIndex >= active.lineIndex) break;
+    if (h.text === active.text) occurrence += 1;
+  }
   return { heading: active, occurrence };
 }
 
@@ -137,7 +139,7 @@ export function syncPreviewToEditorHeadings(
 
   const el = findHeadingElement(preview, active.heading.text, active.occurrence);
   if (!el) {
-    syncPreviewByRatio(view.scrollDOM, preview);
+    // 预览 HTML 可能滞后（改标题途中）；保持当前位置，避免比例回退导致跳动
     return;
   }
 

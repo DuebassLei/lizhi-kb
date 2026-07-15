@@ -1,7 +1,6 @@
 import { tauriInvoke } from "../composables/useTauriCommand";
 import { isTauriRuntime } from "./vaultService";
 import { runConcurrent } from "../utils/readConcurrent";
-import { extractH1Title } from "../utils/documentTitle";
 import type {
   DashboardStats,
   DecryptedContent,
@@ -54,10 +53,6 @@ function todayStr(): string {
 
 function countWords(text: string): number {
   return text.replace(/\s+/g, "").length;
-}
-
-function extractTitle(content: string, fallback: string): string {
-  return extractH1Title(content) ?? fallback;
 }
 
 function toMeta(doc: StoredDocument): DocumentMeta {
@@ -139,7 +134,6 @@ function localSaveDocument(id: string, content: string): SaveResult {
   if (!doc) throw new Error(`Document not found: ${id}`);
   const now = Date.now();
   doc.content = content;
-  doc.title = extractTitle(content, doc.title);
   doc.updatedAt = now;
   bumpActivity(data);
   saveLocal(data);

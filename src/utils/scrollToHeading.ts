@@ -35,7 +35,7 @@ export interface ScrollToDocumentHeadingOptions {
   occurrence?: number;
   scrollEditorLine?: (lineIndex: number) => void;
   splitPreviewVisible?: boolean;
-  splitPreviewKind?: "gfm" | "wechat";
+  splitPreviewKind?: "gfm" | "wechat" | "card";
 }
 
 /** 滚动到文档标题（支持分栏预览） */
@@ -64,7 +64,7 @@ export function scrollToDocumentHeading(options: ScrollToDocumentHeadingOptions)
     ok = scrollCmToLine(lineIndex);
   }
 
-  if (splitPreviewVisible && headingText) {
+  if (splitPreviewVisible && headingText && splitPreviewKind !== "card") {
     const selector =
       splitPreviewKind === "wechat"
         ? '[data-testid="wechat-preview-content"]'

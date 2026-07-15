@@ -20,6 +20,5 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "settings-shortcuts", label: "快捷键" },
   { id: "settings-folder-tree", label: "目录树" },
   { id: "settings-editor", label: "编辑器" },
-  { id: "settings-preview-theme", label: "预览主题" },
   { id: "settings-about", label: "关于" },
 ];

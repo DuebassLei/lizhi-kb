@@ -17,7 +17,7 @@ import Input from "../components/ui/Input.vue";
 import { useScrollSpy } from "../composables/useScrollSpy";
 import { SETTINGS_SECTIONS } from "../constants/settingsSections";
 import { TauriCommandError } from "../composables/useTauriCommand";
-import { useUiStore, type PreviewThemeId } from "../stores/ui";
+import { useUiStore } from "../stores/ui";
 import { THEME_OPTIONS } from "../utils/theme";
 import {
   loadExportWatermarkOn,
@@ -86,18 +86,6 @@ function onExportWatermarkChange() {
 const themes = THEME_OPTIONS;
 
 
-
-const previewThemes: { id: PreviewThemeId; label: string; desc: string }[] = [
-
-  { id: "classic", label: "经典", desc: "默认排版" },
-
-  { id: "document", label: "文档", desc: "宽行距 · 大字号" },
-
-  { id: "compact", label: "紧凑", desc: "高密度信息" },
-
-  { id: "mono", label: "打字机", desc: "等宽字体" },
-
-];
 
 
 
@@ -321,15 +309,15 @@ async function onRebuildIndex() {
         test-id="settings-trust-hint"
       />
 
-      <div ref="scrollEl" class="min-h-0 flex-1 overflow-y-auto">
+      <div ref="scrollEl" class="settings-page__body min-h-0 flex-1 overflow-y-auto">
 
       <div class="p-6">
 
 
 
-      <section id="settings-appearance" class="settings-section mb-8 max-w-lg scroll-mt-6">
+      <section id="settings-appearance" class="settings-section mb-8 scroll-mt-6">
 
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">外观</h2>
+        <h2 class="settings-panel__title mb-3">外观</h2>
 
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
 
@@ -339,9 +327,9 @@ async function onRebuildIndex() {
 
             :key="t.id"
 
-            class="focus-within:ring-2 focus-within:ring-link cursor-pointer rounded-lg border border-border p-3 transition-colors"
+            class="settings-chip focus-within:ring-2 focus-within:ring-link cursor-pointer"
 
-            :class="ui.theme === t.id ? 'border-link bg-surface-1' : 'bg-surface-0 hover:bg-surface-1'"
+            :class="ui.theme === t.id ? 'settings-chip--active' : ''"
 
           >
 
@@ -380,11 +368,11 @@ async function onRebuildIndex() {
 
       <DocumentTemplatesSettingsPanel />
 
-      <section id="settings-insights-hero" class="settings-section mb-8 max-w-lg scroll-mt-6" data-testid="insights-hero-bg-settings">
+      <section id="settings-insights-hero" class="settings-section mb-8 scroll-mt-6" data-testid="insights-hero-bg-settings">
 
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">看板背景</h2>
+        <h2 class="settings-panel__title mb-3">看板背景</h2>
 
-        <p class="mb-3 text-sm text-muted">
+        <p class="settings-panel__desc mb-3">
 
           自定义写作看板顶部卡片背景，仅保存在本机。
 
@@ -482,8 +470,8 @@ async function onRebuildIndex() {
 
 
 
-      <section id="settings-access" class="settings-section mb-8 max-w-lg scroll-mt-6">
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">访问控制</h2>
+      <section id="settings-access" class="settings-section mb-8 scroll-mt-6">
+        <h2 class="settings-panel__title mb-3">访问控制</h2>
         <div v-if="!vault.passwordEnabled" class="space-y-2">
           <p class="text-sm text-muted">当前未设置主密码，打开应用即可直接使用。</p>
           <button
@@ -494,7 +482,7 @@ async function onRebuildIndex() {
             启用主密码
           </button>
         </div>
-        <div v-else class="space-y-3 rounded-lg border border-border bg-surface-0">
+        <div v-else class="settings-list-card space-y-3 px-0 py-0">
           <p class="px-4 pt-3 text-sm text-muted">主密码已设置，用于备份导出与恢复校验。</p>
           <label
             class="focus-within:ring-2 focus-within:ring-link flex items-center justify-between border-t border-divider px-4 py-3 text-sm"
@@ -570,7 +558,7 @@ async function onRebuildIndex() {
           <h3 class="text-base font-medium text-[var(--color-text)]">
             {{ pendingLockOnStartup ? "开启启动锁定" : "关闭启动锁定" }}
           </h3>
-          <p class="mt-2 text-sm text-muted">请输入主密码以确认此操作。</p>
+          <p class="settings-panel__desc mt-2">请输入主密码以确认此操作。</p>
           <Input
             v-model="lockPassword"
             type="password"
@@ -592,9 +580,9 @@ async function onRebuildIndex() {
 
 
 
-      <section id="settings-index" class="settings-section mb-8 max-w-lg scroll-mt-6" data-testid="index-rebuild-settings">
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">知识库索引</h2>
-        <div class="rounded-lg border border-border bg-surface-0 px-4 py-3">
+      <section id="settings-index" class="settings-section mb-8 scroll-mt-6" data-testid="index-rebuild-settings">
+        <h2 class="settings-panel__title mb-3">知识库索引</h2>
+        <div class="settings-list-card px-4 py-3">
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <p class="text-sm text-[var(--color-text)]">全文搜索索引</p>
@@ -632,11 +620,11 @@ async function onRebuildIndex() {
 
       <AiSettingsPanel />
 
-      <section id="settings-security" class="settings-section mb-8 max-w-lg scroll-mt-6">
+      <section id="settings-security" class="settings-section mb-8 scroll-mt-6">
 
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">安全与隐私</h2>
+        <h2 class="settings-panel__title mb-3">安全与隐私</h2>
 
-        <div class="rounded-lg border border-border bg-surface-0">
+        <div class="settings-list-card">
 
           <label class="focus-within:ring-2 focus-within:ring-link flex items-center justify-between px-4 py-3 text-sm">
 
@@ -724,9 +712,9 @@ async function onRebuildIndex() {
 
 
 
-      <section id="settings-shortcuts" class="settings-section mb-8 max-w-lg scroll-mt-6">
+      <section id="settings-shortcuts" class="settings-section mb-8 scroll-mt-6">
 
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">快捷键</h2>
+        <h2 class="settings-panel__title mb-3">快捷键</h2>
 
         <ul class="space-y-1 text-sm text-muted">
 
@@ -744,9 +732,9 @@ async function onRebuildIndex() {
 
 
 
-      <section id="settings-folder-tree" class="settings-section mb-8 max-w-lg scroll-mt-6">
+      <section id="settings-folder-tree" class="settings-section mb-8 scroll-mt-6">
 
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">目录树</h2>
+        <h2 class="settings-panel__title mb-3">目录树</h2>
 
         <p class="text-sm text-muted">
 
@@ -758,11 +746,11 @@ async function onRebuildIndex() {
 
 
 
-      <section id="settings-editor" class="settings-section mb-8 max-w-lg scroll-mt-6">
+      <section id="settings-editor" class="settings-section mb-8 scroll-mt-6">
 
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">编辑器</h2>
+        <h2 class="settings-panel__title mb-3">编辑器</h2>
 
-        <div class="rounded-lg border border-border bg-surface-0">
+        <div class="settings-list-card">
 
           <label class="focus-within:ring-2 focus-within:ring-link flex items-center justify-between px-4 py-3 text-sm">
 
@@ -774,7 +762,7 @@ async function onRebuildIndex() {
 
         </div>
 
-        <p class="mt-2 text-sm text-muted">
+        <p class="settings-panel__desc mt-2">
 
           支持 <code class="text-link">[[文档名]]</code> 双链（拼音/首字母补全）、Ctrl+Click 新标签打开、未链接提及检测；刷新后自动恢复上次文档。
 
@@ -784,81 +772,10 @@ async function onRebuildIndex() {
 
 
 
-      <section id="settings-preview-theme" class="settings-section mb-8 max-w-lg scroll-mt-6" data-testid="preview-theme-settings">
 
-        <h2 class="mb-1 text-sm font-medium uppercase tracking-wide text-text-secondary">预览主题</h2>
+      <section id="settings-about" class="settings-section scroll-mt-6">
 
-        <p class="mb-3 text-sm text-muted">阅读预览模式的排版样式，与上方全局外观主题独立。</p>
-
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-
-          <label
-
-            v-for="t in previewThemes"
-
-            :key="t.id"
-
-            class="focus-within:ring-2 focus-within:ring-link cursor-pointer rounded-lg border border-border p-3 transition-colors"
-
-            :class="ui.previewTheme === t.id ? 'border-link bg-surface-1' : 'bg-surface-0 hover:bg-surface-1'"
-
-            :data-testid="`preview-theme-${t.id}`"
-
-          >
-
-            <input
-
-              type="radio"
-
-              name="preview-theme"
-
-              class="sr-only"
-
-              :value="t.id"
-
-              :checked="ui.previewTheme === t.id"
-
-              @change="ui.setPreviewTheme(t.id)"
-
-            />
-
-            <span
-
-              class="mb-2 block rounded-md border border-border bg-canvas px-2 py-1.5 text-[10px] leading-snug text-[var(--color-text)]"
-
-              :class="{
-
-                'font-serif text-xs': t.id === 'classic',
-
-                'text-sm leading-relaxed': t.id === 'document',
-
-                'text-[9px] leading-tight': t.id === 'compact',
-
-                'font-mono text-[10px]': t.id === 'mono',
-
-              }"
-
-            >
-
-              标题<br />正文示例
-
-            </span>
-
-            <span class="block text-xs font-medium text-[var(--color-text)]">{{ t.label }}</span>
-
-            <span class="block text-[10px] text-muted">{{ t.desc }}</span>
-
-          </label>
-
-        </div>
-
-      </section>
-
-
-
-      <section id="settings-about" class="settings-section max-w-lg scroll-mt-6">
-
-        <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-text-secondary">关于</h2>
+        <h2 class="settings-panel__title mb-3">关于</h2>
 
         <p class="text-sm">狸知知识库 · Lizhi Knowledge v0.1.0</p>
 

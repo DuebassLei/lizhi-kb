@@ -6,6 +6,9 @@ import {
   syncPreviewToEditorHeadings,
 } from "../utils/headingScrollSync";
 
+/** 预览 HTML debounce 期间暂停标题对齐，避免源码标题与旧 DOM 不一致时乱跳 */
+const CONTENT_COOLDOWN_MS = 280;
+
 /** 分栏时：源码 ⇄ 预览按标题双向对齐（无标题时退回比例） */
 export function useEditorPreviewScrollSync(
   editorView: Ref<EditorView | null | undefined>,
@@ -17,6 +20,7 @@ export function useEditorPreviewScrollSync(
   let detach: (() => void) | null = null;
   let rafId = 0;
   let pending: "editor" | "preview" | null = null;
+  let cooldownUntil = 0;
 
   function attach() {
     detach?.();
@@ -38,6 +42,7 @@ export function useEditorPreviewScrollSync(
       const side = pending;
       pending = null;
       if (!side || !enabled.value || syncingFrom) return;
+      if (performance.now() < cooldownUntil) return;
 
       const currentPreview = previewRef.value;
       const currentView = editorView.value;
@@ -88,5 +93,10 @@ export function useEditorPreviewScrollSync(
   }
 
   watch([editorView, previewRef, enabled], attach, { immediate: true });
+
+  watch(content, () => {
+    cooldownUntil = performance.now() + CONTENT_COOLDOWN_MS;
+  });
+
   onBeforeUnmount(() => detach?.());
 }

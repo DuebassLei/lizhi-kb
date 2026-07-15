@@ -5,11 +5,11 @@ import AiSettingsShell from "../ai/settings/AiSettingsShell.vue";
 
 <template>
   <section id="settings-ai" class="settings-section mb-8 scroll-mt-6" data-testid="ai-settings-panel">
-    <div class="settings-section-header">
-      <Sparkles class="h-5 w-5 text-link" />
+    <div class="mb-3 flex items-start gap-3">
+      <Sparkles class="mt-0.5 h-5 w-5 shrink-0 text-link" />
       <div>
-        <h2 class="settings-section-title">AI 助手</h2>
-        <p class="settings-section-desc">
+        <h2 class="settings-panel__title">AI 助手</h2>
+        <p class="settings-panel__desc">
           应用内 AI 对话：闲聊、知识库检索问答、笔记助手。可配置本地 Ollama 与多个云端 API，在对话时动态切换模型。
         </p>
       </div>
@@ -20,24 +20,3 @@ import AiSettingsShell from "../ai/settings/AiSettingsShell.vue";
     </div>
   </section>
 </template>
-
-<style scoped>
-.settings-section-header {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-}
-
-.settings-section-title {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-.settings-section-desc {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  line-height: 1.5;
-  color: var(--color-muted);
-}
-</style>

@@ -6,7 +6,8 @@
 ## 快速参考
 
 - **工作目录**：本目录（项目根）
-- **产品 spec**：`docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md`
+- **产品 spec（唯一）**：`docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md`
+- **品牌 / UI**：`docs/brand/lizhi-brand-design.md`
 - **Agent 工作台 spec**：`docs/superpowers/specs/2026-07-10-cc-workbench-design.md`（v1.0.2；CC GUI 后续对齐见 spec §17）
 - **Plan 优先**：复杂任务先 Plan 模式，用户确认后再实现
 - **上下文**：约 40% 时考虑 `/compact`；新任务新会话

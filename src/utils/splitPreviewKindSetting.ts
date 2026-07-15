@@ -1,4 +1,4 @@
-export type SplitPreviewKind = "gfm" | "wechat";
+export type SplitPreviewKind = "gfm" | "wechat" | "card";
 
 const KEY = "lizhi-kb-split-preview-kind";
 
@@ -6,7 +6,8 @@ const KEY = "lizhi-kb-split-preview-kind";
 export function loadStoredSplitPreviewKind(): SplitPreviewKind {
   try {
     const raw = localStorage.getItem(KEY);
-    return raw === "wechat" ? "wechat" : "gfm";
+    if (raw === "wechat" || raw === "card") return raw;
+    return "gfm";
   } catch {
     return "gfm";
   }

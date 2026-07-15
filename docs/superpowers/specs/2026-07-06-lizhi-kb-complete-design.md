@@ -1,11 +1,11 @@
 # 狸知知识库 完整产品设计与定位包装方案
 
-**文档版本**：v2.3.0  
-**更新日期**：2026-07-13  
+**文档版本**：v2.4.0  
+**更新日期**：2026-07-15  
 **品牌短名**：狸知 · **Lizhi Knowledge**  
 **产品全称**：狸知知识库 — 个人加密知识库  
-**基于文档**：`docs/design/初版设计.md` v1.5.0  
-**文档性质**：产品战略 + 品牌包装 + PRD 精炼 + TDD 补充  
+**文档性质**：产品战略 + PRD + IA + TDD 精炼（**唯一产品设计 SSOT**）  
+**品牌 VI / UI**：见 [`docs/brand/lizhi-brand-design.md`](../../brand/lizhi-brand-design.md)  
 
 ---
 
@@ -43,6 +43,8 @@
 
 ## 1. 品牌与定位包装
 
+> **品牌 VI、色彩 token、应用内 UI 设计系统**：以 [`docs/brand/lizhi-brand-design.md`](../../brand/lizhi-brand-design.md) 为 SSOT。本节只保留产品定位所需的摘要。
+
 ### 1.1 品牌核心
 
 | 要素 | 内容 |
@@ -54,7 +56,7 @@
 | **Slogan（主）** | **你的加密知识库，猫一样安静。** |
 | **Slogan（联结）** | **私密如猫，知识成网。** / *Private as a cat. Knowledge as a web.* |
 | **Slogan（英文）** | *Think in your nest. Link your knowledge.* |
-| **吉祥物** | **守夜**（几何黑猫，见品牌 spec） |
+| **吉祥物** | **守夜**（几何黑猫，详见品牌书） |
 
 ### 1.2 价值主张金字塔
 
@@ -158,7 +160,8 @@
 │   │   └── 面包屑 + 双链悬浮预览
 │   ├── 视图切换
 │   │   ├── 编辑视图
-│   │   └── 局部图谱视图
+│   │   ├── 局部图谱视图
+│   │   └── 思维导图视图（文档标题树，见大纲/导图扩展 spec）
 │   └── 状态栏
 │       ├── 字数 / 保存状态
 │       ├── 加密状态指示器 🔒
@@ -244,7 +247,7 @@
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  Presentation (Vue 3 + Pinia + Tailwind)                │
-│  ├── Editor (TipTap Vue)  ├── Graph (SVG)  ├── Canvas  │
+│  ├── Editor (CodeMirror 6) ├── Graph (SVG) ├── Canvas  │
 │  └── Watermark Canvas Overlay                           │
 ├─────────────────────────────────────────────────────────┤
 │  Tauri IPC Bridge (Commands + Events)                   │
@@ -366,7 +369,7 @@ CREATE TABLE lock_events (
 | 路由 | **Vue Router** | 4.x | 解锁层 / 工作区 / 设置 |
 | 状态 | **Pinia** | 2.x | vault、文档树、编辑器、UI 锁态 |
 | 样式 | **Tailwind CSS** | 4.x | 与设计原型 token 对齐 |
-| 编辑器 | **TipTap** | 2.x | `@tiptap/vue-3` + 自定义 WikiLink 扩展 |
+| 编辑器 | **CodeMirror 6** | 6.x | Markdown 源码编辑 + 分栏预览；`WikiLink` 扩展 |
 | 图谱 | **SVG + composable** | — | `useGraphCanvas` 构建局部图谱 |
 | Tauri 绑定 | `@tauri-apps/api` | 2.x | invoke / listen |
 | 类型 | **TypeScript** | 5.x | 前后端 DTO 共享约定 |
@@ -384,7 +387,7 @@ src/
 ├── stores/
 │   ├── vault.ts              # 锁定态、解锁、DEK 会话（仅 UI 态，密钥在 Rust）
 │   ├── documents.ts          # 目录树、当前文档、保存队列
-│   ├── editor.ts             # 模式 wysiwyg|source、打字机、未保存
+│   ├── editor.ts             # 预览分栏、打字机、未保存
 │   ├── links.ts              # 双链索引、反向链接缓存
 │   └── ui.ts                 # 水印、面板折叠、主题
 ├── composables/
@@ -396,20 +399,22 @@ src/
 ├── components/
 │   ├── vault/                # UnlockScreen, LockOverlay
 │   ├── workspace/            # Sidebar, EditorToolbar, BacklinksPanel
-│   ├── editor/               # TipTapEditor, SourceEditor, FormatBar
+│   ├── editor/               # MarkdownEditor, MarkdownPreview, FormatBar
 │   ├── graph/                # LocalGraphView
 │   ├── insights/             # Dashboard tabs
+│   ├── cc/                   # Agent 工作台
 │   └── common/               # CommandPalette, Modal, Toggle
 ├── views/
 │   ├── WelcomeView.vue       # FTUE
 │   ├── UnlockView.vue
 │   ├── WorkspaceView.vue     # 组合层，不放业务逻辑
 │   ├── InsightsView.vue
-│   └── SettingsView.vue
-├── extensions/               # TipTap 插件
+│   ├── SettingsView.vue
+│   └── CcWorkbenchView.vue
+├── extensions/               # 编辑器扩展
 │   └── WikiLink.ts
 └── styles/
-    └── tokens.css            # 与 prototype Vault Noir 对齐
+    └── tokens.css            # 与品牌 / prototype token 对齐
 ```
 
 ### 4.8 Pinia Store 职责边界
@@ -564,28 +569,38 @@ Home
 | Repo / 包名 | `lizhi-kb` |
 | 安全联系 | security@lizhi.app |
 
-### 10.2 与初版设计.md 的主要变更
+### 10.2 历史对照（已吸收）
 
-1. 明确 **MoSCoW 版本切分**，诱饵库/盲水印/防截屏移入 v2.0
-2. 补充 **品牌、GTM、定价、官网 IA**
-3. 双链索引改为 **增量更新**
-4. 排期 **12 周** 可发布 v1.5
-5. **前端栈 Vue 3 + Pinia + TipTap Vue**
-6. **品牌定为狸知知识库 / Lizhi Knowledge**（替代 SecureNote，2026-07-06）
-7. **v1.6+ 增补 AI 助手**（Rust 直连 LLM，与 MCP 并列）
-8. **v1.7+ 增补 Agent 工作台**（Node ai-bridge + Claude SDK，与 AI 助手并列不合并）— **已于 2026-07 落地 v1.0.2**
+相对早期 PRD（2026-07-06）的定稿差异已并入本文，摘要如下：
+
+1. **MoSCoW 版本切分**：诱饵库 / 盲水印 / 防截屏属 v2.0 Shadow
+2. 补充品牌、GTM、定价与官网 IA；品牌执行见品牌书
+3. 双链索引为**写入时增量更新**
+4. 前端栈：**Vue 3 + Pinia + CodeMirror 6**（v1.x 不为 TipTap WYSIWYG）
+5. 品牌定为狸知知识库 / Lizhi Knowledge
+6. v1.6+ AI 助手、v1.7+ Agent 工作台（与 AI 助手并列不合并）— 工作台已落地 v1.0.2
 
 ### 10.3 扩展模块 spec 索引
 
 | 模块 | 文档 | 边界 |
 |------|------|------|
+| 品牌 / VI / UI | [`docs/brand/lizhi-brand-design.md`](../../brand/lizhi-brand-design.md) | 品牌 SSOT；Agent 精简见根目录 `DESIGN.md` |
+| 官网落地页 | [`docs/design/product-landing-page.md`](../../design/product-landing-page.md) | GTM 文案与 token |
 | AI 助手 | [2026-07-08-lizhi-ai-chat-design.md](./2026-07-08-lizhi-ai-chat-design.md) | Rust `ai/*`；Ollama + 多云；工作区右栏 |
-| Agent 工作台 | [2026-07-10-cc-workbench-design.md](./2026-07-10-cc-workbench-design.md) | ai-bridge + SDK；Anthropic 生态；`/cc-workbench`；**v1.0.2 已对齐 CC GUI** |
-| CC 输入栏模型 | [2026-07-10-cc-input-model-provider-design.md](./2026-07-10-cc-input-model-provider-design.md) | 工作台内供应商/模型/1M 切换 |
+| Agent 工作台 | [2026-07-10-cc-workbench-design.md](./2026-07-10-cc-workbench-design.md) | ai-bridge + SDK；`/cc-workbench`；**v1.0.2** |
+| CC 输入栏模型 | [2026-07-10-cc-input-model-provider-design.md](./2026-07-10-cc-input-model-provider-design.md) | 供应商 / 模型 / 1M 切换 |
+| Bridge 进程管理 | [2026-07-14-cc-bridge-process-manager-design.md](./2026-07-14-cc-bridge-process-manager-design.md) | Node 进程登记与孤立扫描 |
 | MCP 服务 | [2026-07-08-lizhi-mcp-design.md](./2026-07-08-lizhi-mcp-design.md) | 外部 AI 工具 HTTP Bridge |
 | 备份扩展 | [../design/2026-07-08-backup-extension.md](../design/2026-07-08-backup-extension.md) | `.lizhi` v2 包 |
-| 写作看板动效 | [2026-07-13-insights-dashboard-motion-design.md](./2026-07-13-insights-dashboard-motion-design.md) | 守夜猫主题动效系统 |
+| 写作看板动效 | [2026-07-13-insights-dashboard-motion-design.md](./2026-07-13-insights-dashboard-motion-design.md) | 守夜猫主题动效 |
+| 文档回收站 | [2026-07-14-document-trash-design.md](./2026-07-14-document-trash-design.md) | 软删除 / 恢复 |
+| 安全导出审计 | [2026-07-14-security-export-audit-design.md](./2026-07-14-security-export-audit-design.md) | Insights 审计摘要 |
+| 资源库浏览 | [2026-07-14-asset-library-browse-design.md](./2026-07-14-asset-library-browse-design.md) | 附件库浏览 |
+| 启动记录 | [2026-07-09-launch-records-design.md](./2026-07-09-launch-records-design.md) | 启动与会话记录 |
+| 凭证库 | [2026-07-09-credentials-vault-design.md](./2026-07-09-credentials-vault-design.md) | 开发中 |
+| 知识卡片 | [2026-07-15-knowledge-cards-design.md](./2026-07-15-knowledge-cards-design.md) | 分栏预览 `card` |
+| 大纲 / 思维导图 | [2026-07-15-outline-mindmap-design.md](./2026-07-15-outline-mindmap-design.md) | Workspace `mindmap`；标题树 ≠ 双链图谱 |
 
 ---
 
-**下一步**：实现写作看板动效（v1.8）；持续迭代 v1.5 Network + v1.6 AI 助手；Agent 工作台按 [CC Workbench §17](./2026-07-10-cc-workbench-design.md#17-cc-gui-后续对齐流程) 按需对齐 CC GUI 新功能；Shadow 功能留 v2.0。
+**下一步**：实现写作看板动效（v1.8）；持续迭代 Network + AI 助手；Agent 工作台按 [CC Workbench §17](./2026-07-10-cc-workbench-design.md#17-cc-gui-后续对齐流程) 按需对齐；Shadow 留 v2.0。

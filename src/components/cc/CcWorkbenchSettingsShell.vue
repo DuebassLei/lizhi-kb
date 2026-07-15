@@ -141,7 +141,7 @@ defineExpose({ refresh: loadAll });
           <label class="mt-4 flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              class="rounded border-border"
+              class="accent-link"
               :checked="config?.enabled"
               :disabled="saving"
               @change="onToggleEnabled"

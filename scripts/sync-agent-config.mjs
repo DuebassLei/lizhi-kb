@@ -35,7 +35,7 @@ const REQUIRED = [
   '.claude/commands/lizhi-feature.md',
   '.claude/skills/lizhi-workflow/SKILL.md',
   'docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md',
-  'docs/design/初版设计.md',
+  'docs/brand/lizhi-brand-design.md',
 ];
 
 const SSOT_LINK = 'docs/agent-workflow';

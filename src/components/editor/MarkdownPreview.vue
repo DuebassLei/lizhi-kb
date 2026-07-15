@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from "vue";
+import { nextTick, onUnmounted, ref, watch } from "vue";
 import { resolveAssetUrl, isAssetRef } from "../../services/assetService";
 import { useDocumentsStore } from "../../stores/documents";
 import { useUiStore } from "../../stores/ui";
@@ -38,8 +38,6 @@ async function afterHtmlPaint() {
 }
 
 defineExpose({ containerRef });
-
-const themeClass = computed(() => `preview-theme-${ui.previewTheme}`);
 
 async function resolvePreviewAssets() {
   const el = containerRef.value;
@@ -104,7 +102,7 @@ onUnmounted(() => {
   <article
     ref="containerRef"
     class="markdown-preview scrollbar-thin h-full min-h-0 overflow-y-auto overflow-x-hidden"
-    :class="[{ 'typewriter-preview': typewriter }, themeClass]"
+    :class="{ 'typewriter-preview': typewriter }"
     data-testid="markdown-preview"
     @click="onClick"
     v-html="html"
@@ -358,100 +356,6 @@ onUnmounted(() => {
   padding-bottom: 50vh;
 }
 
-/* ── 预览排版主题 ── */
-
-.preview-theme-document {
-  max-width: 780px;
-  font-size: 1.125rem;
-  line-height: 1.75;
-}
-
-.preview-theme-document :deep(h1) {
-  font-size: 2rem;
-  margin: 2rem 0 1rem;
-}
-
-.preview-theme-document :deep(h2) {
-  font-size: 1.375rem;
-  margin: 1.75rem 0 0.75rem;
-}
-
-.preview-theme-document :deep(h3) {
-  font-size: 1.1875rem;
-  margin: 1.5rem 0 0.625rem;
-}
-
-.preview-theme-document :deep(p) {
-  margin: 1rem 0;
-}
-
-.preview-theme-document :deep(li) {
-  margin: 0.5rem 0;
-}
-
-.preview-theme-compact {
-  max-width: 640px;
-  font-size: 0.9375rem;
-  line-height: 1.5;
-  padding-top: 1rem;
-  padding-bottom: 2rem;
-}
-
-.preview-theme-compact :deep(h1) {
-  font-size: var(--text-xl);
-  margin: 1.25rem 0 0.5rem;
-}
-
-.preview-theme-compact :deep(h2) {
-  font-size: var(--text-lg);
-  margin: 1rem 0 0.375rem;
-}
-
-.preview-theme-compact :deep(h3) {
-  font-size: var(--text-md);
-  margin: 0.875rem 0 0.25rem;
-}
-
-.preview-theme-compact :deep(p) {
-  margin: 0.5rem 0;
-}
-
-.preview-theme-compact :deep(ul),
-.preview-theme-compact :deep(ol) {
-  margin: 0.5rem 0;
-}
-
-.preview-theme-compact :deep(li) {
-  margin: 0.2rem 0;
-}
-
-.preview-theme-compact :deep(blockquote.preview-blockquote) {
-  margin: 0.625rem 0;
-}
-
-.preview-theme-compact :deep(.preview-code-wrap) {
-  margin: 0.625rem 0;
-}
-
-.preview-theme-compact :deep(pre.preview-code-block) {
-  padding: 0.625rem 0.75rem;
-}
-
-.preview-theme-mono {
-  max-width: 680px;
-  font-family: var(--font-mono);
-  font-size: 0.9375rem;
-  line-height: 1.65;
-  letter-spacing: 0.01em;
-}
-
-.preview-theme-mono :deep(h1),
-.preview-theme-mono :deep(h2),
-.preview-theme-mono :deep(h3) {
-  font-family: var(--font-ui);
-  letter-spacing: normal;
-}
-
 :deep(.preview-wechat-callout) {
   border-left-color: color-mix(in srgb, var(--color-link) 70%, transparent);
   background: color-mix(in srgb, var(--color-link) 6%, var(--color-surface-0));
@@ -521,9 +425,5 @@ onUnmounted(() => {
 
 :deep(.preview-mermaid-error) {
   color: var(--color-danger);
-}
-
-.preview-theme-mono :deep(p) {
-  margin: 0.875rem 0;
 }
 </style>

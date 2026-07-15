@@ -10,12 +10,14 @@ import { useUiStore } from "../../stores/ui";
 import { extractHeadings } from "../../utils/headings";
 import { scrollToDocumentHeading } from "../../utils/scrollToHeading";
 import { scrollToFolderRow } from "../../utils/folderScroll";
+import { useHeadingTree } from "../../composables/useHeadingTree";
 import DocumentToc from "./DocumentToc.vue";
 import RevisionHistoryPanel from "./RevisionHistoryPanel.vue";
 import EditorFindReplace from "./EditorFindReplace.vue";
 import MarkdownCodeEditor from "./MarkdownCodeEditor.vue";
 import MarkdownPreview from "./MarkdownPreview.vue";
 import WechatPreviewPanel from "../wechat/WechatPreviewPanel.vue";
+import KnowledgeCardPreviewPanel from "../knowledgeCards/KnowledgeCardPreviewPanel.vue";
 import EmptyState from "../ui/EmptyState.vue";
 import { useSplitPreviewResize } from "../../composables/useSplitPreviewResize";
 import { useEditorPreviewScrollSync } from "../../composables/useEditorPreviewScrollSync";
@@ -45,9 +47,13 @@ const findReplaceRef = ref<InstanceType<typeof EditorFindReplace> | null>(null);
 const splitContainerRef = ref<HTMLElement | null>(null);
 const gfmPreviewCmp = ref<{ containerRef: HTMLElement | null } | null>(null);
 const wechatPreviewCmp = ref<{ containerRef: HTMLElement | null } | null>(null);
+const cardPreviewCmp = ref<{ containerRef: HTMLElement | null } | null>(null);
 const previewRef = computed(() => {
   if (ui.splitPreviewKind === "wechat") {
     return wechatPreviewCmp.value?.containerRef ?? null;
+  }
+  if (ui.splitPreviewKind === "card") {
+    return cardPreviewCmp.value?.containerRef ?? null;
   }
   return gfmPreviewCmp.value?.containerRef ?? null;
 });
@@ -68,7 +74,15 @@ function selectBreadcrumbFolder(folderId: string) {
   scrollToFolderRow(folderId);
 }
 
-const headings = computed(() => extractHeadings(documents.content));
+const { tree: headingTree, refreshImmediate: refreshHeadingTree } = useHeadingTree({
+  title: () => activeTitle.value,
+  content: () => documents.content,
+});
+
+watch(
+  () => documents.activeId,
+  () => refreshHeadingTree(),
+);
 
 const showSplitPreview = computed(
   () => ui.workspaceViewMode === "edit" && ui.splitPreviewVisible && !ui.previewOnlyMode,
@@ -79,8 +93,12 @@ const showPreviewOnly = computed(
 );
 
 const showWechatPreview = computed(() => ui.splitPreviewKind === "wechat");
+const showCardPreview = computed(() => ui.splitPreviewKind === "card");
 const showWechatSplitPreview = computed(
   () => showSplitPreview.value && showWechatPreview.value,
+);
+const showGfmSplitPreview = computed(
+  () => showSplitPreview.value && !showWechatPreview.value && !showCardPreview.value,
 );
 
 const { editorRatio, dragging: splitDragging, onResizeStart: onSplitResizeStart } =
@@ -169,7 +187,7 @@ async function commitTitle() {
 }
 
 function onTocSelect(payload: { text: string; lineIndex: number }) {
-  const occurrence = headings.value.filter(
+  const occurrence = extractHeadings(documents.content).filter(
     (h) => h.text === payload.text && h.lineIndex < payload.lineIndex,
   ).length;
   void scrollToHeading(payload.text, payload.lineIndex, occurrence);
@@ -201,10 +219,29 @@ watch(
   },
 );
 
+watch(
+  () => [ui.pendingLineScroll, documents.activeId] as const,
+  ([line]) => {
+    if (line == null || !documents.activeId) return;
+    void scrollToHeading("", line, 0).finally(() => ui.clearLineScroll());
+  },
+);
+
 const cmView = computed(() => {
   const exposed = cmRef.value as { editorView?: import("@codemirror/view").EditorView | null } | null;
   return exposed?.editorView ?? null;
 });
+
+function insertEditorSnippet(snippet: string) {
+  const view = cmView.value;
+  if (view) {
+    insertAtCursor(view, snippet);
+    documents.updateContent(view.state.doc.toString());
+  } else {
+    documents.updateContent(appendToMarkdownContent(documents.content, snippet));
+  }
+  void editor.saveNow();
+}
 
 watch(
   () => ui.pendingEditorInsert,
@@ -405,15 +442,15 @@ async function retrySave() {
             data-testid="split-preview-pane"
           >
             <MarkdownPreview
-              v-if="!showWechatSplitPreview"
+              v-if="showGfmSplitPreview"
               :key="`split-preview-${documents.activeId}`"
-            ref="gfmPreviewCmp"
+              ref="gfmPreviewCmp"
               :content="documents.content"
               :typewriter="ui.typewriterMode"
               class="h-full min-h-0"
             />
             <WechatPreviewPanel
-              v-else
+              v-else-if="showWechatSplitPreview"
               :key="`wechat-split-preview-${documents.activeId}`"
               ref="wechatPreviewCmp"
               v-model:theme-id="wechatThemeId"
@@ -422,6 +459,15 @@ async function retrySave() {
               :show-toolbar="false"
               class="h-full min-h-0"
               @insert="insertWechatModuleSnippet"
+            />
+            <KnowledgeCardPreviewPanel
+              v-else
+              :key="`card-split-preview-${documents.activeId}`"
+              ref="cardPreviewCmp"
+              :content="documents.content"
+              embedded
+              class="h-full min-h-0"
+              @insert="insertEditorSnippet"
             />
           </div>
         </div>
@@ -432,7 +478,7 @@ async function retrySave() {
           data-testid="preview-only-pane"
         >
           <MarkdownPreview
-            v-if="!showWechatPreview"
+            v-if="!showWechatPreview && !showCardPreview"
             :key="`preview-only-${documents.activeId}`"
             ref="gfmPreviewCmp"
             :content="documents.content"
@@ -440,7 +486,7 @@ async function retrySave() {
             class="h-full min-h-0"
           />
           <WechatPreviewPanel
-            v-else
+            v-else-if="showWechatPreview"
             :key="`wechat-preview-only-${documents.activeId}`"
             ref="wechatPreviewCmp"
             v-model:theme-id="wechatThemeId"
@@ -448,6 +494,15 @@ async function retrySave() {
             embedded
             class="h-full min-h-0"
             @insert="insertWechatModuleSnippet"
+          />
+          <KnowledgeCardPreviewPanel
+            v-else
+            :key="`card-preview-only-${documents.activeId}`"
+            ref="cardPreviewCmp"
+            :content="documents.content"
+            embedded
+            class="h-full min-h-0"
+            @insert="insertEditorSnippet"
           />
         </div>
 
@@ -471,7 +526,8 @@ async function retrySave() {
 
       <DocumentToc
         v-if="ui.tocVisible && ui.workspaceViewMode === 'edit' && !ui.focusMode"
-        :headings="headings"
+        :key="documents.activeId ?? 'none'"
+        :tree="headingTree"
         @select="onTocSelect"
       />
     </div>

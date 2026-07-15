@@ -1,3 +1,4 @@
+import type { Text } from "@codemirror/state";
 import { EditorView, ViewPlugin, type ViewUpdate } from "@codemirror/view";
 import { filterWikiSuggestions, NEW_DOC_SUGGEST_ID, type WikiSuggestion } from "../composables/useWikiSuggest";
 import { wikiLinkQueryAt } from "../utils/wikiLinkQuery";
@@ -11,6 +12,36 @@ export interface WikiSuggestState {
   selected: number;
 }
 
+type WikiSuggestListener = () => void;
+const wikiSuggestListeners = new Set<WikiSuggestListener>();
+
+/** Vue 面板订阅补全状态变化（替代常驻 rAF） */
+export function onWikiSuggestChange(listener: WikiSuggestListener): () => void {
+  wikiSuggestListeners.add(listener);
+  return () => {
+    wikiSuggestListeners.delete(listener);
+  };
+}
+
+function notifyWikiSuggestChange() {
+  for (const listener of wikiSuggestListeners) listener();
+}
+
+/** 仅扫描当前行，避免每键全量 toString */
+export function wikiLinkQueryAtDoc(
+  doc: Text,
+  cursor: number,
+): { from: number; to: number; query: string } | null {
+  const line = doc.lineAt(cursor);
+  const q = wikiLinkQueryAt(line.text, cursor - line.from);
+  if (!q) return null;
+  return {
+    from: line.from + q.from,
+    to: line.from + q.to,
+    query: q.query,
+  };
+}
+
 const pluginMeta = ViewPlugin.fromClass(
   class {
     state: WikiSuggestState = {
@@ -22,25 +53,29 @@ const pluginMeta = ViewPlugin.fromClass(
       selected: 0,
     };
 
+    private setState(next: WikiSuggestState) {
+      this.state = next;
+      notifyWikiSuggestChange();
+    }
+
     update(update: ViewUpdate) {
       if (!update.docChanged && !update.selectionSet) return;
       const view = update.view;
       const pos = view.state.selection.main.head;
-      const text = view.state.doc.toString();
-      const q = wikiLinkQueryAt(text, pos);
+      const q = wikiLinkQueryAtDoc(view.state.doc, pos);
       if (!q) {
-        if (this.state.open) this.state = { ...this.state, open: false, items: [] };
+        if (this.state.open) this.setState({ ...this.state, open: false, items: [] });
         return;
       }
       const items = filterWikiSuggestions(q.query, 10);
-      this.state = {
+      this.setState({
         open: true,
         from: q.from,
         to: q.to,
         query: q.query,
         items,
         selected: 0,
-      };
+      });
     }
   },
   {
@@ -56,6 +91,7 @@ const pluginMeta = ViewPlugin.fromClass(
             ...plugin.state,
             selected: Math.min(selected + 1, items.length - 1),
           };
+          notifyWikiSuggestChange();
           return true;
         }
         if (event.key === "ArrowUp") {
@@ -64,10 +100,12 @@ const pluginMeta = ViewPlugin.fromClass(
             ...plugin.state,
             selected: Math.max(selected - 1, 0),
           };
+          notifyWikiSuggestChange();
           return true;
         }
         if (event.key === "Escape") {
           plugin.state = { ...plugin.state, open: false, items: [] };
+          notifyWikiSuggestChange();
           return true;
         }
         if (event.key === "Enter" || event.key === "Tab") {
@@ -81,6 +119,7 @@ const pluginMeta = ViewPlugin.fromClass(
             selection: { anchor: from + replacement.length },
           });
           plugin.state = { ...plugin.state, open: false, items: [] };
+          notifyWikiSuggestChange();
           return true;
         }
         return false;
@@ -151,7 +190,10 @@ export function applyWikiSuggestion(view: EditorView, pick: WikiSuggestion, from
     selection: { anchor: from + replacement.length },
   });
   const plugin = view.plugin(pluginMeta);
-  if (plugin) plugin.state = { ...plugin.state, open: false, items: [] };
+  if (plugin) {
+    plugin.state = { ...plugin.state, open: false, items: [] };
+    notifyWikiSuggestChange();
+  }
 }
 
 export { NEW_DOC_SUGGEST_ID };

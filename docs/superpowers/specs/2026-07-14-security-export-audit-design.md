@@ -3,7 +3,7 @@
 **文档版本**：v1.0.0  
 **日期**：2026-07-14  
 **状态**：落地实现  
-**关联**：`2026-07-06-lizhi-kb-complete-design.md`（Insights 审计摘要）；初版设计审计意向
+**关联**：`2026-07-06-lizhi-kb-complete-design.md`（Insights 审计摘要）；水印 / 导出安全叙事见 complete-design §5
 
 ---
 

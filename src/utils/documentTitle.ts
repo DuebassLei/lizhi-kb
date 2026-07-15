@@ -10,8 +10,8 @@ export function extractH1Title(content: string): string | null {
 }
 
 /**
- * 将侧栏标题同步到正文首行，仅当首行明确是文档标题时（H1 或与旧标题匹配）。
- * 避免在正文不以标题开头时强行插入标题行。
+ * 将侧栏/库标题同步到正文首行 H1（仅当首行 H1 与旧标题匹配时）。
+ * 产品默认：库标题与正文 H1 独立；此函数保留给需要显式同步的调用方。
  */
 export function syncTitleInContent(content: string, oldTitle: string, newTitle: string): string {
   const lines = content.split("\n");

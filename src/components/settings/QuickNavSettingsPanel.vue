@@ -19,17 +19,17 @@ function resetDefaults() {
 </script>
 
 <template>
-  <section id="settings-quick-nav" class="settings-section mb-8 max-w-lg scroll-mt-6" data-testid="quick-nav-settings">
+  <section id="settings-quick-nav" class="settings-section mb-8 scroll-mt-6" data-testid="quick-nav-settings">
     <div class="mb-3 flex items-center gap-2">
       <LayoutList class="h-4 w-4 text-link" aria-hidden="true" />
-      <h2 class="text-sm font-medium uppercase tracking-wide text-text-secondary">快速导航</h2>
+      <h2 class="settings-panel__title">快速导航</h2>
     </div>
 
-    <p class="mb-3 text-sm text-muted">
+    <p class="settings-panel__desc mb-3">
       选择在左侧主导航中显示的入口。「设置」始终可见。
     </p>
 
-    <div class="space-y-0 rounded-lg border border-border bg-surface-0">
+    <div class="settings-list-card space-y-0">
       <label
         v-for="item in QUICK_NAV_ITEMS"
         :key="item.id"

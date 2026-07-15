@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import type { EditorView } from "@codemirror/view";
 import {
   applyWikiSuggestion,
   getWikiSuggestState,
+  onWikiSuggestChange,
   wikiSuggestCoords,
   wikiSuggestPlugin,
 } from "../../extensions/wikiLinkAutocomplete";
@@ -14,34 +15,27 @@ const props = defineProps<{
 }>();
 
 const tick = ref(0);
-let raf = 0;
 
 function bump() {
   tick.value++;
 }
 
-onMounted(() => {
-  const loop = () => {
-    bump();
-    raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
-});
-
+const unsubPlugin = onWikiSuggestChange(bump);
 onBeforeUnmount(() => {
-  cancelAnimationFrame(raf);
+  unsubPlugin();
 });
 
 watch(
   () => props.view,
   (v, _o, onCleanup) => {
     if (!v) return;
-    const handler = () => bump();
-    v.dom.addEventListener("input", handler);
-    v.dom.addEventListener("keydown", handler);
+    // 面板打开时跟随滚动更新坐标；关闭时不挂监听
+    const onScroll = () => {
+      if (getWikiSuggestState(v)?.open) bump();
+    };
+    v.scrollDOM.addEventListener("scroll", onScroll, { passive: true });
     onCleanup(() => {
-      v.dom.removeEventListener("input", handler);
-      v.dom.removeEventListener("keydown", handler);
+      v.scrollDOM.removeEventListener("scroll", onScroll);
     });
   },
   { immediate: true },

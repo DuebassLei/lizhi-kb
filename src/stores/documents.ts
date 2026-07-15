@@ -13,7 +13,7 @@ import {
   renameDocument,
   saveDocument,
 } from "../services/documentService";
-import { extractH1Title, syncTitleInContent } from "../utils/documentTitle";
+import { extractH1Title } from "../utils/documentTitle";
 import { parseTagsFromFrontmatter, splitFrontmatter } from "../utils/frontmatter";
 import { getDocumentTags, setDocumentTags } from "../utils/documentTags";
 import { appendToMarkdownContent } from "../utils/editorContentInsert";
@@ -266,8 +266,6 @@ export const useDocumentsStore = defineStore("documents", () => {
     const result = await saveDocument(activeId.value, value);
     content.value = value;
     patchMeta(activeId.value, { updatedAt: result.savedAt });
-    const h1Title = extractH1Title(value);
-    if (h1Title) patchMeta(activeId.value, { title: h1Title });
     await (await getLinksStore()).updatePlainTextForDoc(activeId.value, value);
   }
 
@@ -387,11 +385,7 @@ export const useDocumentsStore = defineStore("documents", () => {
     }
 
     if (activeId.value === id) {
-      const updated = syncTitleInContent(content.value, oldTitle, title);
-      if (updated !== content.value) {
-        content.value = updated;
-        await saveContent(updated);
-      } else if (oldTitle !== title) {
+      if (oldTitle !== title) {
         (await getLinksStore()).patchDocument(tree.value, id, content.value);
       }
       useEditorStore().isDirty = false;

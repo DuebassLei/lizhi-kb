@@ -64,6 +64,22 @@
       <EmojiPicker @select="insertEmoji" />
     </div>
 
+    <span class="editor-toolbar__sep" aria-hidden="true" />
+
+    <div class="editor-toolbar__group">
+      <button
+        type="button"
+        class="editor-toolbar__wa focus-ring inline-flex items-center gap-1 rounded-md px-2 h-7 text-xs text-[var(--color-paw)] hover:bg-surface-2 transition-colors"
+        title="打开写作助手"
+        aria-label="打开写作助手"
+        data-testid="wa-toolbar-open"
+        @click="openWritingAssistant"
+      >
+        <Sparkles class="h-3.5 w-3.5" aria-hidden="true" />
+        <span>写作助手</span>
+      </button>
+    </div>
+
     <input
       ref="fileInputRef"
       type="file"
@@ -130,10 +146,12 @@ import {
   Table,
   Link,
   Image as ImageIcon,
+  Sparkles,
 } from "@lucide/vue";
 import { insertImageFromFile } from "../../utils/editorImageInsert";
 import { insertAtCursor, insertTableAtCursor, prefixLines, wrapSelection } from "../../utils/markdownInsert";
 import { useUiStore } from "../../stores/ui";
+import { useWritingAssistantStore } from "../../stores/writingAssistant";
 import InputDialog from "../common/InputDialog.vue";
 import BtnIcon from "../ui/BtnIcon.vue";
 import EmojiPicker from "./EmojiPicker.vue";
@@ -144,6 +162,7 @@ const props = defineProps<{
 }>();
 
 const ui = useUiStore();
+const writingAssistant = useWritingAssistantStore();
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const savingImage = ref(false);
 const pendingImageFile = ref<File | null>(null);
@@ -218,5 +237,10 @@ function openWikiLinkPicker() {
 
 function insertEmoji(emoji: string) {
   insertAtCursor(props.view, emoji);
+}
+
+function openWritingAssistant() {
+  void writingAssistant.loadAiState();
+  writingAssistant.openDialog();
 }
 </script>

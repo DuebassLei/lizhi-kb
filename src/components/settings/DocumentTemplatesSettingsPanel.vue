@@ -64,15 +64,15 @@ function removeTemplate(id: string) {
 <template>
   <section
     id="settings-doc-templates"
-    class="settings-section mb-8 max-w-2xl scroll-mt-6"
+    class="settings-section mb-8 scroll-mt-6"
     data-testid="doc-templates-settings"
   >
     <div class="mb-3 flex items-center gap-2">
       <FileText class="h-4 w-4 text-link" aria-hidden="true" />
-      <h2 class="text-sm font-medium uppercase tracking-wide text-text-secondary">文档模板</h2>
+      <h2 class="settings-panel__title">文档模板</h2>
     </div>
 
-    <p class="mb-3 text-sm text-muted">
+    <p class="settings-panel__desc mb-3">
       配置「新建文档」下拉菜单。正文使用
       <code class="rounded bg-surface-2 px-1 py-0.5 text-xs">{{ TEMPLATE_TITLE_PLACEHOLDER }}</code>
       替换为标题；修改自动保存并随备份同步。
@@ -80,7 +80,7 @@ function removeTemplate(id: string) {
 
     <!-- 紧凑列表 -->
     <div
-      class="overflow-hidden rounded-lg border border-border bg-surface-0"
+      class="settings-list-card"
       role="listbox"
       aria-label="文档模板列表"
       data-testid="doc-template-list"
@@ -93,7 +93,7 @@ function removeTemplate(id: string) {
         class="focus-ring flex w-full items-center gap-2 border-b border-divider px-3 py-2.5 text-left transition-colors last:border-b-0"
         :class="
           selectedId === template.id
-            ? 'bg-paw/10 text-[var(--color-text)]'
+            ? 'settings-select-row--active'
             : 'hover:bg-surface-1 text-[var(--color-text)]'
         "
         :aria-selected="selectedId === template.id"
@@ -103,7 +103,7 @@ function removeTemplate(id: string) {
         <ChevronRight
           :size="14"
           class="shrink-0 transition-transform"
-          :class="selectedId === template.id ? 'rotate-90 text-paw' : 'text-muted'"
+          :class="selectedId === template.id ? 'rotate-90 text-link' : 'text-muted'"
           aria-hidden="true"
         />
         <span class="min-w-0 flex-1">

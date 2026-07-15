@@ -1,0 +1,50 @@
+# ---------------------------------------------------------------------------
+# Cursor 索引忽略 — 降内存 / 加速检索
+# 改完后建议：Settings → Indexing 打开 Hierarchical Cursor Ignore，并重启 Cursor
+# ---------------------------------------------------------------------------
+
+# --- 依赖与包管理 ---
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+*.lock
+
+# --- 前端 / 包构建产物 ---
+dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+
+# --- Rust / Tauri ---
+target/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/WixTools/
+
+# --- 测试与报告 ---
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# --- 本地工作区 / Agent 旁路（易含完整副本） ---
+.worktrees/
+.agent-tasks/
+.superpowers/
+.codegraph/
+
+# --- IDE / VCS / OS ---
+.git/
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# --- 杂项大文件 ---
+*.log
+.tmp-*.png
+.tmp-*.jpg

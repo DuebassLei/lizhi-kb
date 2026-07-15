@@ -9,7 +9,8 @@ lizhi-kb/（项目根）
 ├── docs/
 │   ├── agent-workflow/     ← Agent SSOT
 │   ├── superpowers/        ← 产品 spec / 计划
-│   └── design/             ← 原始 PRD
+│   ├── brand/              ← 品牌 / UI SSOT
+│   └── design/             ← 功能补充（备份、落地页等）
 ├── prototype/
 ├── AGENTS.md / CLAUDE.md
 ├── .claude/ / .cursor/
@@ -40,8 +41,9 @@ lizhi-kb/（项目根）
 | 工作流、角色、模板 | `docs/agent-workflow/` | SSOT，两轨引用 |
 | 验证门禁 | `docs/agent-workflow/verification.md` | 零警告编译 SSOT |
 | 校验脚本 | `scripts/sync-agent-config.mjs` | 从 `lizhi-kb/` 运行 |
-| 产品 spec | `docs/superpowers/specs/` | 产品 SSOT |
-| 原始设计 | `docs/design/初版设计.md` | PRD/TDD |
+| 产品 spec | `docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md` | 唯一产品设计 SSOT |
+| 品牌 / UI | `docs/brand/lizhi-brand-design.md` | 品牌 SSOT |
+| 功能补充 | `docs/design/` | 备份扩展、落地页等 |
 
 ### 2.1 什么放在共享层
 

@@ -16,10 +16,10 @@
 
 | 文档 | 路径 |
 |------|------|
-| 产品 spec | [../superpowers/specs/](../superpowers/specs/) |
+| 产品 spec（唯一） | [../superpowers/specs/2026-07-06-lizhi-kb-complete-design.md](../superpowers/specs/2026-07-06-lizhi-kb-complete-design.md) |
+| 品牌 / UI | [../brand/lizhi-brand-design.md](../brand/lizhi-brand-design.md) |
 | Agent 工作台 | [../superpowers/specs/2026-07-10-cc-workbench-design.md](../superpowers/specs/2026-07-10-cc-workbench-design.md)（v1.0.2；CC GUI 按需对齐 §17） |
 | AI 助手 | [../superpowers/specs/2026-07-08-lizhi-ai-chat-design.md](../superpowers/specs/2026-07-08-lizhi-ai-chat-design.md) |
-| 原始 PRD | [../design/初版设计.md](../design/初版设计.md) |
 | 交互原型 | [../../prototype/](../../prototype/) |
 
 ## 核心工作流

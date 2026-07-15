@@ -18,8 +18,13 @@ import { useLinksStore } from "./stores/links";
 
 import "./styles/tokens.css";
 import "./styles/components.css";
+import "./styles/settings-ui.css";
 import "./styles/insights-motion.css";
 import "./styles/module-pages.css";
+import "./styles/knowledge-card-base.css";
+import "./styles/knowledge-card-skins.css";
+import "./styles/knowledge-card-panel.css";
+import "./styles/writing-assistant.css";
 
 applyTheme(loadStoredTheme());
 setChatSessionPersistHook(schedulePersistVaultUiState);

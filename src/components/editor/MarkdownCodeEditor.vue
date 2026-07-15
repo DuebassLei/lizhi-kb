@@ -30,6 +30,7 @@ import {
 import MarkdownEditorToolbar from "./MarkdownEditorToolbar.vue";
 import WikiHoverPreview from "./WikiHoverPreview.vue";
 import WikiSuggestPanel from "./WikiSuggestPanel.vue";
+import WritingAssistantDialog from "../writingAssistant/WritingAssistantDialog.vue";
 
 const props = defineProps<{
   modelValue: string;
@@ -49,11 +50,24 @@ const ui = useUiStore();
 const hostRef = ref<HTMLElement | null>(null);
 const editorView = ref<EditorView | null>(null);
 const pastingImage = ref(false);
+let wordCountTimer: ReturnType<typeof setTimeout> | null = null;
 
 function emitContent(view: EditorView) {
   const value = view.state.doc.toString();
   emit("update:modelValue", value);
-  emit("word-count", countWords(value));
+  if (wordCountTimer) clearTimeout(wordCountTimer);
+  wordCountTimer = setTimeout(() => {
+    wordCountTimer = null;
+    emit("word-count", countWords(value));
+  }, 200);
+}
+
+function flushWordCount(text: string) {
+  if (wordCountTimer) {
+    clearTimeout(wordCountTimer);
+    wordCountTimer = null;
+  }
+  emit("word-count", countWords(text));
 }
 
 async function handleClipboardImagePaste(view: EditorView, file: File) {
@@ -135,7 +149,7 @@ function createView(parent: HTMLElement, doc: string) {
 onMounted(() => {
   if (!hostRef.value) return;
   editorView.value = createView(hostRef.value, props.modelValue);
-  emit("word-count", countWords(props.modelValue));
+  flushWordCount(props.modelValue);
 });
 
 watch(
@@ -152,6 +166,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  if (wordCountTimer) clearTimeout(wordCountTimer);
   editorView.value?.destroy();
   editorView.value = null;
 });
@@ -188,5 +203,6 @@ defineExpose({ editorView, scrollToLine });
       <WikiSuggestPanel :view="editorView as EditorView | null" />
       <WikiHoverPreview :view="editorView as EditorView | null" />
     </div>
+    <WritingAssistantDialog />
   </div>
 </template>

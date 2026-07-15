@@ -4,6 +4,18 @@
 
 本地优先、端到端加密的**个人知识库**桌面应用。技术栈：Tauri 2 + Rust + Vue 3 + Pinia + Tailwind 4。
 
+## 产品介绍
+
+**狸知知识库**面向需要把思想写出来、又不能把数据交给云端的人：研究者、顾问、深度写作者与安全从业者。它占据「知识网络深度」与「可验证本地加密」的交叉空白——既要有双链与图谱，也要把密钥与正文留在本机。
+
+| 维度 | 说明 |
+|------|------|
+| **定位** | Encrypted Personal Knowledge Base：本地优先、主密码解锁的加密库 |
+| **差异化** | 加密 × Wiki 双链 / 图谱 × 桌面零默认同云；品牌气质克制、非恐吓营销 |
+| **边界（v1.x Won't）** | 不做云同步、多人协作、插件市场与移动端 |
+
+详细产品决策、路由 IA 与版本路线见 [完整产品设计](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md)（唯一产品设计 SSOT）。
+
 ## 核心能力
 
 | 类别 | 能力 |
@@ -14,7 +26,7 @@
 | **看板** | 编辑热力图（贪吃蛇动画）；需求看板；每日小记；思维导图 |
 | **AI** | 本地 Ollama / 云端 API（含 小鲸鱼 预设）；RAG 检索；**Agent 工作台**（Claude Code 集成） |
 | **集成** | MCP 服务（`lizhi-mcp`）；凭证库（开发中） |
-| **导出** | Markdown / PDF / HTML；按文件夹导出；微信公众号主题；**Canvas 水印** |
+| **导出** | Markdown / PDF / HTML；按文件夹导出；微信公众号主题排版；**Canvas 水印** |
 | **备份** | `.lizhi` 完整备份；整库恢复 / 合并设置 / 合并文档；Markdown 迁移导出 |
 
 ## 前置要求
@@ -108,7 +120,8 @@ lizhi-kb/
 ├── docs/
 │   ├── agent-workflow/   多 Agent 工作流（SSOT）
 │   ├── superpowers/      产品设计 spec / 交付计划
-│   └── design/           PRD 与设计补充（备份扩展等）
+│   ├── brand/            品牌与 UI 设计系统
+│   └── design/           功能补充（备份、落地页等）
 ├── prototype/            交互原型（HTML）
 ├── scripts/              工具脚本
 ├── AGENTS.md / CLAUDE.md Agent 入口
@@ -121,7 +134,7 @@ lizhi-kb/
 ```
 src/
 ├── components/   vault | workspace | editor | graph | insights | cc | ai | common | canvas | credentials | journal | launches | mindmap | requirements | settings | ui | wechat
-├── views/        Welcome / Unlock / Insights / Workspace / Settings
+├── views/        Welcome / Unlock / Insights / Workspace / Settings / CcWorkbench
 ├── stores/       vault, documents, editor, links, ui, folders, chat, ccWorkbench, credentials, journal, launchRecords, requirements
 ├── composables/  useTauriCommand, useAutoSave, useWikiSuggest…
 └── extensions/   WikiLink.ts
@@ -179,14 +192,14 @@ src/
 
 | 文档 | 路径 |
 |------|------|
-| 完整设计 spec | [docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md) |
-| 备份与恢复设计 | [docs/design/2026-07-08-backup-extension.md](./docs/design/2026-07-08-backup-extension.md) |
-| AI 对话设计 | [docs/superpowers/specs/2026-07-08-lizhi-ai-chat-design.md](./docs/superpowers/specs/2026-07-08-lizhi-ai-chat-design.md) |
-| MCP 集成设计 | [docs/superpowers/specs/2026-07-08-lizhi-mcp-design.md](./docs/superpowers/specs/2026-07-08-lizhi-mcp-design.md) |
-| 品牌方案 | [docs/superpowers/specs/2026-07-06-lizhi-kb-brand-cat.md](./docs/superpowers/specs/2026-07-06-lizhi-kb-brand-cat.md) |
-| M0 Spike 计划 | [docs/superpowers/specs/2026-07-06-lizhi-kb-vue-m0.md](./docs/superpowers/specs/2026-07-06-lizhi-kb-vue-m0.md) |
-| v1 交付计划 | [docs/superpowers/plans/2026-07-06-lizhi-kb-v1-delivery.md](./docs/superpowers/plans/2026-07-06-lizhi-kb-v1-delivery.md) |
-| 原始 PRD | [docs/design/初版设计.md](./docs/design/初版设计.md) |
+| **产品设计（唯一 SSOT）** | [docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md) |
+| **品牌与 UI** | [docs/brand/lizhi-brand-design.md](./docs/brand/lizhi-brand-design.md) |
+| Agent 工作流 | [docs/agent-workflow/README.md](./docs/agent-workflow/README.md) |
+| Agent 工作台 | [docs/superpowers/specs/2026-07-10-cc-workbench-design.md](./docs/superpowers/specs/2026-07-10-cc-workbench-design.md) |
+| AI 对话 | [docs/superpowers/specs/2026-07-08-lizhi-ai-chat-design.md](./docs/superpowers/specs/2026-07-08-lizhi-ai-chat-design.md) |
+| MCP 集成 | [docs/superpowers/specs/2026-07-08-lizhi-mcp-design.md](./docs/superpowers/specs/2026-07-08-lizhi-mcp-design.md) |
+| 备份与恢复 | [docs/design/2026-07-08-backup-extension.md](./docs/design/2026-07-08-backup-extension.md) |
+| 扩展模块索引 | complete-design [§10.3](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md#103-扩展模块-spec-索引) |
 | 交互原型 | [prototype/index.html](./prototype/index.html) |
 
 ## AI Agent 工作流
@@ -205,4 +218,6 @@ src/
 |------|------|------|
 | v1.0 | Vault | 加密库、编辑器、热力图 |
 | v1.5 | Network | 双链、图谱、App Lock |
+| v1.6+ | 灵狸 AI | 应用内 AI 助手 |
+| v1.7+ | Agent 工作台 | Claude Code 集成（已落地） |
 | v2.0 | Shadow | 诱饵库、盲水印 |

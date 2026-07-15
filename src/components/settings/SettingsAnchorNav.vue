@@ -14,25 +14,22 @@ const emit = defineEmits<{
 
 <template>
   <aside
-    class="settings-anchor-nav hidden w-44 shrink-0 self-stretch min-h-0 border-l border-border bg-surface-0 lg:block"
+    class="settings-anchor-nav hidden w-44 shrink-0 self-stretch min-h-0 border-l border-border lg:block"
+    style="background: color-mix(in srgb, var(--color-surface-1) 35%, transparent)"
     data-testid="settings-anchor-nav"
   >
     <nav class="sticky top-0 px-3 py-6" aria-label="设置目录">
       <div class="mb-3 flex items-center gap-1.5 px-2">
         <ListTree class="size-3.5 shrink-0 text-muted" aria-hidden="true" />
-        <span class="text-[11px] font-semibold tracking-wide text-text-secondary">目录</span>
+        <span class="text-[11px] font-semibold text-text-secondary">目录</span>
       </div>
 
       <ul class="space-y-0.5">
         <li v-for="section in sections" :key="section.id">
           <button
             type="button"
-            class="settings-anchor-nav__item focus-ring w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors duration-150"
-            :class="
-              activeId === section.id
-                ? 'bg-surface-2 font-medium text-[var(--color-text)]'
-                : 'text-muted hover:bg-surface-1 hover:text-[var(--color-text)]'
-            "
+            class="settings-nav__item focus-ring"
+            :class="{ 'settings-nav__item--active': activeId === section.id }"
             :aria-current="activeId === section.id ? 'location' : undefined"
             :data-testid="`settings-anchor-${section.id}`"
             @click="emit('select', section.id)"

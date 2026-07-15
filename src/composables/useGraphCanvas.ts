@@ -86,7 +86,7 @@ export function buildLocalGraph(
   }
 
   for (const [depth, ids] of depthGroups) {
-    const radius = depth === 0 ? 0 : depth === 1 ? 100 : 180;
+    const radius = depth === 0 ? 0 : depth === 1 ? 120 : 210;
     ids.forEach((id, i) => {
       const angle = ids.length === 1 ? 0 : (2 * Math.PI * i) / ids.length - Math.PI / 2;
       const meta = metaById.get(id);
