@@ -3,7 +3,7 @@ import { PanelLeftClose, PanelLeftOpen } from "@lucide/vue";
 import { computed, onMounted } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 
-import logoNest from "../../assets/logo-nest.svg";
+import LogoNest from "../common/LogoNest.vue";
 import { useSidebarResize } from "../../composables/useSidebarResize";
 import { QUICK_NAV_ITEMS } from "../../constants/quickNav";
 import { NAV_GROUPS, QUICK_NAV_ICONS, SETTINGS_NAV_ICON } from "../../constants/navIcons";
@@ -80,13 +80,7 @@ const slotClass = computed(() =>
         class="app-shell-rail"
         data-testid="app-shell-sidebar-rail"
       >
-        <img
-          :src="logoNest"
-          alt=""
-          width="22"
-          height="22"
-          class="app-shell-rail__logo"
-        />
+        <LogoNest :size="22" class="app-shell-rail__logo" />
         <button
           type="button"
           class="sidebar-toggle-btn focus-ring"
@@ -104,16 +98,10 @@ const slotClass = computed(() =>
         <div class="shrink-0 border-b border-border px-4 py-3">
           <div class="flex items-center justify-between gap-2">
             <div class="min-w-0 flex items-center gap-2 leading-tight">
-              <img
-                :src="logoNest"
-                alt=""
-                width="22"
-                height="22"
-                class="h-[22px] w-[22px] shrink-0"
-              />
+              <LogoNest :size="22" />
               <div class="min-w-0 flex flex-col">
-                <span class="text-sm font-semibold tracking-tight">
-                  狸知<span class="text-paw">知识库</span>
+                <span class="app-shell-brand text-sm font-semibold tracking-tight">
+                  狸<span class="app-shell-brand__dot" aria-hidden="true">·</span>知
                 </span>
                 <span class="text-[10px] text-muted">本地加密 · 知识成网</span>
               </div>

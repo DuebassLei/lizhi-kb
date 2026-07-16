@@ -2,8 +2,8 @@
 import { computed, ref } from "vue";
 import { Lock, Shield, Sparkles } from "@lucide/vue";
 import { useRoute, useRouter } from "vue-router";
-import logoNest from "../assets/logo-nest.svg";
 import HintBanner from "../components/common/HintBanner.vue";
+import LogoNest from "../components/common/LogoNest.vue";
 import Btn from "../components/ui/Btn.vue";
 import Input from "../components/ui/Input.vue";
 import { DEFAULT_APP_ROUTE } from "../router/constants";
@@ -98,7 +98,7 @@ function cancelPasswordSetup() {
       data-testid="welcome-card"
     >
       <div class="flex flex-col items-center text-center">
-        <img :src="logoNest" alt="" width="48" height="48" class="h-12 w-12" />
+        <LogoNest :size="48" class="h-12 w-12" />
 
         <template v-if="showRecovery && vault.recoveryPhrase">
           <h1 class="mt-6 text-2xl font-semibold tracking-tight text-[var(--color-text)]">

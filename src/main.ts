@@ -21,6 +21,7 @@ import "./styles/components.css";
 import "./styles/settings-ui.css";
 import "./styles/insights-motion.css";
 import "./styles/module-pages.css";
+import "./styles/question-bank.css";
 import "./styles/knowledge-card-base.css";
 import "./styles/knowledge-card-skins.css";
 import "./styles/knowledge-card-panel.css";

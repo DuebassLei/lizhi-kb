@@ -33,6 +33,11 @@ use crate::requirements::{
 
 };
 
+use crate::question_bank::{
+    BatchImportResult, CreateQuestionInput, ImportResult, Question, QuestionBankStats,
+    QuestionSearchParams, QuestionSearchResult, UpdateQuestionPatch,
+};
+
 use crate::link_index::{GraphPayload, LinkIndexSnapshot, LinkMention, LinkStats};
 
 use crate::launch_records::{
@@ -1367,6 +1372,136 @@ pub fn reorder_requirements(
         .lock()
         .map_err(|_| "document service lock poisoned".to_string())?
         .reorder_requirements(updates)
+        .map_err(|e| e.to_string())
+}
+
+// ── Question Bank ──────────────────────────────────────────────
+
+#[tauri::command]
+pub fn list_questions(state: State<Arc<AppState>>) -> Result<Vec<Question>, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .list_questions()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_question(state: State<Arc<AppState>>, id: String) -> Result<Question, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .get_question(&id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn create_question(
+    state: State<Arc<AppState>>,
+    input: CreateQuestionInput,
+) -> Result<Question, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .create_question(input)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_question(
+    state: State<Arc<AppState>>,
+    id: String,
+    patch: UpdateQuestionPatch,
+) -> Result<Question, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .update_question(&id, patch)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_question(state: State<Arc<AppState>>, id: String) -> Result<(), String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .delete_question(&id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn clear_all_questions(state: State<Arc<AppState>>) -> Result<u32, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .clear_all_questions()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn search_questions(
+    state: State<Arc<AppState>>,
+    params: QuestionSearchParams,
+) -> Result<QuestionSearchResult, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .search_questions(&params)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn batch_import_questions(
+    state: State<Arc<AppState>>,
+    inputs: Vec<CreateQuestionInput>,
+) -> Result<BatchImportResult, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .batch_import_questions(inputs)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn export_question_bank(state: State<Arc<AppState>>) -> Result<String, String> {
+    let data = state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .export_all_questions()
+        .map_err(|e| e.to_string())?;
+    serde_json::to_string_pretty(&data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn import_question_bank(
+    state: State<Arc<AppState>>,
+    json_data: String,
+    mode: String,
+) -> Result<ImportResult, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .import_questions_from_json(&json_data, &mode)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_question_bank_stats(state: State<Arc<AppState>>) -> Result<QuestionBankStats, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .get_question_bank_stats()
         .map_err(|e| e.to_string())
 }
 

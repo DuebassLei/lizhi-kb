@@ -1,0 +1,30 @@
+/* HeiGe-Design · nocturne-teal · 深空电青
+   Source: HeiGe-Design systems/nocturne-teal/exports/variables.css
+   Adapted for 狸知知识库 landing page */
+
+:root {
+  --primary: #2dd4bf;
+  --on-primary: #031815;
+  --ink: #e9edf3;
+  --canvas: #08090d;
+  --surface: #0f1319;
+  --muted: #8a94a4;
+  --hairline: #20262f;
+  --glow: #5ff0dc;
+  --accent: #f6a35c;
+
+  --sans: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+  --body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Noto Sans SC", "PingFang SC", "Microsoft YaHei", "Hiragino Sans GB", sans-serif;
+  --mono: "JetBrains Mono", "SF Mono", ui-monospace, "Cascadia Code",
+    "Noto Sans SC", "PingFang SC", monospace;
+
+  --xs: 4px;
+  --sm: 8px;
+  --md: 16px;
+  --lg: 24px;
+  --xl: 40px;
+  --section: 96px;
+  --max-w: 1120px;
+}

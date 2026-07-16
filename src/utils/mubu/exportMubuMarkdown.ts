@@ -5,22 +5,22 @@ import { downloadTextFile } from "../exportFile";
 import { mubuTreeToMarkdown } from "../mubuTree";
 
 function sanitizeFilename(name: string): string {
-  const base = name.trim().replace(/[\\/:*?"<>|]+/g, "_") || "幕布大纲";
+  const base = name.trim().replace(/[\\/:*?"<>|]+/g, "_") || "织念大纲";
   return base.endsWith(".md") ? base : `${base}.md`;
 }
 
-/** 导出幕布整树为 Markdown 大纲（不受折叠影响） */
+/** 导出织念整树为 Markdown 大纲（不受折叠影响） */
 export async function exportMubuMarkdown(
   root: MubuTreeNode,
   title: string,
 ): Promise<boolean> {
   const content = mubuTreeToMarkdown(root);
-  const filename = sanitizeFilename(`${title}-幕布大纲`);
+  const filename = sanitizeFilename(`${title}-织念大纲`);
 
   if (isTauriRuntime()) {
     const { save } = await import("@tauri-apps/plugin-dialog");
     const dest = await save({
-      title: "导出幕布大纲",
+      title: "导出织念大纲",
       defaultPath: filename,
       filters: [{ name: "Markdown", extensions: ["md"] }],
     });

@@ -1,223 +1,320 @@
 # 狸知知识库 · Lizhi Knowledge
 
-> 你的加密知识库，猫一样安静。
+> **你的加密知识库，猫一样安静。**  
+> *Think in your nest. Link your knowledge.*
 
-本地优先、端到端加密的**个人知识库**桌面应用。技术栈：Tauri 2 + Rust + Vue 3 + Pinia + Tailwind 4。
+本地优先、端到端加密的**个人知识库**桌面应用。双链联结知识，图谱看见结构。默认零网络——可在 Wireshark 下验证。
 
-## 产品介绍
+[![Release](https://img.shields.io/github/v/release/DuebassLei/lizhi-kb?label=release)](https://github.com/DuebassLei/lizhi-kb/releases)
 
-**狸知知识库**面向需要把思想写出来、又不能把数据交给云端的人：研究者、顾问、深度写作者与安全从业者。它占据「知识网络深度」与「可验证本地加密」的交叉空白——既要有双链与图谱，也要把密钥与正文留在本机。
+**[免费下载](https://github.com/DuebassLei/lizhi-kb/releases)** · **[产品落地页](https://duebasslei.github.io/lizhi-kb/)** · [完整产品设计](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md)
 
-| 维度 | 说明 |
+<p align="center">
+  <img src="website/assets/screenshots/hero-workspace.png" alt="狸知知识库工作区：目录树、Markdown 编辑器与加密架构笔记" width="920" />
+</p>
+
+| AES-256-GCM 落盘加密 | 默认 0 网络请求 | Argon2id · 64 MB | 永久免费 ¥0 |
+|:---:|:---:|:---:|:---:|
+
+---
+
+## 私密如猫，知识成网
+
+加密、联结、防窥——三层能力叠加，构成狸知的完整护城河。
+
+### 01 · 落盘即加密，解锁才明文
+
+所有笔记以 **AES-256-GCM** 加密存储。主密码经 **Argon2id** 派生密钥。锁定后内存中的密钥与明文主动清零。
+
+`KDF Argon2id` · `MEM 64MB` · `CIPHER AES-256`
+
+### 02 · 双链呼吸，图谱可见
+
+输入 `[[` 自动补全，反向链接实时更新。局部图谱以力导向布局呈现 2 层深度联结。
+
+`WIKILINK <50ms` · `GRAPH ≥55fps`
+
+### 03 · 界面水印，导出溯源
+
+Canvas 覆盖层防旁人瞟屏。PDF 导出可强制嵌入水印，元数据自动清洗——无 Author、无 EXIF。
+
+`WATERMARK ON` · `METADATA STRIPPED`
+
+---
+
+## 从写作到洞察，一条链路
+
+| | |
+|---|---|
+| **专注写作** — CodeMirror 6 源码编辑 + 实时预览，打字机模式、自动保存 | ![写作](website/assets/screenshots/showcase-write.png) |
+| **双链联结** — Wiki 双链 + 拼音搜索，反向链接与悬浮预览 | ![双链](website/assets/screenshots/showcase-link.png) |
+| **局部图谱** — 从任意节点展开 2 层网络，SVG 力导向 ≥ 55fps | ![图谱](website/assets/screenshots/showcase-graph.png) |
+| **写作洞察** — GitHub 风格热力图、链接统计、编辑活动 | ![看板](website/assets/screenshots/showcase-insights.png) |
+
+---
+
+## 不止知识库，多条并行入口
+
+织念、每日小记、需求看板、AI 助手与 Agent 工作台——与加密知识库**并列**，数据同库、路由独立。
+
+### 织念 · `/mubu`
+
+主题树笔记与导图双视图。大纲式展开思绪，一键切到导图看见结构——与 Markdown 知识库解耦，独立成篇、独立备份。
+
+- 笔记视图：折叠、待办、标题级别与主题装饰
+- 导图视图：同源切换，双击改标题，导出 PNG / Markdown
+- 独立数据表，纳入 `.lizhi` 备份（`merge-documents` 按篇合并）
+
+<p align="center">
+  <img src="website/assets/screenshots/module-zhinian.png" alt="织念" width="920" />
+</p>
+
+### 每日小记 · `/journal`
+
+日记式记录，与普通文档流分离的日常入口。按日时间线分组，快速捕捉灵感，支持 Markdown 与导出。
+
+- 时间线按日折叠，今天与历史一目了然
+- Ctrl+Enter 快速提交，不打断写作心流
+- 独立 journal 数据表，纳入 `.lizhi` 备份
+
+<p align="center">
+  <img src="website/assets/screenshots/module-journal.png" alt="每日小记" width="920" />
+</p>
+
+### 需求看板 · `/requirements`
+
+需求从提出到完成的工作流。Kanban 四列拖拽、优先级与负责人、可关联知识库文档。
+
+- 待办 / 进行中 / 挂起 / 完成四列看板
+- REQ 编号、提出人、预计上线时间
+- 关联文档、CSV 导入导出
+
+<p align="center">
+  <img src="website/assets/screenshots/module-requirements.png" alt="需求看板" width="920" />
+</p>
+
+### 灵狸 AI 助手 · `/ai`
+
+本地加密、**opt-in 外联**。Ollama 本地优先，可选云端 OpenAI 兼容 API。闲聊、知识库 RAG、笔记助手三模式——工作区侧栏（`Ctrl+Shift+A`）或独立全页。
+
+- 知识库模式：FTS5 检索 + 引用跳转源文档
+- 笔记助手：搜索 / 阅读 / 写入笔记（需显式开启）
+- 默认零网络；云端与写笔记均需 opt-in 确认
+
+<p align="center">
+  <img src="website/assets/screenshots/module-ai.png" alt="灵狸 AI 助手" width="920" />
+</p>
+
+### Agent 工作台 · `/cc-workbench`
+
+基于 Claude Agent SDK 的独立控制平面。Agents · Skills · MCP 编排，vault / project 双工作目录——**与应用内 AI 助手并列，互不合并**。
+
+- 知识库模式：仅 lizhi-mcp，安全访问加密库
+- 项目模式：完整文件工具 + Bash，本地项目开发
+- 会话回放、进程管理、提示词与斜杠命令
+
+<p align="center">
+  <img src="website/assets/screenshots/module-cc-workbench.png" alt="Agent 工作台" width="920" />
+</p>
+
+> **并列不合并** — AI 助手负责应用内对话与 RAG；Agent 工作台负责长链路智能体任务。两者共享本地优先叙事，路由与运行时独立。
+
+---
+
+## 知识网络 × 本地加密
+
+| 能力 | 狸知 | Obsidian | Standard Notes | Notion |
+|------|:----:|:--------:|:--------------:|:------:|
+| 本地加密落盘 | ✓ | — | ✓ | — |
+| 双链 + 图谱 | ✓ | ✓ | — | 部分 |
+| 零网络默认 | ✓ | — | 部分 | — |
+| 界面/导出水印 | ✓ | — | — | — |
+| 元数据清洗导出 | ✓ | 部分 | 部分 | — |
+
+狸知是唯一在「知识网络化」与「可验证本地加密」两个维度同时拉满的个人知识库。
+
+---
+
+## 可验证的安全，不是口号
+
+我们不说「绝对无法破解」。我们说得出每一项参数，查得到每一次网络拦截。
+
+| 参数 | 值 |
+|------|-----|
+| KDF | Argon2id |
+| KDF 内存 | 64 MB |
+| 对称加密 | AES-256-GCM |
+| 盐长度 | 32 bytes |
+| 网络策略 | Rust deny all |
+| 漏洞披露 | security@lizhi.app |
+
+---
+
+## 完全免费，全功能开放
+
+不设付费墙、不设订阅、不设功能阉割。加密、双链、图谱、App Lock、水印、PDF 导出、织念、每日小记、需求看板、AI 助手、Agent 工作台——**全部免费**，Win / macOS / Linux 均可下载。
+
+---
+
+## 常见问题
+
+**狸知是 Obsidian 插件吗？**  
+不是。狸知是独立桌面应用（Tauri + Rust），从存储层实现加密。
+
+**真的零网络吗？**  
+默认 Rust 层拦截所有出站连接。设置页可查看实时拦截计数。更新需手动下载。
+
+**忘记主密码怎么办？**  
+凭恢复密钥可重置。无恢复密钥则无法解密——这是加密的设计使然。
+
+**能导入 Obsidian 库吗？**  
+支持导入 Markdown 文件夹，保留 `[[双链]]` 语法。
+
+**v1.x 有移动端吗？**  
+仅桌面端。移动端在路线图中，暂无日期。
+
+**源码可以商用吗？**  
+桌面应用免费使用。源码非宽松开源协议；商用、二次分发或修改发布需事先邮件联系作者 [1130122701@qq.com](mailto:1130122701@qq.com) 取得书面授权。
+
+---
+
+## 源码授权与联系作者
+
+狸知知识库**桌面应用永久免费**使用。源码托管于 GitHub 供学习与交流参考，**非 MIT 等宽松开源协议**。完整条款见仓库根目录 **[LICENSE](./LICENSE)**。
+
+| 场景 | 说明 |
 |------|------|
-| **定位** | Encrypted Personal Knowledge Base：本地优先、主密码解锁的加密库 |
-| **差异化** | 加密 × Wiki 双链 / 图谱 × 桌面零默认同云；品牌气质克制、非恐吓营销 |
-| **边界（v1.x Won't）** | 不做云同步、多人协作、插件市场与移动端 |
+| 个人学习 / 研究 / 自用 | 允许 |
+| 商用、二次分发、修改发布 | 需事先获得**作者书面授权** |
+| 嵌入其他产品或 SaaS | 需事先获得**作者书面授权** |
 
-详细产品决策、路由 IA 与版本路线见 [完整产品设计](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md)（唯一产品设计 SSOT）。
+**作者邮箱**：[1130122701@qq.com](mailto:1130122701@qq.com)  
+**GitHub**：[DuebassLei/lizhi-kb](https://github.com/DuebassLei/lizhi-kb)
 
-## 核心能力
+<p align="center">
+  <img src="website/assets/images/wechat-mp-qr.png" alt="作者公众号：海边的小鱼干" width="200" />
+  <br />
+  <sub>扫码关注公众号 · 海边的小鱼干 · 获取更新与作者动态</sub>
+</p>
 
-| 类别 | 能力 |
-|------|------|
-| **安全存储** | Argon2id + AES-256-GCM 加密库；主密码解锁；可选启动锁定 |
-| **写作** | CodeMirror 6 Markdown 编辑器；分栏预览；Wiki 双链 `[[标题]]`；图片粘贴/插入；查找替换 |
-| **知识组织** | 文件夹树；文档标签；置顶 / 最近；局部知识图谱 |
-| **看板** | 编辑热力图（贪吃蛇动画）；需求看板；每日小记；思维导图 |
-| **AI** | 本地 Ollama / 云端 API（含 小鲸鱼 预设）；RAG 检索；**Agent 工作台**（Claude Code 集成） |
-| **集成** | MCP 服务（`lizhi-mcp`）；凭证库（开发中） |
-| **导出** | Markdown / PDF / HTML；按文件夹导出；微信公众号主题排版；**Canvas 水印** |
-| **备份** | `.lizhi` 完整备份；整库恢复 / 合并设置 / 合并文档；Markdown 迁移导出 |
-
-## 前置要求
-
-- [Node.js](https://nodejs.org/) 20+
-- [pnpm](https://pnpm.io/)
-- [Rust](https://www.rust-lang.org/tools/install)（运行 `pnpm tauri dev` 需要）
-
-### Windows 额外步骤（SQLCipher / OpenSSL）
-
-默认 feature `sqlcipher` 会通过 `bundled-sqlcipher` 从源码编译 SQLCipher，**Windows 上需要系统 OpenSSL**（macOS 使用 CommonCrypto，Linux 通常已有 `libssl-dev`）。
-
-1. 安装 [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)（「使用 C++ 的桌面开发」工作负载）
-2. 安装 OpenSSL **Dev 版**（含 `include/` 与 `libcrypto.lib`，Light 版仅运行时、无法编译）：
-
-```powershell
-winget install ShiningLight.OpenSSL.Dev
-```
-
-3. 若安装路径非默认，在 PowerShell 中设置（或写入用户环境变量）：
-
-```powershell
-$env:OPENSSL_DIR = "C:\Program Files\OpenSSL-Win64"
-$env:OPENSSL_LIB_DIR = "C:\Program Files\OpenSSL-Win64\lib\VC\x64\MD"
-```
-
-推荐复制 `src-tauri/.cargo/config.toml.example` 为 `config.toml`（已含 `OPENSSL_LIB_DIR`）。若此前链接失败，请执行一次 `cargo clean -p libsqlite3-sys` 后重试。或运行：
-
-```powershell
-.\scripts\setup-windows-build.ps1 -TauriDev
-```
-
-> **开发回退**（仅本地调试，vault 无加密）：`cargo build --no-default-features --features plain-sqlite`
+---
 
 ## 开发
 
+技术栈：**Tauri 2** · **Rust** · **Vue 3** · **Pinia** · **Tailwind CSS 4**
+
+### 前置要求
+
+- [Node.js](https://nodejs.org/) 20+
+- [pnpm](https://pnpm.io/)
+- [Rust](https://www.rust-lang.org/tools/install)（`pnpm tauri dev` / 打包需要）
+
+**Windows（SQLCipher / OpenSSL）**：默认 `sqlcipher` feature 需 OpenSSL Dev 版。
+
+1. 安装 [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/)（「使用 C++ 的桌面开发」）
+2. `winget install ShiningLight.OpenSSL.Dev`
+3. 复制 `src-tauri/.cargo/config.toml.example` → `config.toml`，或设置 `OPENSSL_DIR` / `OPENSSL_LIB_DIR`
+
+快捷脚本：`.\scripts\setup-windows-build.ps1 -TauriDev`。本地调试可回退：`cargo build --no-default-features --features plain-sqlite`（vault 无加密）。
+
+### 常用命令
+
 ```bash
-# 仅前端（浏览器预览，无需 Rust）
-pnpm dev
-
-# 完整桌面应用
-pnpm tauri dev
-
-# E2E 测试（国内请用镜像安装浏览器，勿用官方 CDN）
-pnpm playwright:install
-pnpm test:e2e
+pnpm dev              # 仅前端（浏览器预览，无需 Rust）
+pnpm tauri dev        # 完整桌面应用
+pnpm verify           # 前端 + MCP + Rust 零警告门禁
+pnpm test:e2e         # Playwright E2E
+pnpm capture:landing  # 重新生成落地页 / README 截图
 ```
 
-## 打包与发版
-
-### 本地打包（Windows）
+### 打包与发版
 
 ```powershell
 pnpm tauri build
+# 产物：src-tauri/target/release/bundle/msi/*.msi、nsis/*.exe
 ```
 
-产物：`src-tauri/target/release/bundle/msi/*.msi`、`nsis/*.exe`
+多平台 CI：[`.github/workflows/build-release.yml`](.github/workflows/build-release.yml)。推送 `v*` 标签后三平台并行构建，产物出现在 [Releases](https://github.com/DuebassLei/lizhi-kb/releases)。
 
-> **中文应用名**：`productName` 含中文时，MSI 需使用 `bundle.windows.wix.language: "zh-CN"`（已配置），否则 WiX `light.exe` 会因代码页 1252 报错。
+**产品落地页**：[`website/`](website/) · GitHub Pages 工作流 [`.github/workflows/pages.yml`](.github/workflows/pages.yml)
 
-### 云端多平台打包（GitHub Actions）
+### 路由（产品 IA）
 
-工作流：[`.github/workflows/build-release.yml`](.github/workflows/build-release.yml)
-
-| 平台 | 产物 |
+| 路由 | 说明 |
 |------|------|
-| Windows | `.msi`、`.exe`（NSIS） |
-| macOS | `.dmg`、`.app` |
-| Linux | `.deb`、`.AppImage` |
+| `/welcome` | FTUE 首次引导 |
+| `/unlock` | 解锁层 |
+| `/insights` | 写作看板（默认首页） |
+| `/workspace` | 个人知识库（编辑 / 图谱 / 导图为视图切换） |
+| `/journal` | 每日小记 |
+| `/requirements` | 需求看板 |
+| `/ai` | 灵狸 AI 助手 |
+| `/cc-workbench` | Agent 工作台 |
+| `/mubu` | **织念**（主题树笔记 / 导图） |
+| `/question-bank` | 题库 |
+| `/settings` | 设置 |
 
-**手动触发**：GitHub → Actions → **Build Release** → Run workflow → 各 job 的 Artifacts 下载。
+原型 `prototype/index.html` 仅作交互参考；实现以 [complete-design spec](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md) 为准。
 
-**正式发布**（同步创建 GitHub Release）：
-
-```bash
-# 发版前对齐 package.json、src-tauri/Cargo.toml、src-tauri/tauri.conf.json 的 version
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-推送 `v*` 标签后，三平台并行构建，完成后产物出现在 **Releases** 页面。
-
-> v0.1 未配置代码签名；macOS/Windows 安装时可能出现系统安全提示，功能不受影响。
-
-## 项目结构
+### 项目结构
 
 ```
 lizhi-kb/
 ├── src/                  Vue 3 前端
 ├── src-tauri/            Tauri / Rust 后端
-├── docs/
-│   ├── agent-workflow/   多 Agent 工作流（SSOT）
-│   ├── superpowers/      产品设计 spec / 交付计划
-│   ├── brand/            品牌与 UI 设计系统
-│   └── design/           功能补充（备份、落地页等）
-├── prototype/            交互原型（HTML）
-├── scripts/              工具脚本
-├── AGENTS.md / CLAUDE.md Agent 入口
-├── .claude/ / .cursor/   双轨 Agent 配置
-└── tests/e2e/            Playwright
+├── website/              产品落地页（GitHub Pages）
+├── docs/                 产品设计、品牌、工作流
+├── packages/             ai-bridge、lizhi-mcp
+├── tests/e2e/            Playwright
+└── AGENTS.md / CLAUDE.md Agent 入口
 ```
 
-### 源码布局（complete-design §4.7）
+### 数据目录
 
-```
-src/
-├── components/   vault | workspace | editor | graph | insights | cc | ai | common | canvas | credentials | journal | launches | mindmap | requirements | settings | ui | wechat
-├── views/        Welcome / Unlock / Insights / Workspace / Settings / CcWorkbench
-├── stores/       vault, documents, editor, links, ui, folders, chat, ccWorkbench, credentials, journal, launchRecords, requirements
-├── composables/  useTauriCommand, useAutoSave, useWikiSuggest…
-└── extensions/   WikiLink.ts
-```
-
-**路由（产品 IA，非 prototype 七屏 demo）：**
-
-| 路由 | 说明 |
-|------|------|
-| `/welcome` | FTUE 首次引导（无 vault 时） |
-| `/unlock` | 解锁层 |
-| `/insights` | **看板**（默认首页） |
-| `/workspace` | **知识库**（编辑 / 图谱为**视图切换**） |
-| `/settings` | 设置 |
-| `/cc-workbench` | **Agent 工作台**（Claude Code 集成） |
-
-原型 `prototype/index.html` 仅作交互参考；实现以 spec 信息架构为准。
-
-## 数据目录
-
-用户数据存储于 `~/.lizhi-kb/`（请勿提交到 Git）。
+用户数据：`~/.lizhi-kb/`（勿提交 Git）
 
 ```
 ~/.lizhi-kb/
-├── vault.meta.json      # 库元数据（加密状态、vault ID 等）
-├── keys.enc             # 数据加密密钥（DEK）
-├── vault.db / lizhi-kb.db   # SQLite（文档索引、需求、小记、热力图、链接索引）
-├── workspace/           # Markdown 正文（.md 或 .md.enc）
-├── assets/              # 图片等资源
-├── revisions/           # 文档历史版本快照（随备份迁移）
-├── vault-ui-state.json  # 文件夹树、标签、对话记录等 UI 状态（备份 SSOT）
-├── ai-config.json       # AI 提供商配置
-├── ai-secrets.json(.enc)# API Key（敏感；加密库为密封文件）
-├── cc-workbench.json    # Claude Code 工作台配置
-├── cc-secrets.json(.enc)# CC API Key（敏感；加密库为密封文件）
-└── mcp-config.json      # MCP 服务配置（含 token，明文）
+├── vault.meta.json / keys.enc / vault.db
+├── workspace/            Markdown 正文（.md 或 .md.enc）
+├── assets/               图片等资源
+├── revisions/            文档历史版本
+├── vault-ui-state.json   UI 状态 SSOT
+├── ai-config.json / ai-secrets.json(.enc)
+├── cc-workbench.json / cc-secrets.json(.enc)
+└── mcp-config.json
 ```
 
-### 备份与恢复（`.lizhi`）
+**备份**：设置 → 备份与恢复 → `.lizhi` 压缩包（format v2）。详见 [备份设计](./docs/design/2026-07-08-backup-extension.md)。
 
-设置 → **备份与恢复**。桌面版导出 `.lizhi` 压缩包（format v2），含文档、资源、历史版本、需求/小记、文件夹与标签、AI/CC/MCP 配置等。历史版本可能使备份体积明显增大。
-
-| 操作 | 说明 |
-|------|------|
-| **导出备份** | 打包当前库；加密库导出需验证主密码 |
-| **从备份恢复** | 整库替换，换机 / 灾难恢复；完成后自动重启 |
-| **合并备份设置** | 仅合并 AI、CC 工作台、文件夹、标签、对话记录等；**不改动现有文档** |
-| **合并备份文档** | 按 `updated_at` 合并文档与资源，并合并设置与历史版本；较新者胜 |
-| **导出 Markdown** | 迁移到 Obsidian 等；单文件或按文件夹结构 |
-
-> 加密库中文档、数据库与 AI/CC 密钥在备份内保持加密；`ai-config.json`、`cc-workbench.json`、`mcp-config.json`（含 MCP token）等仍为明文，请妥善保管 `.lizhi` 文件。  
-> 详细设计：[docs/design/2026-07-08-backup-extension.md](./docs/design/2026-07-08-backup-extension.md)
+---
 
 ## 文档
 
 | 文档 | 路径 |
 |------|------|
-| **产品设计（唯一 SSOT）** | [docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md) |
-| **品牌与 UI** | [docs/brand/lizhi-brand-design.md](./docs/brand/lizhi-brand-design.md) |
-| Agent 工作流 | [docs/agent-workflow/README.md](./docs/agent-workflow/README.md) |
-| Agent 工作台 | [docs/superpowers/specs/2026-07-10-cc-workbench-design.md](./docs/superpowers/specs/2026-07-10-cc-workbench-design.md) |
-| AI 对话 | [docs/superpowers/specs/2026-07-08-lizhi-ai-chat-design.md](./docs/superpowers/specs/2026-07-08-lizhi-ai-chat-design.md) |
-| MCP 集成 | [docs/superpowers/specs/2026-07-08-lizhi-mcp-design.md](./docs/superpowers/specs/2026-07-08-lizhi-mcp-design.md) |
-| 备份与恢复 | [docs/design/2026-07-08-backup-extension.md](./docs/design/2026-07-08-backup-extension.md) |
-| 扩展模块索引 | complete-design [§10.3](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md#103-扩展模块-spec-索引) |
-| 交互原型 | [prototype/index.html](./prototype/index.html) |
+| **产品设计（SSOT）** | [complete-design](./docs/superpowers/specs/2026-07-06-lizhi-kb-complete-design.md) |
+| **品牌与 UI** | [lizhi-brand-design](./docs/brand/lizhi-brand-design.md) |
+| **落地页文案** | [product-landing-page](./docs/design/product-landing-page.md) |
+| Agent 工作台 | [cc-workbench-design](./docs/superpowers/specs/2026-07-10-cc-workbench-design.md) |
+| AI 对话 | [lizhi-ai-chat-design](./docs/superpowers/specs/2026-07-08-lizhi-ai-chat-design.md) |
+| MCP 集成 | [lizhi-mcp-design](./docs/superpowers/specs/2026-07-08-lizhi-mcp-design.md) |
+| Agent 工作流 | [docs/agent-workflow/](./docs/agent-workflow/README.md) |
 
-## AI Agent 工作流
-
-双轨配置（Claude Code + Cursor）：
-
-- [AGENTS.md](./AGENTS.md) — 通用 Agent 指令
-- [CLAUDE.md](./CLAUDE.md) — Claude Code 入口
-- [工作流文档](./docs/agent-workflow/README.md) — 角色、模板、同步策略
-
-校验：`node scripts/sync-agent-config.mjs --check`
+---
 
 ## 版本路线
 
 | 版本 | 代号 | 重点 |
 |------|------|------|
 | v1.0 | Vault | 加密库、编辑器、热力图 |
-| v1.5 | Network | 双链、图谱、App Lock |
-| v1.6+ | 灵狸 AI | 应用内 AI 助手 |
-| v1.7+ | Agent 工作台 | Claude Code 集成（已落地） |
-| v2.0 | Shadow | 诱饵库、盲水印 |
+| v1.5 | Network | 双链、图谱、App Lock、水印 |
+| v1.6+ | 灵狸 AI | 应用内 AI 助手（三模式） |
+| v1.7+ | Agent 工作台 | Claude Agent SDK（已落地） |
+| v2.0 | Shadow | 诱饵库、盲水印、加密核心审计公开 |
+
+---
+
+<p align="center">
+  <sub>© 狸知知识库 · Lizhi Knowledge · <a href="./LICENSE">作者授权协议</a> · 联系 <a href="mailto:1130122701@qq.com">1130122701@qq.com</a></sub>
+</p>

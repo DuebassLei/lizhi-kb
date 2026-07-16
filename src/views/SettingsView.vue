@@ -319,7 +319,7 @@ async function onRebuildIndex() {
 
         <h2 class="settings-panel__title mb-3">外观</h2>
 
-        <div class="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
 
           <label
 

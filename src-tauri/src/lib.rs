@@ -24,6 +24,8 @@ mod credentials;
 
 mod mubu;
 
+mod question_bank;
+
 pub mod mcp;
 
 mod link_index;
@@ -113,6 +115,14 @@ pub enum AppError {
     #[error("{0}")]
 
     MubuValidation(String),
+
+    #[error("题目不存在")]
+
+    QuestionNotFound(String),
+
+    #[error("{0}")]
+
+    QuestionValidation(String),
 
     #[error("invalid asset id: {0}")]
 
@@ -414,6 +424,18 @@ pub fn run() {
             commands::delete_requirement,
 
             commands::reorder_requirements,
+
+            commands::list_questions,
+            commands::get_question,
+            commands::create_question,
+            commands::update_question,
+            commands::delete_question,
+            commands::clear_all_questions,
+            commands::search_questions,
+            commands::batch_import_questions,
+            commands::export_question_bank,
+            commands::import_question_bank,
+            commands::get_question_bank_stats,
 
             commands::list_launch_records,
 

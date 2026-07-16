@@ -854,6 +854,31 @@
   opacity: 0.92;
 }
 
+/* 侧栏品牌字标 · 与落地页「狸 · 知」同源 */
+.app-shell-brand {
+  letter-spacing: -0.3px;
+}
+
+.app-shell-brand__dot {
+  color: var(--color-link);
+  font-weight: 600;
+  margin: 0 0.05em;
+}
+
+.logo-nest {
+  flex-shrink: 0;
+  display: block;
+}
+
+.logo-nest__ring,
+.logo-nest__peak {
+  stroke: var(--color-link);
+}
+
+.logo-nest__core {
+  fill: var(--color-paw);
+}
+
 .sidebar-toggle-btn {
   display: inline-flex;
   height: 1.75rem;

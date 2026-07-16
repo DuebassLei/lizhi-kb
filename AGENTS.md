@@ -72,9 +72,9 @@ packages/ai-bridge/   Agent SDK 桥接（同步至 src-tauri/resources/ai-bridge
 tests/e2e/        Playwright
 ```
 
-**路由 IA**：`/welcome` → `/unlock` → `/insights`（默认）→ `/workspace`（编辑/图谱为视图切换）→ `/settings`；并列 **`/mubu`**（幕布）、**`/cc-workbench`**（Agent 工作台）等侧栏入口
+**路由 IA**：`/welcome` → `/unlock` → `/insights`（默认）→ `/workspace`（编辑/图谱为视图切换）→ `/settings`；并列 **`/mubu`**（织念）、**`/cc-workbench`**（Agent 工作台）等侧栏入口
 
-### 幕布
+### 织念（路由 `/mubu`）
 
 独立路由，主题树 + 笔记/导图；数据 `mubu_*` 表，与 Markdown 知识库解耦。SSOT：[2026-07-15-mubu-design.md](./docs/superpowers/specs/2026-07-15-mubu-design.md)。
 

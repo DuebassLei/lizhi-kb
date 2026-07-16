@@ -36,7 +36,7 @@ const router = createRouter({
       path: "/mubu",
       name: "mubu",
       component: () => import("../views/MubuView.vue"),
-      meta: { title: "幕布", requiresUnlock: true, layer: "app" },
+      meta: { title: "织念", requiresUnlock: true, layer: "app" },
     },
     {
       path: "/journal",
@@ -69,6 +69,12 @@ const router = createRouter({
       name: "requirements",
       component: () => import("../views/RequirementsView.vue"),
       meta: { title: "需求看板", requiresUnlock: true, layer: "app" },
+    },
+    {
+      path: "/question-bank",
+      name: "question-bank",
+      component: () => import("../views/QuestionBankView.vue"),
+      meta: { title: "题库", requiresUnlock: true, layer: "app" },
     },
     {
       path: "/launches",

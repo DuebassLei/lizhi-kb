@@ -128,6 +128,63 @@ const MIGRATIONS: &[&str] = &[
     CREATE INDEX IF NOT EXISTS idx_mubu_docs_updated
         ON mubu_docs (updated_at DESC);
     ",
+    "
+    CREATE TABLE IF NOT EXISTS question_bank (
+        id TEXT PRIMARY KEY NOT NULL,
+        type TEXT NOT NULL DEFAULT 'single',
+        title TEXT NOT NULL,
+        options TEXT NOT NULL DEFAULT '[]',
+        correct_answer TEXT NOT NULL DEFAULT '[]',
+        explanation TEXT NOT NULL DEFAULT '',
+        tags TEXT NOT NULL DEFAULT '[]',
+        source TEXT NOT NULL DEFAULT '',
+        difficulty INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_question_bank_type
+        ON question_bank(type);
+    CREATE INDEX IF NOT EXISTS idx_question_bank_difficulty
+        ON question_bank(difficulty);
+    CREATE INDEX IF NOT EXISTS idx_question_bank_created
+        ON question_bank(created_at DESC);
+    ",
+    "
+    CREATE VIRTUAL TABLE IF NOT EXISTS question_bank_fts USING fts5(
+        title,
+        explanation,
+        tags,
+        options_text,
+        content='question_bank',
+        content_rowid='rowid'
+    );
+    ",
+    // Triggers to keep FTS in sync
+    "
+    CREATE TRIGGER IF NOT EXISTS question_bank_ai AFTER INSERT ON question_bank BEGIN
+        INSERT INTO question_bank_fts(rowid, title, explanation, tags, options_text)
+        VALUES (new.rowid, new.title, new.explanation, new.tags,
+            (SELECT group_concat(json_extract(value, '$.text'), ' ') FROM json_each(new.options)));
+    END;
+    ",
+    "
+    CREATE TRIGGER IF NOT EXISTS question_bank_ad AFTER DELETE ON question_bank BEGIN
+        INSERT INTO question_bank_fts(question_bank_fts, rowid, title, explanation, tags, options_text)
+        VALUES ('delete', old.rowid, old.title, old.explanation, old.tags,
+            (SELECT group_concat(json_extract(value, '$.text'), ' ') FROM json_each(old.options)));
+    END;
+    ",
+    "
+    CREATE TRIGGER IF NOT EXISTS question_bank_au AFTER UPDATE ON question_bank BEGIN
+        INSERT INTO question_bank_fts(question_bank_fts, rowid, title, explanation, tags, options_text)
+        VALUES ('delete', old.rowid, old.title, old.explanation, old.tags,
+            (SELECT group_concat(json_extract(value, '$.text'), ' ') FROM json_each(old.options)));
+        INSERT INTO question_bank_fts(rowid, title, explanation, tags, options_text)
+        VALUES (new.rowid, new.title, new.explanation, new.tags,
+            (SELECT group_concat(json_extract(value, '$.text'), ' ') FROM json_each(new.options)));
+    END;
+    ",
 ];
 
 pub fn data_dir() -> Result<PathBuf, AppError> {

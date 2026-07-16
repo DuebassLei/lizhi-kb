@@ -66,7 +66,7 @@ export const useMubuStore = defineStore("mubu", () => {
       const doc = await createMubuDoc(title);
       docs.value = [doc, ...docs.value.filter((d) => d.id !== doc.id)];
       await openDoc(doc.id);
-      ui.showToast("success", "已新建幕布");
+      ui.showToast("success", "已新建织念");
       return doc;
     } catch (e) {
       const msg = e instanceof Error ? e.message : "新建失败";

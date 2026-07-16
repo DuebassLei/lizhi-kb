@@ -33,7 +33,16 @@ import type { QuickNavId, QuickNavVisibility } from "../constants/quickNav";
 
 export type EditorMode = "edit" | "preview";
 export type WorkspaceViewMode = "edit" | "graph" | "mindmap";
-export type ThemeId = "dark" | "light" | "warm" | "eye" | "reading";
+export type ThemeId =
+  | "dark"
+  | "light"
+  | "warm"
+  | "eye"
+  | "nocturne"
+  | "onyx"
+  | "midnight"
+  | "noir"
+  | "celadon";
 
 export const useUiStore = defineStore("ui", () => {
   const theme = ref<ThemeId>(loadStoredTheme());

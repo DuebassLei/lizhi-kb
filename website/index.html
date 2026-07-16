@@ -4,625 +4,1103 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>狸知知识库 — 你的加密知识库，猫一样安静</title>
-  <meta name="description" content="本地优先、端到端加密的个人知识库。双链联结知识，图谱看见结构。默认零网络。" />
+  <meta name="description" content="本地优先、端到端加密的个人知识库。双链联结知识，图谱看见结构。默认零网络，可在 Wireshark 下验证。" />
+  <meta name="theme-color" content="#08090d" />
+  <link rel="icon" type="image/svg+xml" href="assets/images/lizhi-icon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles/tokens.css" />
   <style>
-    :root {
-      --lp-bg: #1a1d23;
-      --lp-canvas: #1e2128;
-      --lp-surface: #252932;
-      --lp-elevated: #2d333f;
-      --lp-text: #e3e5e8;
-      --lp-text-muted: #787f8c;
-      --lp-link: #5b9fd4;
-      --lp-link-hover: #8ab4e8;
-      --lp-paw: #d4a574;
-      --lp-secure: #4ade9a;
-      --lp-border: rgba(227, 229, 232, 0.08);
-      --lp-border-strong: rgba(227, 229, 232, 0.14);
-      --max-w: 1120px;
-      --section-py: 96px;
-      --font-ui: "Inter", "Noto Sans SC", "PingFang SC", sans-serif;
-      --font-mono: "JetBrains Mono", monospace;
-    }
-
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html { scroll-behavior: smooth; }
-
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
     body {
-      font-family: var(--font-ui);
-      background: var(--lp-bg);
-      color: var(--lp-text);
-      font-size: 15px;
-      line-height: 1.6;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: var(--body);
+      font-size: 16px;
+      line-height: 1.65;
       -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+    ::selection { background: rgba(45, 212, 191, 0.28); color: var(--ink); }
+    .wrap { max-width: var(--max-w); margin: 0 auto; padding: 0 var(--xl); position: relative; z-index: 1; }
+
+    /* hairline grid floor */
+    .grid-floor {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image:
+        linear-gradient(rgba(32, 38, 47, 0.55) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(32, 38, 47, 0.55) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(120% 90% at 50% 0%, #000, transparent 78%);
+      opacity: 0.5;
     }
 
-    a { color: var(--lp-link); text-decoration: none; transition: color 0.15s; }
-    a:hover { color: var(--lp-link-hover); }
+    .eyebrow {
+      font-family: var(--mono); font-size: 12px; font-weight: 500;
+      letter-spacing: 2px; text-transform: uppercase; color: var(--muted);
+    }
+    .mono { font-family: var(--mono); }
+    .tnum { font-variant-numeric: tabular-nums; }
 
-    .container { max-width: var(--max-w); margin: 0 auto; padding: 0 24px; }
-
-    /* ── Nav ── */
-    .nav {
-      position: sticky; top: 0; z-index: 100;
-      background: rgba(26, 29, 35, 0.85);
+    /* nav */
+    nav {
+      position: sticky; top: 0; z-index: 20;
+      background: rgba(15, 19, 25, 0.86);
       backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--lp-border);
+      border-bottom: 1px solid var(--hairline);
     }
-    .nav-inner {
-      display: flex; align-items: center; justify-content: space-between;
-      height: 56px;
+    @supports not (backdrop-filter: blur(12px)) { nav { background: var(--surface); } }
+    .nav-in {
+      max-width: var(--max-w); margin: 0 auto; padding: var(--md) var(--xl);
+      display: flex; align-items: center; gap: var(--xl);
     }
-    .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; color: var(--lp-text); }
-    .nav-brand svg { flex-shrink: 0; }
-    .nav-links { display: flex; align-items: center; gap: 28px; }
-    .nav-links a { color: var(--lp-text-muted); font-size: 14px; }
-    .nav-links a:hover { color: var(--lp-text); }
+    .brand {
+      display: flex; align-items: center; gap: 10px;
+      font-family: var(--sans); font-weight: 600; letter-spacing: -0.3px; font-size: 17px;
+    }
+    .brand b { color: var(--primary); font-weight: 600; }
+    .brand svg { flex-shrink: 0; }
+    .nav-links { display: flex; gap: 28px; margin-left: 8px; }
+    .nav-links a {
+      font-family: var(--mono); font-size: 12px; letter-spacing: 1.6px;
+      text-transform: uppercase; color: var(--muted); transition: color 0.18s;
+    }
+    .nav-links a:hover { color: var(--ink); }
+    .nav-right { margin-left: auto; display: flex; align-items: center; gap: var(--md); }
+    .badge-live {
+      display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px;
+      border-radius: 9999px; background: var(--surface); border: 1px solid var(--hairline);
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1.6px;
+      text-transform: uppercase; color: var(--primary);
+    }
+    .badge-live .dot-static {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--primary); box-shadow: 0 0 8px rgba(45, 212, 191, 0.8);
+    }
     .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      font-family: var(--font-ui); font-size: 14px; font-weight: 500;
-      border-radius: 8px; padding: 10px 20px; border: none; cursor: pointer;
-      transition: filter 0.15s, background 0.15s;
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+      cursor: pointer; font-family: var(--sans); font-size: 15px; font-weight: 600;
+      letter-spacing: 0.2px; border-radius: 9999px; padding: 10px 22px;
+      border: 1px solid transparent;
+      transition: transform 0.18s ease, background 0.18s, border-color 0.18s, color 0.18s;
     }
-    .btn:focus-visible { outline: 2px solid var(--lp-paw); outline-offset: 2px; }
-    .btn-primary { background: var(--lp-paw); color: var(--lp-bg); }
-    .btn-primary:hover { filter: brightness(1.08); }
-    .btn-secondary { background: transparent; color: var(--lp-text); border: 1px solid var(--lp-border-strong); }
-    .btn-secondary:hover { background: var(--lp-surface); }
-    .btn-lg { padding: 14px 28px; font-size: 15px; }
+    .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: var(--primary); color: var(--on-primary);
+      box-shadow: 0 0 40px rgba(45, 212, 191, 0.35);
+    }
+    .btn-primary:hover { background: #3ee0cc; transform: translateY(-1px); }
+    .btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--hairline); }
+    .btn-secondary:hover { border-color: #33404d; }
+    .btn-ghost { background: transparent; color: var(--ink); border-color: var(--hairline); }
+    .btn-ghost:hover { border-color: #33404d; }
+    .btn .arw { font-family: var(--mono); font-weight: 500; }
 
-    /* ── Hero ── */
-    .hero {
-      padding: 80px 0 64px;
-      position: relative; overflow: hidden;
+    /* hero */
+    .hero { position: relative; overflow: hidden; padding: 100px 0 88px; }
+    .hero-atmos {
+      position: absolute; inset: 0; z-index: 0; pointer-events: none;
+      background: radial-gradient(60% 55% at 88% -6%, rgba(45, 212, 191, 0.16), rgba(45, 212, 191, 0.04) 46%, transparent 68%);
     }
-    .hero::before {
-      content: "";
-      position: absolute; inset: 0;
-      background:
-        radial-gradient(ellipse 600px 400px at 75% 40%, rgba(91, 159, 212, 0.06), transparent),
-        radial-gradient(ellipse 400px 300px at 20% 80%, rgba(212, 165, 116, 0.04), transparent);
-      pointer-events: none;
+    .beam {
+      position: absolute; top: -42%; right: 11%; width: 26%; height: 190%; z-index: 0; pointer-events: none;
+      transform: rotate(27deg); transform-origin: top center;
+      background: linear-gradient(90deg, transparent, rgba(95, 240, 220, 0.045) 40%, rgba(95, 240, 220, 0.16) 50%, rgba(95, 240, 220, 0.045) 60%, transparent);
+      mask-image: linear-gradient(180deg, transparent, #000 16%, #000 66%, transparent);
     }
     .hero-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center;
-      position: relative;
+      position: relative; z-index: 2;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center;
     }
-    .hero-eyebrow {
-      font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em;
-      text-transform: uppercase; color: var(--lp-paw); margin-bottom: 16px;
+    .hero-kicker { display: inline-flex; align-items: center; gap: 9px; margin-bottom: var(--lg); }
+    .hero-kicker .k { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+    .hero-kicker .sep { color: var(--hairline); }
+    .hero-kicker .v { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--primary); }
+    h1.hero-title {
+      font-family: var(--sans); font-weight: 600;
+      font-size: clamp(38px, 5.8vw, 68px);
+      line-height: 1.06; letter-spacing: -1.6px; color: var(--ink);
     }
-    .hero h1 {
-      font-size: clamp(2rem, 4vw, 2.75rem);
-      font-weight: 700; line-height: 1.2; letter-spacing: -0.02em;
-      margin-bottom: 20px;
+    h1.hero-title .gw { color: var(--glow); text-shadow: 0 0 34px rgba(95, 240, 220, 0.45); }
+    .hero-sub { color: var(--muted); font-size: 16px; line-height: 1.7; margin-top: 18px; max-width: 480px; }
+    .hero-actions {
+      display: flex; align-items: center; gap: var(--md); margin-top: var(--xl);
+      flex-wrap: wrap; position: relative;
     }
-    .hero-sub {
-      font-size: 17px; color: var(--lp-text-muted); line-height: 1.7;
-      max-width: 480px; margin-bottom: 32px;
+    .cta-halo {
+      position: absolute; left: -26px; top: 50%; width: 230px; height: 230px;
+      transform: translateY(-50%); z-index: 0; pointer-events: none;
+      background: radial-gradient(50% 50% at 50% 50%, rgba(45, 212, 191, 0.30), rgba(45, 212, 191, 0.08) 46%, transparent 72%);
     }
-    .hero-ctas { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 32px; }
-    .hero-badges { display: flex; flex-wrap: wrap; gap: 8px; }
-    .badge {
-      font-family: var(--font-mono); font-size: 11px;
-      padding: 6px 12px; border-radius: 6px;
-      background: var(--lp-surface); border: 1px solid var(--lp-border);
-      color: var(--lp-text-muted); white-space: nowrap;
+    .hero-actions .btn { position: relative; z-index: 1; }
+    .hero-live {
+      display: inline-flex; align-items: center; gap: 9px; margin-top: 26px;
+      font-family: var(--mono); font-size: 12px; letter-spacing: 1.4px;
+      text-transform: uppercase; color: var(--muted);
     }
-    .badge-secure { color: var(--lp-secure); border-color: rgba(74, 222, 154, 0.2); }
+    .hero-live b { color: var(--primary); font-weight: 500; }
+    .dot-breathe {
+      position: relative; width: 9px; height: 9px; border-radius: 50%;
+      background: var(--glow); box-shadow: 0 0 10px rgba(95, 240, 220, 0.9);
+    }
+    .dot-breathe::after {
+      content: ""; position: absolute; inset: -6px; border-radius: 50%;
+      border: 1.5px solid var(--primary); animation: breathe 2.6s ease-in-out infinite;
+    }
+    @keyframes breathe {
+      0%, 100% { opacity: 0.25; transform: scale(0.7); }
+      50% { opacity: 0.9; transform: scale(1.15); }
+    }
+    .hero-note { font-family: var(--mono); font-size: 13px; color: var(--muted); letter-spacing: 0.1px; margin-top: 16px; }
+    .hero-en { font-family: var(--mono); font-size: 11px; color: var(--muted); letter-spacing: 0.08em; margin-top: 12px; opacity: 0.7; }
 
-    /* Hero visual */
-    .hero-visual {
-      position: relative; aspect-ratio: 4/3;
-      border-radius: 12px; overflow: hidden;
-      border: 1px solid var(--lp-border);
-      background: var(--lp-canvas);
-      box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+    /* product screenshots */
+    .screenshot-frame {
+      position: relative; border-radius: 16px; overflow: hidden;
+      border: 1px solid var(--hairline); background: var(--surface);
+      box-shadow: 0 32px 80px rgba(0, 0, 0, 0.55), 0 0 60px rgba(45, 212, 191, 0.06);
     }
-    .hero-visual-inner {
-      position: absolute; inset: 0;
-      display: flex; flex-direction: column;
+    .screenshot-frame--hero { aspect-ratio: 16 / 10; }
+    .screenshot-frame img {
+      display: block; width: 100%; height: 100%;
+      object-fit: cover; object-position: top left;
     }
-    .mock-toolbar {
-      height: 36px; background: var(--lp-surface);
-      border-bottom: 1px solid var(--lp-border);
-      display: flex; align-items: center; padding: 0 12px; gap: 6px;
-    }
-    .mock-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lp-elevated); }
-    .mock-dot:nth-child(1) { background: #f07070; opacity: 0.7; }
-    .mock-dot:nth-child(2) { background: #e8b86d; opacity: 0.7; }
-    .mock-dot:nth-child(3) { background: #4ade9a; opacity: 0.7; }
-    .mock-body { flex: 1; display: flex; }
-    .mock-sidebar {
-      width: 28%; background: var(--lp-surface);
-      border-right: 1px solid var(--lp-border); padding: 16px 12px;
-    }
-    .mock-tree-item {
-      height: 8px; border-radius: 4px; background: var(--lp-elevated);
-      margin-bottom: 8px; opacity: 0.6;
-    }
-    .mock-tree-item.active { background: var(--lp-paw); opacity: 0.5; width: 80%; }
-    .mock-editor { flex: 1; padding: 20px 24px; position: relative; }
-    .mock-line {
-      height: 6px; border-radius: 3px; background: var(--lp-elevated);
-      margin-bottom: 10px; opacity: 0.4;
-    }
-    .mock-line.w60 { width: 60%; }
-    .mock-line.w80 { width: 80%; }
-    .mock-line.w40 { width: 40%; }
-    .mock-line.link { background: var(--lp-link); opacity: 0.35; width: 45%; }
-    .mock-graph {
-      position: absolute; right: 16px; bottom: 16px;
-      width: 120px; height: 90px; opacity: 0.5;
-    }
-    .hero-en {
-      position: absolute; bottom: 12px; right: 16px;
-      font-family: var(--font-mono); font-size: 10px;
-      color: var(--lp-text-muted); opacity: 0.5; letter-spacing: 0.05em;
+    .screenshot-frame .shot-glow {
+      position: absolute; inset: 0; pointer-events: none;
+      background: linear-gradient(180deg, transparent 72%, rgba(8, 9, 13, 0.35));
     }
 
-    /* ── Trust bar ── */
-    .trust-bar {
-      border-top: 1px solid var(--lp-border);
-      border-bottom: 1px solid var(--lp-border);
-      background: var(--lp-canvas);
-      padding: 20px 0;
+    /* stats */
+    .stats {
+      border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline);
+      background: rgba(15, 19, 25, 0.4);
     }
-    .trust-items {
-      display: flex; justify-content: center; flex-wrap: wrap; gap: 24px 40px;
+    .stats-in {
+      max-width: var(--max-w); margin: 0 auto; padding: 0 var(--xl);
+      display: grid; grid-template-columns: repeat(4, 1fr);
     }
-    .trust-item {
-      font-family: var(--font-mono); font-size: 12px;
-      color: var(--lp-text-muted); display: flex; align-items: center; gap: 8px;
+    .stat { padding: var(--xl) var(--lg); border-left: 1px solid var(--hairline); }
+    .stat:first-child { border-left: none; padding-left: 0; }
+    .stat .num {
+      font-family: var(--mono); font-weight: 500; font-size: 32px;
+      letter-spacing: -0.5px; color: var(--primary); font-variant-numeric: tabular-nums;
     }
-    .trust-item span { color: var(--lp-secure); }
-
-    /* ── Section common ── */
-    section { padding: var(--section-py) 0; }
-    .section-label {
-      font-family: var(--font-mono); font-size: 11px;
-      letter-spacing: 0.1em; text-transform: uppercase;
-      color: var(--lp-paw); margin-bottom: 12px;
-    }
-    .section-title {
-      font-size: clamp(1.5rem, 3vw, 2rem);
-      font-weight: 700; letter-spacing: -0.02em;
-      margin-bottom: 16px;
-    }
-    .section-desc {
-      color: var(--lp-text-muted); max-width: 560px;
-      margin-bottom: 48px; font-size: 16px;
+    .stat .num .u { color: var(--muted); font-size: 18px; margin-left: 2px; }
+    .stat .lab {
+      font-family: var(--mono); font-size: 12px; letter-spacing: 1.4px;
+      text-transform: uppercase; color: var(--muted); margin-top: 10px;
     }
 
-    /* ── Features ── */
-    .features-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;
+    /* sections */
+    section.band { padding: var(--section) 0; position: relative; }
+    .sec-head { max-width: 720px; margin-bottom: 56px; }
+    .sec-head .eyebrow { display: block; margin-bottom: 16px; }
+    .sec-head h2 {
+      font-family: var(--sans); font-weight: 600;
+      font-size: clamp(30px, 4.4vw, 44px); line-height: 1.08;
+      letter-spacing: -1px; color: var(--ink);
     }
-    .feature-card {
-      background: var(--lp-surface);
-      border: 1px solid var(--lp-border);
-      border-radius: 12px; padding: 32px 28px;
-      transition: border-color 0.2s;
+    .sec-head p { color: var(--muted); margin-top: 16px; max-width: 520px; }
+
+    /* feature cards */
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--lg); }
+    .card {
+      background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px;
+      padding: var(--lg); display: flex; flex-direction: column; min-height: 280px;
+      transition: border-color 0.2s, transform 0.2s;
     }
-    .feature-card:hover { border-color: var(--lp-border-strong); }
-    .feature-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      background: rgba(212, 165, 116, 0.12);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 18px; margin-bottom: 20px;
+    .card:hover { border-color: #2c3947; transform: translateY(-3px); }
+    .card .idx { font-family: var(--mono); font-size: 12px; letter-spacing: 2px; color: var(--primary); }
+    .card .gm {
+      width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--hairline);
+      background: var(--canvas); display: grid; place-items: center; margin-top: 18px;
     }
-    .feature-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
-    .feature-card p { color: var(--lp-text-muted); font-size: 14px; line-height: 1.7; margin-bottom: 16px; }
-    .feature-list { list-style: none; }
-    .feature-list li {
-      font-family: var(--font-mono); font-size: 12px;
-      color: var(--lp-text-muted); padding: 4px 0;
-      display: flex; align-items: center; gap: 8px;
+    .card .gm svg { width: 19px; height: 19px; stroke: var(--primary); fill: none; stroke-width: 1.6; }
+    .card h3 {
+      font-family: var(--sans); font-weight: 600; font-size: 20px;
+      letter-spacing: -0.2px; color: var(--ink); margin-top: 20px;
     }
-    .feature-list li::before {
-      content: ""; width: 4px; height: 4px; border-radius: 50%;
-      background: var(--lp-paw); flex-shrink: 0;
+    .card p { color: var(--muted); font-size: 15px; line-height: 1.6; margin-top: 12px; }
+    .card .foot { margin-top: auto; padding-top: 18px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .card .kv {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1px; color: var(--muted);
+      padding: 4px 10px; border-radius: 9999px; border: 1px solid var(--hairline);
+    }
+    .card .kv b { color: var(--primary); font-weight: 500; }
+    .card.alert .idx { color: var(--accent); }
+    .card.alert .gm svg { stroke: var(--accent); }
+
+    /* showcase tabs */
+    .showcase-wrap {
+      background: var(--surface); border: 1px solid var(--hairline);
+      border-radius: 16px; overflow: hidden;
+    }
+    .show-tabs {
+      display: flex; border-bottom: 1px solid var(--hairline);
+      overflow-x: auto;
+    }
+    .show-tab {
+      flex: 1; min-width: 140px; padding: 16px 20px;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1.4px;
+      text-transform: uppercase; color: var(--muted); background: transparent;
+      border: none; border-right: 1px solid var(--hairline); cursor: pointer;
+      transition: color 0.18s, background 0.18s;
+    }
+    .show-tab:last-child { border-right: none; }
+    .show-tab:hover { color: var(--ink); }
+    .show-tab.active { color: var(--primary); background: rgba(45, 212, 191, 0.06); }
+    .show-panel { display: none; padding: 40px; grid-template-columns: 1fr 1.2fr; gap: 40px; align-items: center; }
+    .show-panel.active { display: grid; }
+    .show-panel h3 { font-family: var(--sans); font-size: 24px; font-weight: 600; letter-spacing: -0.4px; margin-bottom: 12px; }
+    .show-panel p { color: var(--muted); font-size: 15px; line-height: 1.65; }
+    .show-visual {
+      aspect-ratio: 16/10; border-radius: 12px; border: 1px solid var(--hairline);
+      background: var(--canvas); position: relative; overflow: hidden;
+    }
+    .show-visual img {
+      display: block; width: 100%; height: 100%;
+      object-fit: cover; object-position: top left;
+    }
+    .show-visual .label {
+      position: absolute; top: 12px; left: 12px; z-index: 1;
+      font-family: var(--mono); font-size: 10px; letter-spacing: 1.6px;
+      text-transform: uppercase; color: var(--primary);
+      padding: 4px 10px; border-radius: 9999px;
+      background: rgba(8, 9, 13, 0.72); border: 1px solid rgba(45, 212, 191, 0.25);
     }
 
-    /* ── Personas ── */
-    .personas-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+    /* extension modules */
+    .modules { display: flex; flex-direction: column; gap: var(--lg); }
+    .module-row {
+      display: grid; grid-template-columns: 1fr 1.12fr; gap: 36px; align-items: center;
+      background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px;
+      padding: 28px; transition: border-color 0.2s;
     }
-    .persona-card {
-      background: var(--lp-canvas);
-      border: 1px solid var(--lp-border);
-      border-radius: 12px; padding: 24px 20px;
+    .module-row:hover { border-color: #2c3947; }
+    .module-row.reverse .module-copy { order: 2; }
+    .module-row.reverse .module-shot { order: 1; }
+    .module-route {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1.6px;
+      text-transform: uppercase; color: var(--primary); margin-bottom: 14px;
     }
-    .persona-name { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
-    .persona-role { font-size: 12px; color: var(--lp-paw); margin-bottom: 12px; }
-    .persona-desc { font-size: 13px; color: var(--lp-text-muted); line-height: 1.6; }
+    .module-route .path {
+      color: var(--muted); padding: 3px 9px; border-radius: 9999px;
+      border: 1px solid var(--hairline); background: rgba(8, 9, 13, 0.45);
+    }
+    .module-copy h3 {
+      font-family: var(--sans); font-weight: 600; font-size: 24px;
+      letter-spacing: -0.4px; margin-bottom: 12px;
+    }
+    .module-copy p { color: var(--muted); font-size: 15px; line-height: 1.65; }
+    .module-list {
+      list-style: none; margin-top: 18px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .module-list li {
+      position: relative; padding-left: 22px; font-size: 14px; color: var(--ink); opacity: 0.9;
+    }
+    .module-list li::before {
+      content: ""; position: absolute; left: 0; top: 9px;
+      width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--primary);
+    }
+    .module-shot {
+      border-radius: 12px; overflow: hidden; border: 1px solid var(--hairline);
+      background: var(--canvas); aspect-ratio: 16 / 10;
+      box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35);
+    }
+    .module-shot img {
+      display: block; width: 100%; height: 100%;
+      object-fit: cover; object-position: top left;
+    }
+    .module-note {
+      margin-top: 28px; padding: 18px 22px; border-radius: 12px;
+      border: 1px solid var(--hairline); background: rgba(8, 9, 13, 0.35);
+      font-family: var(--mono); font-size: 12px; color: var(--muted); line-height: 1.6;
+    }
+    .module-note b { color: var(--accent); font-weight: 500; }
 
-    /* ── Comparison ── */
-    .compare-table {
-      width: 100%; border-collapse: collapse;
-      font-size: 14px;
+    /* personas */
+    .personas { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--md); }
+    .persona {
+      background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px;
+      padding: 22px 20px; transition: border-color 0.2s;
     }
-    .compare-table th, .compare-table td {
-      padding: 14px 16px; text-align: center;
-      border-bottom: 1px solid var(--lp-border);
+    .persona:hover { border-color: #2c3947; }
+    .persona .name { font-family: var(--sans); font-weight: 600; font-size: 16px; }
+    .persona .role {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1.2px;
+      text-transform: uppercase; color: var(--accent); margin: 8px 0 12px;
     }
-    .compare-table th { font-weight: 500; color: var(--lp-text-muted); font-size: 13px; }
-    .compare-table th:first-child, .compare-table td:first-child { text-align: left; }
-    .compare-table td:first-child { color: var(--lp-text-muted); }
-    .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
-    .compare-table .highlight { background: rgba(212, 165, 116, 0.06); }
-    .check { color: var(--lp-secure); }
-    .cross { color: var(--lp-text-muted); opacity: 0.4; }
+    .persona p { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
-    /* ── Security ── */
-    .security-grid {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start;
+    /* comparison */
+    .compare-wrap { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 16px; }
+    .compare {
+      width: 100%; border-collapse: collapse; font-size: 14px; min-width: 560px;
     }
-    .param-table { width: 100%; font-size: 13px; }
-    .param-table td {
-      padding: 10px 0; border-bottom: 1px solid var(--lp-border);
+    .compare th, .compare td {
+      padding: 14px 18px; text-align: center; border-bottom: 1px solid var(--hairline);
     }
-    .param-table td:first-child {
-      font-family: var(--font-mono); color: var(--lp-text-muted); width: 40%;
-    }
-    .param-table td:last-child { font-family: var(--font-mono); color: var(--lp-paw); }
+    .compare th { font-family: var(--mono); font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+    .compare th:first-child, .compare td:first-child { text-align: left; }
+    .compare td:first-child { color: var(--muted); }
+    .compare .hl { background: rgba(45, 212, 191, 0.06); }
+    .compare .yes { color: var(--primary); font-family: var(--mono); }
+    .compare .no { color: var(--muted); opacity: 0.35; }
 
-    /* ── Free ── */
-    .free-block {
-      text-align: center; max-width: 640px; margin: 0 auto;
-      background: var(--lp-surface);
-      border: 1px solid var(--lp-paw);
-      border-radius: 12px; padding: 48px 40px;
-      background: linear-gradient(180deg, rgba(212,165,116,0.08) 0%, var(--lp-surface) 50%);
-    }
-    .free-amount { font-size: 48px; font-weight: 700; color: var(--lp-paw); margin-bottom: 8px; }
-    .free-tagline { font-size: 16px; color: var(--lp-text-muted); margin-bottom: 32px; }
-    .free-features {
-      display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
-      margin-bottom: 32px;
-    }
-    .free-features span {
-      font-family: var(--font-mono); font-size: 12px;
-      padding: 6px 14px; border-radius: 6px;
-      background: var(--lp-canvas); border: 1px solid var(--lp-border);
-      color: var(--lp-text-muted);
-    }
+    /* security */
+    .sec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+    .param-table { width: 100%; font-size: 14px; border: 1px solid var(--hairline); border-radius: 16px; overflow: hidden; }
+    .param-table tr { border-bottom: 1px solid var(--hairline); }
+    .param-table tr:last-child { border-bottom: none; }
+    .param-table td { padding: 14px 18px; }
+    .param-table td:first-child { font-family: var(--mono); font-size: 12px; color: var(--muted); width: 42%; background: rgba(8, 9, 13, 0.4); }
+    .param-table td:last-child { font-family: var(--mono); color: var(--primary); }
 
-    /* ── FAQ ── */
-    .faq-list { max-width: 720px; }
-    .faq-item {
-      border-bottom: 1px solid var(--lp-border);
-      padding: 20px 0;
+    /* free block */
+    .free-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--lg); align-items: stretch; }
+    .plan {
+      position: relative; background: var(--surface); border: 1px solid var(--hairline);
+      border-radius: 16px; padding: 30px 26px; display: flex; flex-direction: column;
     }
-    .faq-q { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
-    .faq-a { font-size: 14px; color: var(--lp-text-muted); line-height: 1.7; }
+    .plan.feat {
+      border-color: rgba(45, 212, 191, 0.55);
+      box-shadow: 0 0 60px rgba(45, 212, 191, 0.14); transform: translateY(-10px);
+    }
+    .plan .tier {
+      font-family: var(--mono); font-size: 12px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .plan.feat .tier { color: var(--primary); }
+    .plan .rec {
+      position: absolute; top: -11px; left: 26px; padding: 4px 11px; border-radius: 9999px;
+      background: var(--primary); color: var(--on-primary);
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1.4px;
+      text-transform: uppercase; font-weight: 500;
+      box-shadow: 0 0 26px rgba(45, 212, 191, 0.5);
+    }
+    .plan .price { margin-top: 20px; display: flex; align-items: baseline; gap: 6px; }
+    .plan .price .n { font-family: var(--sans); font-weight: 600; font-size: 46px; letter-spacing: -1.6px; }
+    .plan .price .per { font-family: var(--mono); font-size: 13px; color: var(--muted); }
+    .plan .desc { color: var(--muted); font-size: 14px; margin-top: 12px; min-height: 40px; }
+    .plan ul { list-style: none; margin: 22px 0 26px; display: flex; flex-direction: column; gap: 13px; }
+    .plan li { position: relative; padding-left: 24px; font-size: 14.5px; }
+    .plan li::before {
+      content: ""; position: absolute; left: 0; top: 8px;
+      width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--primary);
+    }
+    .plan .btn { width: 100%; justify-content: center; margin-top: auto; }
+    .plan .fineprint { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 14px; text-align: center; }
 
-    /* ── Footer CTA ── */
-    .footer-cta {
-      text-align: center; padding: 80px 0;
-      background: var(--lp-canvas);
-      border-top: 1px solid var(--lp-border);
-    }
-    .footer-cta h2 { font-size: 2rem; font-weight: 700; margin-bottom: 16px; }
-    .footer-cta p { color: var(--lp-text-muted); margin-bottom: 32px; }
-    .footer-links {
-      display: flex; justify-content: center; gap: 24px; flex-wrap: wrap;
-      margin-top: 48px; padding-top: 32px;
-      border-top: 1px solid var(--lp-border);
-    }
-    .footer-links a { font-size: 13px; color: var(--lp-text-muted); }
+    /* faq */
+    .faq { max-width: 720px; }
+    .faq-item { border-bottom: 1px solid var(--hairline); padding: 22px 0; }
+    .faq-q { font-family: var(--sans); font-weight: 600; font-size: 16px; margin-bottom: 10px; }
+    .faq-a { font-size: 14px; color: var(--muted); line-height: 1.7; }
 
-    /* ── Responsive ── */
-    @media (max-width: 1024px) {
+    /* cta band */
+    .cta-band { position: relative; overflow: hidden; border-top: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); }
+    .cta-band .atmos {
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(50% 120% at 50% 120%, rgba(45, 212, 191, 0.18), transparent 62%);
+    }
+    .cta-in {
+      max-width: 900px; margin: 0 auto; padding: var(--section) var(--xl);
+      text-align: center; position: relative; z-index: 1;
+    }
+    .cta-in .eyebrow { margin-bottom: 18px; display: block; }
+    .cta-in h2 {
+      font-family: var(--sans); font-weight: 600;
+      font-size: clamp(30px, 4.6vw, 46px); line-height: 1.1;
+      letter-spacing: -1px; text-wrap: balance;
+    }
+    .cta-in .zh { color: var(--muted); margin-top: 16px; }
+    .cta-in .row { display: flex; justify-content: center; gap: var(--md); margin-top: 34px; flex-wrap: wrap; position: relative; }
+    .cta-in .halo {
+      position: absolute; left: 50%; top: 50%; width: 280px; height: 220px;
+      transform: translate(-50%, -50%); pointer-events: none;
+      background: radial-gradient(50% 50% at 50% 50%, rgba(45, 212, 191, 0.28), transparent 70%);
+    }
+    .cta-in .btn { position: relative; z-index: 1; }
+
+    /* footer */
+    footer { background: var(--canvas); border-top: 1px solid var(--hairline); }
+    .foot-in { max-width: var(--max-w); margin: 0 auto; padding: 64px var(--xl) 48px; }
+    .foot-top { display: flex; gap: var(--xl); flex-wrap: wrap; justify-content: space-between; }
+    .foot-brand { max-width: 300px; }
+    .foot-brand p {
+      font-family: var(--mono); font-size: 12.5px; color: var(--muted);
+      line-height: 1.6; margin-top: 14px; letter-spacing: 0.2px;
+    }
+    .foot-cols { display: flex; gap: 64px; flex-wrap: wrap; }
+    .foot-col h4 {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 16px;
+    }
+    .foot-col a {
+      display: block; font-size: 14px; margin-bottom: 11px;
+      opacity: 0.82; transition: opacity 0.18s, color 0.18s;
+    }
+    .foot-col a:hover { opacity: 1; color: var(--primary); }
+    .foot-bar {
+      margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--hairline);
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    }
+    .foot-bar span { font-family: var(--mono); font-size: 12px; color: var(--muted); letter-spacing: 0.4px; }
+    .foot-bar .sig b { color: var(--primary); font-weight: 500; }
+
+    /* author contact */
+    .contact-grid {
+      display: grid; grid-template-columns: 1fr auto; gap: 48px; align-items: start;
+      background: var(--surface); border: 1px solid var(--hairline); border-radius: 16px;
+      padding: 32px;
+    }
+    .contact-copy h3 {
+      font-family: var(--sans); font-weight: 600; font-size: 22px;
+      letter-spacing: -0.3px; margin-bottom: 12px;
+    }
+    .contact-copy p { color: var(--muted); font-size: 15px; line-height: 1.7; max-width: 520px; }
+    .contact-list {
+      list-style: none; margin-top: 22px; display: flex; flex-direction: column; gap: 12px;
+    }
+    .contact-list li {
+      font-family: var(--mono); font-size: 13px; color: var(--ink);
+      display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+    }
+    .contact-list .k { color: var(--muted); min-width: 72px; letter-spacing: 1px; text-transform: uppercase; font-size: 11px; }
+    .contact-list a { color: var(--primary); transition: opacity 0.18s; }
+    .contact-list a:hover { opacity: 0.85; }
+    .license-box {
+      margin-top: 22px; padding: 18px 20px; border-radius: 12px;
+      border: 1px solid rgba(246, 163, 92, 0.28); background: rgba(246, 163, 92, 0.06);
+      font-size: 14px; color: var(--muted); line-height: 1.7;
+    }
+    .license-box b { color: var(--accent); font-weight: 600; }
+    .contact-qr {
+      text-align: center; padding: 20px; border-radius: 14px;
+      border: 1px solid var(--hairline); background: rgba(8, 9, 13, 0.45);
+    }
+    .contact-qr img {
+      display: block; width: 168px; height: 168px; border-radius: 10px;
+      margin: 0 auto 14px; background: #fff; padding: 8px;
+    }
+    .contact-qr .cap {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 1.4px;
+      text-transform: uppercase; color: var(--primary);
+    }
+    .contact-qr .sub { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+
+    /* responsive */
+    @media (max-width: 1000px) {
       .hero-grid { grid-template-columns: 1fr; gap: 40px; }
-      .features-grid { grid-template-columns: 1fr 1fr; }
-      .personas-grid { grid-template-columns: 1fr 1fr; }
-      .security-grid { grid-template-columns: 1fr; }
+      .features, .free-grid { grid-template-columns: 1fr 1fr; }
+      .personas { grid-template-columns: 1fr 1fr; }
+      .plan.feat { transform: none; }
+      .stats-in { grid-template-columns: 1fr 1fr; }
+      .stat { border-top: 1px solid var(--hairline); }
+      .stat:first-child, .stat:nth-child(2) { border-top: none; }
+      .stat:nth-child(odd) { padding-left: 0; }
+      .stat:nth-child(even) { border-left: 1px solid var(--hairline); }
+      .show-panel { grid-template-columns: 1fr; }
+      .sec-grid { grid-template-columns: 1fr; }
+      .module-row, .module-row.reverse { grid-template-columns: 1fr; }
+      .module-row.reverse .module-copy, .module-row.reverse .module-shot { order: unset; }
+      .contact-grid { grid-template-columns: 1fr; }
     }
-    @media (max-width: 768px) {
-      :root { --section-py: 64px; }
+    @media (max-width: 720px) {
+      .wrap, .nav-in, .stats-in, .foot-in { padding-left: 22px; padding-right: 22px; }
       .nav-links { display: none; }
-      .features-grid, .personas-grid { grid-template-columns: 1fr; }
-      .compare-table { font-size: 12px; }
-      .compare-table th, .compare-table td { padding: 10px 8px; }
+      .hero { padding: 72px 0 64px; }
+      .beam { right: -6%; width: 44%; transform: rotate(18deg); }
+      .features, .free-grid, .personas { grid-template-columns: 1fr; }
+      section.band { padding: 72px 0; }
+      .badge-live { display: none; }
     }
-
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-      }
+      *, *::before, *::after { animation: none !important; transition: none !important; }
     }
   </style>
 </head>
 <body>
 
-  <!-- Nav -->
-  <nav class="nav" aria-label="主导航">
-    <div class="container nav-inner">
-      <a href="#" class="nav-brand" aria-label="狸知知识库首页">
-        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-          <circle cx="16" cy="18" r="10" stroke="#d4a574" stroke-width="1.5" fill="none" opacity="0.9"/>
-          <path d="M8 20c2-4 6-8 8-10 2 2 6 6 8 10" stroke="#d4a574" stroke-width="1.5" stroke-linecap="round" fill="none"/>
-          <circle cx="16" cy="16" r="3" fill="#d4a574" opacity="0.85"/>
-        </svg>
-        狸知知识库
-      </a>
-      <div class="nav-links">
-        <a href="#features">功能</a>
-        <a href="#security">安全</a>
-        <a href="#free">免费</a>
-        <a href="#faq">常见问题</a>
-        <button class="btn btn-primary" aria-label="免费下载狸知知识库">免费下载</button>
-      </div>
-    </div>
-  </nav>
+<div class="grid-floor" aria-hidden="true"></div>
 
-  <!-- Hero -->
-  <section class="hero" aria-labelledby="hero-title">
-    <div class="container hero-grid">
+<nav aria-label="主导航">
+  <div class="nav-in">
+    <a href="#" class="brand" aria-label="狸知知识库首页">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <circle cx="16" cy="18" r="10" stroke="#2dd4bf" stroke-width="1.5" fill="none" opacity="0.9"/>
+        <path d="M8 20c2-4 6-8 8-10 2 2 6 6 8 10" stroke="#2dd4bf" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        <circle cx="16" cy="16" r="3" fill="#f6a35c" opacity="0.9"/>
+      </svg>
+      狸<b>·</b>知
+    </a>
+    <div class="nav-links">
+      <a href="#features">功能</a>
+      <a href="#modules">扩展模块</a>
+      <a href="#showcase">产品</a>
+      <a href="#security">安全</a>
+      <a href="#free">免费</a>
+      <a href="#contact">联系</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="nav-right">
+      <span class="badge-live"><span class="dot-static"></span>Vault Locked</span>
+      <a class="btn btn-primary" href="https://github.com/DuebassLei/lizhi-kb/releases" target="_blank" rel="noopener">免费下载 <span class="arw">↗</span></a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" aria-labelledby="hero-title">
+  <div class="hero-atmos" aria-hidden="true"></div>
+  <div class="beam" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="hero-grid">
       <div>
-        <p class="hero-eyebrow">Lizhi Knowledge · Encrypted PKB</p>
-        <h1 id="hero-title">你的加密知识库，<br>猫一样安静。</h1>
+        <div class="hero-kicker">
+          <span class="k">Encrypted PKB</span><span class="sep">/</span><span class="v">Lizhi Knowledge</span>
+        </div>
+        <h1 class="hero-title" id="hero-title">
+          你的加密知识库，<br>猫一样<span class="gw">安静。</span>
+        </h1>
         <p class="hero-sub">
           本地优先、端到端加密。双链联结知识，图谱看见结构。<br>
           默认零网络——可在 Wireshark 下验证。
         </p>
-        <div class="hero-ctas">
-          <button class="btn btn-primary btn-lg">免费下载</button>
-          <button class="btn btn-secondary btn-lg">阅读安全白皮书</button>
+        <div class="hero-actions">
+          <span class="cta-halo" aria-hidden="true"></span>
+          <a class="btn btn-primary" href="https://github.com/DuebassLei/lizhi-kb/releases" target="_blank" rel="noopener">免费下载 <span class="arw">↗</span></a>
+          <a class="btn btn-secondary" href="#security">阅读安全白皮书</a>
         </div>
-        <div class="hero-badges">
-          <span class="badge badge-secure">🔒 Local-Only · Zero Cloud</span>
-          <span class="badge">🛡️ AES-256-GCM + Argon2id</span>
-          <span class="badge">📡 Network: 0 by Default</span>
+        <div class="hero-live">
+          <span class="dot-breathe" aria-hidden="true"></span>
+          <b>Network: 0</b>&nbsp;by default · vault encrypted at rest
         </div>
+        <p class="hero-note">Win / macOS / Linux · 完全免费 · 无订阅</p>
+        <p class="hero-en">Think in your nest. Link your knowledge.</p>
       </div>
-      <div class="hero-visual" role="img" aria-label="狸知知识库工作区界面预览">
-        <div class="hero-visual-inner">
-          <div class="mock-toolbar">
-            <div class="mock-dot"></div><div class="mock-dot"></div><div class="mock-dot"></div>
-          </div>
-          <div class="mock-body">
-            <div class="mock-sidebar">
-              <div class="mock-tree-item active"></div>
-              <div class="mock-tree-item" style="width:70%;margin-left:12px"></div>
-              <div class="mock-tree-item" style="width:55%;margin-left:12px"></div>
-              <div class="mock-tree-item"></div>
-              <div class="mock-tree-item" style="width:65%"></div>
-            </div>
-            <div class="mock-editor">
-              <div class="mock-line w80"></div>
-              <div class="mock-line w60"></div>
-              <div class="mock-line link"></div>
-              <div class="mock-line w80"></div>
-              <div class="mock-line w40"></div>
-              <svg class="mock-graph" viewBox="0 0 120 90" fill="none" aria-hidden="true">
-                <circle cx="60" cy="45" r="6" fill="#5b9fd4" opacity="0.6"/>
-                <circle cx="30" cy="25" r="4" fill="#5b9fd4" opacity="0.4"/>
-                <circle cx="90" cy="30" r="4" fill="#5b9fd4" opacity="0.4"/>
-                <circle cx="25" cy="65" r="4" fill="#d4a574" opacity="0.4"/>
-                <circle cx="95" cy="70" r="4" fill="#5b9fd4" opacity="0.3"/>
-                <line x1="60" y1="45" x2="30" y2="25" stroke="#5b9fd4" stroke-width="1" opacity="0.25"/>
-                <line x1="60" y1="45" x2="90" y2="30" stroke="#5b9fd4" stroke-width="1" opacity="0.25"/>
-                <line x1="60" y1="45" x2="25" y2="65" stroke="#d4a574" stroke-width="1" opacity="0.2"/>
-                <line x1="60" y1="45" x2="95" y2="70" stroke="#5b9fd4" stroke-width="1" opacity="0.2"/>
-              </svg>
-            </div>
-          </div>
-        </div>
-        <span class="hero-en">Think in your nest. Link your knowledge.</span>
-      </div>
-    </div>
-  </section>
 
-  <!-- Trust Bar -->
-  <div class="trust-bar" role="region" aria-label="安全信任指标">
-    <div class="container trust-items">
-      <div class="trust-item"><span>●</span> AES-256-GCM 落盘加密</div>
-      <div class="trust-item"><span>●</span> Argon2id 密钥派生</div>
-      <div class="trust-item"><span>●</span> 默认零网络请求</div>
-      <div class="trust-item"><span>●</span> 元数据自动清洗</div>
+      <figure class="screenshot-frame screenshot-frame--hero">
+        <img
+          src="assets/screenshots/hero-workspace.png"
+          alt="狸知知识库工作区：目录树、Markdown 编辑器与加密架构笔记"
+          width="1440"
+          height="900"
+          loading="eager"
+          decoding="async"
+        />
+        <span class="shot-glow" aria-hidden="true"></span>
+      </figure>
     </div>
   </div>
+</header>
 
-  <!-- Features -->
-  <section id="features" aria-labelledby="features-title">
-    <div class="container">
-      <p class="section-label">Core Features</p>
-      <h2 class="section-title" id="features-title">私密如猫，知识成网</h2>
-      <p class="section-desc">加密、联结、防窥——三层能力叠加，构成狸知的完整护城河。</p>
-      <div class="features-grid">
-        <article class="feature-card">
-          <div class="feature-icon">🔐</div>
-          <h3>落盘即加密，解锁才明文</h3>
-          <p>所有笔记以 AES-256-GCM 加密存储。主密码经 Argon2id 派生密钥。锁定后内存主动清零。</p>
-          <ul class="feature-list">
-            <li>Argon2id · 64 MB · AES-256-GCM</li>
-            <li>生物识别快捷解锁</li>
-            <li>恢复密钥 PDF 导出</li>
-          </ul>
-        </article>
-        <article class="feature-card">
-          <div class="feature-icon">🔗</div>
-          <h3>双链呼吸，图谱可见</h3>
-          <p>输入 [[ 自动补全，反向链接实时更新。局部图谱以力导向布局呈现知识网络。</p>
-          <ul class="feature-list">
-            <li>Wiki 双链 + 拼音搜索</li>
-            <li>反向链接 / 未链接提及</li>
-            <li>局部图谱 ≥ 55fps</li>
-          </ul>
-        </article>
-        <article class="feature-card">
-          <div class="feature-icon">👁️</div>
-          <h3>界面水印，导出溯源</h3>
-          <p>Canvas 覆盖层防旁人瞟屏。PDF 导出可强制嵌入水印，元数据自动清洗。</p>
-          <ul class="feature-list">
-            <li>可配置界面水印</li>
-            <li>导出水印 + 元数据剥离</li>
-            <li>防暴破阶梯延迟</li>
-          </ul>
-        </article>
+<div class="stats" role="region" aria-label="安全信任指标">
+  <div class="stats-in">
+    <div class="stat"><div class="num tnum">AES-256<span class="u">GCM</span></div><div class="lab">落盘加密</div></div>
+    <div class="stat"><div class="num tnum">0<span class="u">req</span></div><div class="lab">默认网络请求</div></div>
+    <div class="stat"><div class="num tnum">64<span class="u">MB</span></div><div class="lab">Argon2id 内存</div></div>
+    <div class="stat"><div class="num tnum">¥0<span class="u"></span></div><div class="lab">永久免费</div></div>
+  </div>
+</div>
+
+<section class="band" id="features" aria-labelledby="features-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">// Core capabilities</span>
+      <h2 id="features-title">私密如猫，知识成网。</h2>
+      <p>加密、联结、防窥——三层能力叠加，构成狸知的完整护城河。</p>
+    </div>
+    <div class="features">
+      <article class="card">
+        <span class="idx">01</span>
+        <div class="gm"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div>
+        <h3>落盘即加密，解锁才明文</h3>
+        <p>所有笔记以 AES-256-GCM 加密存储。主密码经 Argon2id 派生密钥。锁定后内存中的密钥与明文主动清零。</p>
+        <div class="foot">
+          <span class="kv">KDF&nbsp;<b>Argon2id</b></span>
+          <span class="kv">MEM&nbsp;<b>64MB</b></span>
+          <span class="kv">CIPHER&nbsp;<b>AES-256</b></span>
+        </div>
+      </article>
+      <article class="card">
+        <span class="idx">02</span>
+        <div class="gm"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.4"/><circle cx="5" cy="18" r="2.4"/><circle cx="19" cy="18" r="2.4"/><path d="M12 7.4 6.6 15.8M12 7.4l5.4 8.4"/></svg></div>
+        <h3>双链呼吸，图谱可见</h3>
+        <p>输入 [[ 自动补全，反向链接实时更新。局部图谱以力导向布局呈现 2 层深度联结。</p>
+        <div class="foot">
+          <span class="kv">WIKILINK&nbsp;<b>&lt;50ms</b></span>
+          <span class="kv">GRAPH&nbsp;<b>≥55fps</b></span>
+        </div>
+      </article>
+      <article class="card alert">
+        <span class="idx">03</span>
+        <div class="gm"><svg viewBox="0 0 24 24"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg></div>
+        <h3>界面水印，导出溯源</h3>
+        <p>Canvas 覆盖层防旁人瞟屏。PDF 导出可强制嵌入水印，元数据自动清洗——无 Author、无 EXIF。</p>
+        <div class="foot">
+          <span class="kv">WATERMARK&nbsp;<b>ON</b></span>
+          <span class="kv">METADATA&nbsp;<b>STRIPPED</b></span>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="showcase" aria-labelledby="showcase-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">// Product showcase</span>
+      <h2 id="showcase-title">从写作到洞察，一条链路。</h2>
+      <p>专注写作、双链联结、局部图谱、写作洞察——四屏切换，看见完整工作流。</p>
+    </div>
+    <div class="showcase-wrap">
+      <div class="show-tabs" role="tablist" aria-label="产品功能展示">
+        <button class="show-tab active" role="tab" aria-selected="true" data-tab="write">01 · 专注写作</button>
+        <button class="show-tab" role="tab" aria-selected="false" data-tab="link">02 · 双链联结</button>
+        <button class="show-tab" role="tab" aria-selected="false" data-tab="graph">03 · 局部图谱</button>
+        <button class="show-tab" role="tab" aria-selected="false" data-tab="insight">04 · 写作洞察</button>
+      </div>
+      <div class="show-panel active" id="panel-write" role="tabpanel">
+        <div>
+          <h3>Markdown 双模式，打字机节奏</h3>
+          <p>CodeMirror 6 源码编辑 + 实时预览。打字机模式、护眼主题、自动保存——写作不被打断。</p>
+        </div>
+        <figure class="show-visual">
+          <span class="label">Editor · Markdown</span>
+          <img src="assets/screenshots/showcase-write.png" alt="狸知 Markdown 编辑器：加密架构笔记与写作工具栏" width="1200" height="750" loading="lazy" decoding="async" />
+        </figure>
+      </div>
+      <div class="show-panel" id="panel-link" role="tabpanel">
+        <div>
+          <h3>[[ 补全 &lt; 50ms，悬浮预览</h3>
+          <p>Wiki 双链 + 拼音搜索。反向链接、未链接提及实时更新，悬浮预览不打断焦点。</p>
+        </div>
+        <figure class="show-visual">
+          <span class="label">WikiLink · Bi-directional</span>
+          <img src="assets/screenshots/showcase-link.png" alt="Wiki 双链语法：[[知识图谱]] 与相关笔记列表" width="1200" height="750" loading="lazy" decoding="async" />
+        </figure>
+      </div>
+      <div class="show-panel" id="panel-graph" role="tabpanel">
+        <div>
+          <h3>从任意节点展开 2 层网络</h3>
+          <p>SVG 力导向布局，局部图谱 ≥ 55fps。知识不再困在文件夹里——它开始自己说话。</p>
+        </div>
+        <figure class="show-visual">
+          <span class="label">Graph · Force Layout</span>
+          <img src="assets/screenshots/showcase-graph.png" alt="局部知识图谱：力导向布局展示双链网络" width="1200" height="750" loading="lazy" decoding="async" />
+        </figure>
+      </div>
+      <div class="show-panel" id="panel-insight" role="tabpanel">
+        <div>
+          <h3>GitHub 风格热力图与审计摘要</h3>
+          <p>写作频率、链接统计、文档审计——用数据看见自己的思考节奏。</p>
+        </div>
+        <figure class="show-visual">
+          <span class="label">Insights · Heatmap</span>
+          <img src="assets/screenshots/showcase-insights.png" alt="写作看板：热力图、文档统计与双链概览" width="1200" height="750" loading="lazy" decoding="async" />
+        </figure>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Personas -->
-  <section aria-labelledby="personas-title">
-    <div class="container">
-      <p class="section-label">Who It's For</p>
-      <h2 class="section-title" id="personas-title">为认真思考的人而建</h2>
-      <p class="section-desc">当你的笔记里写着不能公开的真话，你需要的不只是编辑器。</p>
-      <div class="personas-grid">
-        <article class="persona-card">
-          <div class="persona-name">林研究员</div>
-          <div class="persona-role">高校 / 智库</div>
-          <p class="persona-desc">田野调查笔记、未发表观点。Obsidian 功能强，但数据明文落盘。</p>
-        </article>
-        <article class="persona-card">
-          <div class="persona-name">陈独立顾问</div>
-          <div class="persona-role">战略 / 法律 / 财务</div>
-          <p class="persona-desc">客户会议纪要、方案文档。开会防瞟屏，导出可溯源。</p>
-        </article>
-        <article class="persona-card">
-          <div class="persona-name">赵深度写作者</div>
-          <div class="persona-role">专栏 / 独立开发</div>
-          <p class="persona-desc">每日写作、主题沉淀。双链与写作流兼得，不被云厂商绑定。</p>
-        </article>
-        <article class="persona-card">
-          <div class="persona-name">周安全从业者</div>
-          <div class="persona-role">安全研究 / 渗透测试</div>
-          <p class="persona-desc">漏洞笔记、红队草稿。零外联可验证，加密参数写入白皮书。</p>
-        </article>
-      </div>
+<section class="band" id="modules" aria-labelledby="modules-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">// Parallel modules</span>
+      <h2 id="modules-title">不止知识库，多条并行入口。</h2>
+      <p>织念、每日小记、需求看板、AI 助手与 Agent 工作台——与加密知识库并列，数据同库、路由独立。</p>
     </div>
-  </section>
 
-  <!-- Comparison -->
-  <section aria-labelledby="compare-title">
-    <div class="container">
-      <p class="section-label">Comparison</p>
-      <h2 class="section-title" id="compare-title">知识网络 × 本地加密</h2>
-      <p class="section-desc">唯一在两个维度同时拉满的个人知识库。</p>
-      <table class="compare-table" aria-label="竞品功能对比">
+    <div class="modules">
+      <article class="module-row">
+        <div class="module-copy">
+          <div class="module-route">Zhinian <span class="path">/mubu</span></div>
+          <h3>织念</h3>
+          <p>主题树笔记与导图双视图。大纲式展开思绪，一键切到导图看见结构——与 Markdown 知识库解耦，独立成篇、独立备份。</p>
+          <ul class="module-list">
+            <li>笔记视图：折叠、待办、标题级别与主题装饰</li>
+            <li>导图视图：同源切换，双击改标题，导出 PNG / Markdown</li>
+            <li>独立数据表，纳入 .lizhi 备份（merge-documents 按篇合并）</li>
+          </ul>
+        </div>
+        <figure class="module-shot">
+          <img src="assets/screenshots/module-zhinian.png" alt="织念：主题树笔记与导图双视图" width="1440" height="900" loading="lazy" decoding="async" />
+        </figure>
+      </article>
+
+      <article class="module-row reverse">
+        <div class="module-copy">
+          <div class="module-route">Journal <span class="path">/journal</span></div>
+          <h3>每日小记</h3>
+          <p>日记式记录，与普通文档流分离的日常入口。按日时间线分组，快速捕捉灵感，支持 Markdown 与导出。</p>
+          <ul class="module-list">
+            <li>时间线按日折叠，今天与历史一目了然</li>
+            <li>Ctrl+Enter 快速提交，不打断写作心流</li>
+            <li>独立 journal 数据表，纳入 .lizhi 备份</li>
+          </ul>
+        </div>
+        <figure class="module-shot">
+          <img src="assets/screenshots/module-journal.png" alt="每日小记：按日时间线记录与快速捕捉" width="1440" height="900" loading="lazy" decoding="async" />
+        </figure>
+      </article>
+
+      <article class="module-row">
+        <div class="module-copy">
+          <div class="module-route">Kanban <span class="path">/requirements</span></div>
+          <h3>需求看板</h3>
+          <p>需求从提出到完成的工作流。Kanban 四列拖拽、优先级与负责人、可关联知识库文档——把产品笔记变成可追踪的需求池。</p>
+          <ul class="module-list">
+            <li>待办 / 进行中 / 挂起 / 完成四列看板</li>
+            <li>REQ 编号、提出人、预计上线时间</li>
+            <li>关联文档、CSV 导入导出</li>
+          </ul>
+        </div>
+        <figure class="module-shot">
+          <img src="assets/screenshots/module-requirements.png" alt="需求看板：Kanban 拖拽与需求条目管理" width="1440" height="900" loading="lazy" decoding="async" />
+        </figure>
+      </article>
+
+      <article class="module-row reverse">
+        <div class="module-copy">
+          <div class="module-route">AI Assistant <span class="path">/ai</span></div>
+          <h3>灵狸 AI 助手</h3>
+          <p>本地加密、opt-in 外联。Ollama 本地优先，可选云端 OpenAI 兼容 API。闲聊、知识库 RAG、笔记助手三模式并列——工作区侧栏或独立全页。</p>
+          <ul class="module-list">
+            <li>知识库模式：FTS5 检索 + 引用跳转源文档</li>
+            <li>笔记助手：搜索 / 阅读 / 写入笔记（需显式开启）</li>
+            <li>默认零网络；云端与写笔记均需 opt-in 确认</li>
+          </ul>
+        </div>
+        <figure class="module-shot">
+          <img src="assets/screenshots/module-ai.png" alt="灵狸 AI 助手：闲聊、知识库与笔记助手三模式" width="1440" height="900" loading="lazy" decoding="async" />
+        </figure>
+      </article>
+
+      <article class="module-row">
+        <div class="module-copy">
+          <div class="module-route">Agent Workbench <span class="path">/cc-workbench</span></div>
+          <h3>Agent 工作台</h3>
+          <p>基于 Claude Agent SDK 的独立控制平面。Agents · Skills · MCP 编排，vault / project 双工作目录——与应用内 AI 助手并列，互不合并。</p>
+          <ul class="module-list">
+            <li>知识库模式：仅 lizhi-mcp，安全访问加密库</li>
+            <li>项目模式：完整文件工具 + Bash，本地项目开发</li>
+            <li>会话回放、进程管理、提示词与斜杠命令</li>
+          </ul>
+        </div>
+        <figure class="module-shot">
+          <img src="assets/screenshots/module-cc-workbench.png" alt="Agent 工作台：Claude Agent SDK 与 MCP 编排" width="1440" height="900" loading="lazy" decoding="async" />
+        </figure>
+      </article>
+    </div>
+
+    <p class="module-note">
+      <b>并列不合并</b> — AI 助手负责应用内对话与 RAG；Agent 工作台负责长链路智能体任务。两者共享本地优先叙事，路由与运行时独立。
+    </p>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="personas-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">// Who it's for</span>
+      <h2 id="personas-title">为认真思考的人而建。</h2>
+      <p>当你的笔记里写着不能公开的真话，你需要的不只是编辑器。</p>
+    </div>
+    <div class="personas">
+      <article class="persona">
+        <div class="name">林研究员</div>
+        <div class="role">高校 / 智库</div>
+        <p>田野调查笔记、未发表观点。Obsidian 功能强，但数据明文落盘——狸知让真话有处可写。</p>
+      </article>
+      <article class="persona">
+        <div class="name">陈独立顾问</div>
+        <div class="role">战略 / 法律 / 财务</div>
+        <p>客户会议纪要、方案文档。开会防瞟屏，导出可溯源——敏感资料不再裸奔。</p>
+      </article>
+      <article class="persona">
+        <div class="name">赵深度写作者</div>
+        <div class="role">专栏 / 独立开发</div>
+        <p>每日写作、主题沉淀、热力图自我追踪。双链与写作流兼得，不被云厂商绑定。</p>
+      </article>
+      <article class="persona">
+        <div class="name">周安全从业者</div>
+        <div class="role">安全研究 / 渗透测试</div>
+        <p>漏洞笔记、红队草稿。零外联可验证，加密参数写入白皮书。</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="compare-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">// Comparison</span>
+      <h2 id="compare-title">知识网络 × 本地加密。</h2>
+      <p>唯一在两个维度同时拉满的个人知识库。</p>
+    </div>
+    <div class="compare-wrap">
+      <table class="compare" aria-label="竞品功能对比">
         <thead>
           <tr>
             <th>能力</th>
-            <th class="highlight">狸知</th>
+            <th class="hl">狸知</th>
             <th>Obsidian</th>
             <th>Standard Notes</th>
             <th>Notion</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td>本地加密落盘</td><td class="highlight check">✓</td><td class="cross">—</td><td class="check">✓</td><td class="cross">—</td></tr>
-          <tr><td>双链 + 图谱</td><td class="highlight check">✓</td><td class="check">✓</td><td class="cross">—</td><td>部分</td></tr>
-          <tr><td>零网络默认</td><td class="highlight check">✓</td><td class="cross">—</td><td>部分</td><td class="cross">—</td></tr>
-          <tr><td>界面/导出水印</td><td class="highlight check">✓</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td></tr>
-          <tr><td>元数据清洗导出</td><td class="highlight check">✓</td><td>部分</td><td>部分</td><td class="cross">—</td></tr>
+          <tr><td>本地加密落盘</td><td class="hl yes">✓</td><td class="no">—</td><td class="yes">✓</td><td class="no">—</td></tr>
+          <tr><td>双链 + 图谱</td><td class="hl yes">✓</td><td class="yes">✓</td><td class="no">—</td><td>部分</td></tr>
+          <tr><td>零网络默认</td><td class="hl yes">✓</td><td class="no">—</td><td>部分</td><td class="no">—</td></tr>
+          <tr><td>界面/导出水印</td><td class="hl yes">✓</td><td class="no">—</td><td class="no">—</td><td class="no">—</td></tr>
+          <tr><td>元数据清洗导出</td><td class="hl yes">✓</td><td>部分</td><td>部分</td><td class="no">—</td></tr>
         </tbody>
       </table>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Security -->
-  <section id="security" aria-labelledby="security-title">
-    <div class="container">
-      <p class="section-label">Security</p>
-      <h2 class="section-title" id="security-title">可验证的安全，不是口号</h2>
-      <div class="security-grid">
-        <div>
-          <p class="section-desc" style="margin-bottom:24px">
-            我们不说「绝对无法破解」。我们说得出每一项参数，查得到每一次网络拦截。安全白皮书公开威胁模型、密钥生命周期与已知限制。
-          </p>
-          <button class="btn btn-secondary">下载安全白皮书</button>
-        </div>
-        <table class="param-table" aria-label="加密参数">
-          <tr><td>KDF</td><td>Argon2id</td></tr>
-          <tr><td>KDF 内存</td><td>64 MB</td></tr>
-          <tr><td>对称加密</td><td>AES-256-GCM</td></tr>
-          <tr><td>盐长度</td><td>32 bytes</td></tr>
-          <tr><td>网络策略</td><td>Rust deny all</td></tr>
-          <tr><td>漏洞披露</td><td>security@lizhi.app</td></tr>
-        </table>
+<section class="band" id="security" aria-labelledby="security-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">// Security</span>
+      <h2 id="security-title">可验证的安全，不是口号。</h2>
+    </div>
+    <div class="sec-grid">
+      <div>
+        <p style="color:var(--muted);font-size:16px;line-height:1.7;margin-bottom:28px;max-width:480px">
+          我们不说「绝对无法破解」。我们说得出每一项参数，查得到每一次网络拦截。安全白皮书公开威胁模型、密钥生命周期与已知限制。
+        </p>
+        <a class="btn btn-secondary" href="https://github.com/DuebassLei/lizhi-kb" target="_blank" rel="noopener">查看源码与安全文档</a>
+      </div>
+      <table class="param-table" aria-label="加密参数">
+        <tr><td>KDF</td><td>Argon2id</td></tr>
+        <tr><td>KDF 内存</td><td>64 MB</td></tr>
+        <tr><td>对称加密</td><td>AES-256-GCM</td></tr>
+        <tr><td>盐长度</td><td>32 bytes</td></tr>
+        <tr><td>网络策略</td><td>Rust deny all</td></tr>
+        <tr><td>漏洞披露</td><td>security@lizhi.app</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="free" aria-labelledby="free-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">// Free forever</span>
+      <h2 id="free-title">完全免费，全功能开放。</h2>
+      <p>不设付费墙、不设订阅、不设功能阉割。你的数据主权，不该标价格。</p>
+    </div>
+    <div class="free-grid">
+      <div class="plan">
+        <div class="tier">Personal</div>
+        <div class="price"><span class="n">¥0</span><span class="per">/ 永久</span></div>
+        <div class="desc">给一个人的深度思考。</div>
+        <ul>
+          <li>端到端加密</li>
+          <li>双链 + 局部图谱</li>
+          <li>Markdown 双模式编辑</li>
+          <li>Win / macOS / Linux</li>
+        </ul>
+        <a class="btn btn-secondary" href="https://github.com/DuebassLei/lizhi-kb/releases" target="_blank" rel="noopener">免费下载</a>
+        <div class="fineprint">no card required</div>
+      </div>
+      <div class="plan feat">
+        <div class="rec">全功能</div>
+        <div class="tier">Complete</div>
+        <div class="price"><span class="n">¥0</span><span class="per">/ 永久</span></div>
+        <div class="desc">加密、联结、防窥——全部开放。</div>
+        <ul>
+          <li>App Lock + 生物识别</li>
+          <li>界面 / 导出水印</li>
+          <li>PDF 导出 + 元数据清洗</li>
+          <li>写作洞察热力图</li>
+          <li>Agent 工作台 + AI 助手</li>
+          <li>织念 + 每日小记 + 需求看板</li>
+        </ul>
+        <a class="btn btn-primary" href="https://github.com/DuebassLei/lizhi-kb/releases" target="_blank" rel="noopener">免费下载 <span class="arw">↗</span></a>
+        <div class="fineprint">无内购 · 无订阅 · 无文档上限</div>
+      </div>
+      <div class="plan">
+        <div class="tier">Source</div>
+        <div class="price"><span class="n">源码</span></div>
+        <div class="desc">GitHub 公开，需作者授权方可商用。</div>
+        <ul>
+          <li>个人学习 / 研究 / 自用</li>
+          <li>商用、分发、衍生需书面授权</li>
+          <li>Tauri + Rust + Vue 3 可审计</li>
+          <li>授权联系作者邮箱</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://github.com/DuebassLei/lizhi-kb" target="_blank" rel="noopener">查看源码</a>
+        <div class="fineprint">作者授权 · 非 MIT 开源</div>
       </div>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Free -->
-  <section id="free" aria-labelledby="free-title">
-    <div class="container">
-      <p class="section-label">Free Forever</p>
-      <h2 class="section-title" id="free-title">完全免费，全功能开放</h2>
-      <p class="section-desc" style="margin-left:auto;margin-right:auto;text-align:center">
-        不设付费墙、不设订阅、不设功能阉割。你的数据主权，不该标价格。
-      </p>
-      <div class="free-block">
-        <div class="free-amount">¥0</div>
-        <p class="free-tagline">永久免费 · 无内购 · 无订阅 · 无文档上限</p>
-        <div class="free-features">
-          <span>端到端加密</span>
-          <span>双链 + 图谱</span>
-          <span>App Lock</span>
-          <span>界面水印</span>
-          <span>PDF 导出</span>
-          <span>元数据清洗</span>
-          <span>Win / macOS / Linux</span>
-        </div>
-        <button class="btn btn-primary btn-lg">免费下载</button>
-      </div>
+<section class="band" id="contact" aria-labelledby="contact-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">// Contact author</span>
+      <h2 id="contact-title">联系作者</h2>
+      <p>产品反馈、商务合作、源码授权与定制开发，欢迎通过以下方式联系。</p>
     </div>
-  </section>
-
-  <!-- FAQ -->
-  <section id="faq" aria-labelledby="faq-title">
-    <div class="container">
-      <p class="section-label">FAQ</p>
-      <h2 class="section-title" id="faq-title">常见问题</h2>
-      <div class="faq-list">
-        <div class="faq-item">
-          <div class="faq-q">狸知是 Obsidian 插件吗？</div>
-          <div class="faq-a">不是。狸知是独立桌面应用，从存储层实现加密，基于 Tauri + Rust 构建。</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-q">真的零网络吗？</div>
-          <div class="faq-a">默认 Rust 层拦截所有出站连接。设置页可查看实时拦截计数。更新需手动下载。</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-q">忘记主密码怎么办？</div>
-          <div class="faq-a">凭恢复密钥可重置。无恢复密钥则无法解密——这是加密的设计使然，不是缺陷。</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-q">能导入 Obsidian 库吗？</div>
-          <div class="faq-a">支持导入 Markdown 文件夹，保留 [[双链]] 语法。</div>
-        </div>
-        <div class="faq-item">
-          <div class="faq-q">真的完全免费吗？</div>
-          <div class="faq-a">是。狸知不设付费版本，所有功能免费使用，无订阅、无内购、无试用到期。</div>
+    <div class="contact-grid">
+      <div class="contact-copy">
+        <h3>狸知知识库 · 作者</h3>
+        <p>桌面应用永久免费使用。源码公开仅供学习与交流参考；如需商用、二次分发、修改发布或嵌入其他产品，请事先取得作者书面授权。</p>
+        <ul class="contact-list">
+          <li><span class="k">Email</span><a href="mailto:1130122701@qq.com">1130122701@qq.com</a></li>
+          <li><span class="k">GitHub</span><a href="https://github.com/DuebassLei/lizhi-kb" target="_blank" rel="noopener">DuebassLei/lizhi-kb</a></li>
+          <li><span class="k">WeChat</span><span>扫码关注公众号 · 海边的小鱼干</span></li>
+        </ul>
+        <div class="license-box">
+          <b>授权协议</b> — 未经作者书面许可，不得将本项目用于商业用途，不得二次分发、修改发布或作为其他产品的组成部分。个人非商业学习、研究与自用不受限。完整条款见 <a href="https://github.com/DuebassLei/lizhi-kb/blob/main/LICENSE" target="_blank" rel="noopener">LICENSE</a>；授权事宜请邮件联系作者。
         </div>
       </div>
+      <figure class="contact-qr">
+        <img src="assets/images/wechat-mp-qr.png" alt="作者公众号二维码：海边的小鱼干" width="168" height="168" loading="lazy" decoding="async" />
+        <figcaption class="cap">WeChat Official</figcaption>
+        <p class="sub">扫码关注公众号<br>获取更新与作者动态</p>
+      </figure>
     </div>
-  </section>
+  </div>
+</section>
 
-  <!-- Footer CTA -->
-  <footer class="footer-cta">
-    <div class="container">
-      <h2>在你的巢穴里，安心思考。</h2>
-      <p>本地优先 · 端到端加密 · 默认零网络</p>
-      <button class="btn btn-primary btn-lg">免费下载狸知知识库</button>
-      <div class="footer-links">
-        <a href="#">GitHub</a>
-        <a href="#">安全白皮书</a>
-        <a href="#">更新日志</a>
-        <a href="#">隐私政策</a>
-        <a href="#">security@lizhi.app</a>
+<section class="band" id="faq" aria-labelledby="faq-title">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="eyebrow">// FAQ</span>
+      <h2 id="faq-title">常见问题</h2>
+    </div>
+    <div class="faq">
+      <div class="faq-item">
+        <div class="faq-q">狸知是 Obsidian 插件吗？</div>
+        <div class="faq-a">不是。狸知是独立桌面应用，从存储层实现加密，基于 Tauri + Rust 构建。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">真的零网络吗？</div>
+        <div class="faq-a">默认 Rust 层拦截所有出站连接。设置页可查看实时拦截计数。更新需手动下载。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">忘记主密码怎么办？</div>
+        <div class="faq-a">凭恢复密钥可重置。无恢复密钥则无法解密——这是加密的设计使然，不是缺陷。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">支持移动端吗？</div>
+        <div class="faq-a">v1.x 仅桌面端（Win / macOS / Linux）。移动端在路线图中，暂无日期。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">能导入 Obsidian 库吗？</div>
+        <div class="faq-a">支持导入 Markdown 文件夹，保留 [[双链]] 语法。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">源码是开源的吗？可以商用吗？</div>
+        <div class="faq-a">源码托管于 GitHub 供学习与交流参考，<strong>非 MIT 等宽松开源协议</strong>。商用、二次分发、修改发布或嵌入其他产品需事先获得作者书面授权，请邮件联系 <a href="mailto:1130122701@qq.com">1130122701@qq.com</a>。</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">真的完全免费吗？</div>
+        <div class="faq-a">是。狸知不设付费版本，所有功能免费使用，无订阅、无内购、无试用到期。</div>
       </div>
     </div>
-  </footer>
+  </div>
+</section>
 
+<section class="cta-band" aria-labelledby="cta-title">
+  <div class="atmos" aria-hidden="true"></div>
+  <div class="cta-in">
+    <span class="eyebrow">// Ready in your nest</span>
+    <h2 id="cta-title">在你的巢穴里，安心思考。</h2>
+    <p class="zh">本地优先 · 端到端加密 · 默认零网络</p>
+    <div class="row">
+      <span class="halo" aria-hidden="true"></span>
+      <a class="btn btn-primary" href="https://github.com/DuebassLei/lizhi-kb/releases" target="_blank" rel="noopener">免费下载狸知知识库 <span class="arw">↗</span></a>
+      <a class="btn btn-secondary" href="https://github.com/DuebassLei/lizhi-kb" target="_blank" rel="noopener">GitHub 仓库</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="foot-in">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <div class="brand">
+          <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <circle cx="16" cy="18" r="10" stroke="#2dd4bf" stroke-width="1.5" fill="none"/>
+            <path d="M8 20c2-4 6-8 8-10 2 2 6 6 8 10" stroke="#2dd4bf" stroke-width="1.5" fill="none"/>
+            <circle cx="16" cy="16" r="3" fill="#f6a35c"/>
+          </svg>
+          狸<b>·</b>知知识库
+        </div>
+        <p>本地优先、端到端加密的个人知识库。深空黑负责沉默，电青负责发光，暖爪负责温度。</p>
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h4>Product</h4>
+          <a href="#features">功能</a>
+          <a href="#modules">扩展模块</a>
+          <a href="#showcase">产品展示</a>
+          <a href="#security">安全</a>
+          <a href="https://github.com/DuebassLei/lizhi-kb/releases">下载</a>
+        </div>
+        <div class="foot-col">
+          <h4>Developers</h4>
+          <a href="https://github.com/DuebassLei/lizhi-kb" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/DuebassLei/lizhi-kb/blob/main/AGENTS.md">开发文档</a>
+        </div>
+        <div class="foot-col">
+          <h4>Contact</h4>
+          <a href="mailto:1130122701@qq.com">1130122701@qq.com</a>
+          <a href="https://github.com/DuebassLei/lizhi-kb/blob/main/LICENSE">作者授权协议</a>
+          <a href="mailto:security@lizhi.app">security@lizhi.app</a>
+        </div>
+        <div class="foot-col">
+          <h4>Legal</h4>
+          <a href="https://github.com/DuebassLei/lizhi-kb/blob/main/LICENSE">源码授权</a>
+          <a href="#">隐私政策</a>
+          <a href="#">更新日志</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bar">
+      <span>© 2026 狸知知识库 · 作者授权协议 · 非商业自用免费</span>
+      <span class="sig">UI theme <b>nocturne-teal</b> · HeiGe-Design</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  (function () {
+    const tabs = document.querySelectorAll(".show-tab");
+    const panels = {
+      write: document.getElementById("panel-write"),
+      link: document.getElementById("panel-link"),
+      graph: document.getElementById("panel-graph"),
+      insight: document.getElementById("panel-insight"),
+    };
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        const key = tab.dataset.tab;
+        tabs.forEach(function (t) {
+          t.classList.toggle("active", t === tab);
+          t.setAttribute("aria-selected", t === tab ? "true" : "false");
+        });
+        Object.keys(panels).forEach(function (k) {
+          panels[k].classList.toggle("active", k === key);
+        });
+      });
+    });
+  })();
+</script>
 </body>
 </html>

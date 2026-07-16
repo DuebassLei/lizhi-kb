@@ -3,6 +3,7 @@ name = "lizhi-kb"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["DuebassLei"]
+license = "LicenseRef-Lizhi-AuthorAuthorization-1.0"
 edition = "2021"
 default-run = "lizhi-kb"
 

@@ -5,6 +5,7 @@ export type QuickNavId =
   | "journal"
   | "credentials"
   | "requirements"
+  | "questionBank"
   | "launches"
   | "ai"
   | "ccWorkbench";
@@ -21,10 +22,11 @@ export interface QuickNavItem {
 export const QUICK_NAV_ITEMS: QuickNavItem[] = [
   { id: "insights", to: "/insights", label: "看板", desc: "写作看板与统计" },
   { id: "workspace", to: "/workspace", label: "个人知识库", desc: "文档编辑与图谱" },
-  { id: "mubu", to: "/mubu", label: "幕布", desc: "主题树笔记与导图" },
+  { id: "mubu", to: "/mubu", label: "织念", desc: "主题树笔记与导图" },
   { id: "journal", to: "/journal", label: "每日小记", desc: "日记时间线" },
   { id: "credentials", to: "/credentials", label: "密码本", desc: "系统账号与密码" },
   { id: "requirements", to: "/requirements", label: "需求看板", desc: "需求与任务管理" },
+  { id: "questionBank", to: "/question-bank", label: "题库", desc: "题目检索与练习" },
   { id: "launches", to: "/launches", label: "上线记录", desc: "发布与交付上线审计" },
   { id: "ai", to: "/ai", label: "AI 助手", desc: "对话与笔记检索" },
   { id: "ccWorkbench", to: "/cc-workbench", label: "Agent 工作台", desc: "Claude Agent · Skills · MCP" },
@@ -39,6 +41,7 @@ export const DEFAULT_QUICK_NAV_VISIBILITY: QuickNavVisibility = {
   journal: true,
   credentials: true,
   requirements: true,
+  questionBank: true,
   launches: true,
   ai: true,
   ccWorkbench: true,

@@ -35,11 +35,6 @@ const SHADOW_WARM = {
   "--shadow-inset": "inset 0 1px 0 rgba(0, 0, 0, 0.05)",
 };
 
-const SHADOW_READING = {
-  "--shadow-float": "0 8px 32px rgba(36, 44, 32, 0.14)",
-  "--shadow-inset": "inset 0 1px 1px rgba(255, 255, 255, 0.35)",
-};
-
 const THEMES: Record<ThemeId, Record<string, string>> = {
   dark: {
     ...SHARED_ACCENTS,
@@ -101,19 +96,99 @@ const THEMES: Record<ThemeId, Record<string, string>> = {
     "--color-muted": "#8a8070",
     "--color-danger": "#e07a6a",
   },
-  reading: {
+  /** HeiGe-Design · nocturne-teal · 深空电青（与落地页同源） */
+  nocturne: {
     ...SHARED_ACCENTS,
-    ...LINK_LIGHT,
-    ...SHADOW_READING,
-    "--color-base": "#bcc8b2",
-    "--color-canvas": "#c2cdb8",
-    "--color-surface-0": "#c2cdb8",
-    "--color-surface-1": "#b5c0ab",
-    "--color-surface-2": "#a8b39e",
-    "--color-surface-3": "#9ba691",
-    "--color-text": "#252c21",
-    "--color-text-secondary": "#4e5646",
-    "--color-muted": "#6e7866",
+    "--color-paw": "#f6a35c",
+    "--color-link": "#2dd4bf",
+    "--color-link-hover": "#5ff0dc",
+    "--shadow-float": "0 8px 32px rgba(0, 0, 0, 0.55)",
+    "--shadow-inset": "inset 0 1px 0 rgba(95, 240, 220, 0.06)",
+    "--color-base": "#08090d",
+    "--color-canvas": "#0f1319",
+    "--color-surface-0": "#141a22",
+    "--color-surface-1": "#1a222c",
+    "--color-surface-2": "#222b38",
+    "--color-surface-3": "#2a3544",
+    "--color-text": "#e9edf3",
+    "--color-text-secondary": "#a8b0be",
+    "--color-muted": "#8a94a4",
+    "--color-danger": "#f07070",
+  },
+  /** HeiGe-Design · onyx-gold · 玄金 */
+  onyx: {
+    ...SHARED_ACCENTS,
+    "--color-paw": "#e4c466",
+    "--color-link": "#b8912e",
+    "--color-link-hover": "#e4c466",
+    "--shadow-float": "0 8px 32px rgba(0, 0, 0, 0.6)",
+    "--shadow-inset": "inset 0 1px 0 rgba(228, 196, 102, 0.08)",
+    "--color-base": "#060606",
+    "--color-canvas": "#100e0a",
+    "--color-surface-0": "#16130e",
+    "--color-surface-1": "#1e1a13",
+    "--color-surface-2": "#282218",
+    "--color-surface-3": "#342c1e",
+    "--color-text": "#ede6d3",
+    "--color-text-secondary": "#c4b896",
+    "--color-muted": "#a69b80",
+    "--color-danger": "#e07a6a",
+  },
+  /** HeiGe-Design · midnight-trust · 午夜蓝 */
+  midnight: {
+    ...SHARED_ACCENTS,
+    "--color-paw": "#5e8fff",
+    "--color-link": "#5e8fff",
+    "--color-link-hover": "#8ab0ff",
+    "--shadow-float": "0 8px 32px rgba(0, 0, 0, 0.55)",
+    "--shadow-inset": "inset 0 1px 0 rgba(94, 143, 255, 0.06)",
+    "--color-base": "#0b1018",
+    "--color-canvas": "#0f1826",
+    "--color-surface-0": "#141e2e",
+    "--color-surface-1": "#1a2638",
+    "--color-surface-2": "#223048",
+    "--color-surface-3": "#2c3c58",
+    "--color-text": "#dde5f2",
+    "--color-text-secondary": "#a8b4c8",
+    "--color-muted": "#8b98ad",
+    "--color-danger": "#f26d6d",
+  },
+  /** HeiGe-Design · noir-vermilion · 玄墨绛红 */
+  noir: {
+    ...SHARED_ACCENTS,
+    "--color-paw": "#ce1432",
+    "--color-link": "#e85a6e",
+    "--color-link-hover": "#f08090",
+    "--shadow-float": "0 8px 32px rgba(0, 0, 0, 0.5)",
+    "--shadow-inset": "inset 0 1px 0 rgba(206, 20, 50, 0.08)",
+    "--color-base": "#141210",
+    "--color-canvas": "#1c1916",
+    "--color-surface-0": "#22201c",
+    "--color-surface-1": "#2a2722",
+    "--color-surface-2": "#34302b",
+    "--color-surface-3": "#403c36",
+    "--color-text": "#edeae3",
+    "--color-text-secondary": "#c4bbb0",
+    "--color-muted": "#9a9082",
+    "--color-danger": "#ce1432",
+  },
+  /** HeiGe-Design · song-celadon · 宋瓷极简 */
+  celadon: {
+    ...SHARED_ACCENTS,
+    "--color-paw": "#3f5d4e",
+    "--color-link": "#3f5d4e",
+    "--color-link-hover": "#2f4a3c",
+    "--shadow-float": "0 8px 32px rgba(42, 50, 44, 0.12)",
+    "--shadow-inset": "inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+    "--color-base": "#f2f0ea",
+    "--color-canvas": "#f8f6f0",
+    "--color-surface-0": "#f8f6f0",
+    "--color-surface-1": "#ebe8e0",
+    "--color-surface-2": "#ddd9cf",
+    "--color-surface-3": "#d0ccc0",
+    "--color-text": "#2a322c",
+    "--color-text-secondary": "#4a554c",
+    "--color-muted": "#586459",
     "--color-danger": "#b84e3a",
   },
 };
@@ -123,11 +198,15 @@ export const THEME_OPTIONS: { id: ThemeId; label: string; preview: string }[] = 
   { id: "light", label: "浅色", preview: THEMES.light["--color-base"] },
   { id: "warm", label: "米白 · 暖色", preview: THEMES.warm["--color-base"] },
   { id: "eye", label: "护眼", preview: THEMES.eye["--color-base"] },
-  { id: "reading", label: "豆沙绿 · 阅读", preview: THEMES.reading["--color-base"] },
+  { id: "nocturne", label: "深空电青", preview: THEMES.nocturne["--color-base"] },
+  { id: "onyx", label: "玄金", preview: THEMES.onyx["--color-base"] },
+  { id: "midnight", label: "午夜蓝", preview: THEMES.midnight["--color-base"] },
+  { id: "noir", label: "玄墨绛红", preview: THEMES.noir["--color-base"] },
+  { id: "celadon", label: "宋瓷极简", preview: THEMES.celadon["--color-base"] },
 ];
 
 function isLightTheme(theme: ThemeId): boolean {
-  return theme === "light" || theme === "warm" || theme === "reading";
+  return theme === "light" || theme === "warm" || theme === "celadon";
 }
 
 export { isLightTheme };
@@ -178,6 +257,18 @@ export function applyTheme(theme: ThemeId) {
 
 export function loadStoredTheme(): ThemeId {
   const v = localStorage.getItem(KEY);
-  if (v === "light" || v === "warm" || v === "eye" || v === "dark" || v === "reading") return v;
+  if (
+    v === "light" ||
+    v === "warm" ||
+    v === "eye" ||
+    v === "dark" ||
+    v === "nocturne" ||
+    v === "onyx" ||
+    v === "midnight" ||
+    v === "noir" ||
+    v === "celadon"
+  ) {
+    return v;
+  }
   return "dark";
 }

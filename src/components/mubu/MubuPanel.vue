@@ -39,7 +39,7 @@ async function onCreate() {
 
 async function onDelete(id: string, e: Event) {
   e.stopPropagation();
-  if (!confirm("确定删除这篇幕布？此操作不可撤销。")) return;
+  if (!confirm("确定删除这篇织念？此操作不可撤销。")) return;
   await store.removeDoc(id);
 }
 
@@ -83,7 +83,7 @@ function formatTime(ms: number) {
   <div class="mubu-panel" data-testid="mubu-panel">
     <aside class="mubu-sidebar">
       <div class="mubu-sidebar__head">
-        <h1 class="mubu-sidebar__title">幕布</h1>
+        <h1 class="mubu-sidebar__title">织念</h1>
         <button
           type="button"
           class="mm-btn mm-btn--primary"
@@ -119,7 +119,7 @@ function formatTime(ms: number) {
           </button>
         </button>
         <p v-if="!store.loading && !store.docs.length" class="px-3 py-6 text-center text-xs text-muted">
-          还没有幕布，点击「新建」开始
+          还没有织念，点击「新建」开始
         </p>
       </div>
     </aside>
@@ -191,8 +191,8 @@ function formatTime(ms: number) {
       </template>
 
       <div v-else class="mubu-empty">
-        <p>选择或新建一篇幕布</p>
-        <button type="button" class="mm-btn mm-btn--primary" @click="onCreate">新建幕布</button>
+        <p>选择或新建一篇织念</p>
+        <button type="button" class="mm-btn mm-btn--primary" @click="onCreate">新建织念</button>
       </div>
     </section>
   </div>

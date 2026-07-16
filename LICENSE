@@ -1,0 +1,97 @@
+狸知知识库源码授权协议
+Lizhi Knowledge Source Authorization License
+
+Version 1.0 · 2026-07-16
+Copyright (c) 2026 DuebassLei. All rights reserved.
+
+SPDX-License-Identifier: LicenseRef-Lizhi-AuthorAuthorization-1.0
+
+---
+
+English Summary (non-binding; the Chinese text below prevails for interpretation)
+
+The Lizhi Knowledge desktop application is free to use. Source code is publicly
+available for personal, non-commercial learning, research, and self-use only.
+Commercial use, redistribution, modified publication, or incorporation into
+other products or services requires prior written authorization from the
+author. Contact: 1130122701@qq.com
+
+---
+
+一、协议范围
+
+本协议适用于「狸知知识库」（Lizhi Knowledge）项目及其在 GitHub 仓库
+DuebassLei/lizhi-kb 中公开的全部源代码、文档、设计与相关资源（以下统称
+「本项目」）。
+
+本协议不适用于本项目所依赖的第三方开源组件；第三方组件继续受其各自许可
+协议约束。
+
+二、桌面应用使用
+
+狸知知识库桌面应用程序（Win / macOS / Linux 发行包）供终端用户永久免费
+使用，不设付费墙、不设订阅、不设功能阉割（以各版本实际发布说明为准）。
+
+本条款不构成对源码的额外许可；源码使用仍以本协议第三节为准。
+
+三、源码许可
+
+3.1 允许（无需另行授权）
+
+在遵守本协议的前提下，您可为个人非商业目的：
+
+  (a) 阅读、学习本项目源码；
+  (b) 在本地运行、调试本项目以进行研究或自用；
+  (c) 基于本项目进行个人非商业实验，且不对外发布、不分发、不商用。
+
+3.2 需事先取得作者书面授权
+
+未经作者事先书面许可，不得从事包括但不限于以下行为：
+
+  (a) 将本项目或其中任何部分用于任何商业目的；
+  (b) 二次分发、再许可、出售或出租本项目源码或衍生成果；
+  (c) 修改后公开发布、上架或作为独立/衍生产品提供；
+  (d) 将本项目嵌入其他软件、硬件、SaaS 或在线服务；
+  (e) 移除或篡改版权声明、本协议或作者联系信息；
+  (f) 以暗示作者背书、合作或官方授权的方式使用本项目。
+
+「书面授权」指作者通过电子邮件或其他作者认可的方式明确同意特定用途、
+范围与期限的授权文件或确认函。
+
+四、授权申请
+
+如需商用、二次分发、修改发布、嵌入集成或其他本协议要求授权之用途，请通过
+以下方式联系作者：
+
+  电子邮箱：1130122701@qq.com
+  GitHub：   https://github.com/DuebassLei/lizhi-kb
+  微信公众号：海边的小鱼干
+
+请在邮件中说明：拟议用途、使用范围、是否修改源码、是否对外分发及联系
+方式。作者保留根据具体情况决定是否授权、授权条件及收取合理费用的权利。
+
+五、知识产权
+
+除第三方组件外，本项目的一切著作权、商标权及其他知识产权归作者所有。
+本协议仅授予第三节所列之有限权利，未明示授予的权利均予保留。
+
+六、免责声明
+
+本项目按「现状」（AS IS）提供，不附带任何明示或默示担保，包括但不限于
+适销性、特定用途适用性及不侵权担保。在任何情况下，作者不对因使用或无法
+使用本项目而产生的任何直接、间接、附带、特殊、惩罚性或后果性损害承担
+责任，法律另有强制性规定除外。
+
+七、协议变更
+
+作者可不时修订本协议；修订后的版本自发布于本项目主分支之日起对后续使用
+生效。您继续使用本项目源码即视为接受当时有效版本。
+
+八、适用法律
+
+本协议之订立、效力、解释与争议解决适用中华人民共和国法律（为本协议之目的，
+不含冲突法规则）。
+
+---
+
+© 2026 狸知知识库 · Lizhi Knowledge

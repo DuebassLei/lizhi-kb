@@ -6,10 +6,8 @@ import { Globe, Lock, Shield, WifiOff } from "@lucide/vue";
 
 import { useRouter } from "vue-router";
 
-import logoNest from "../../assets/logo-nest.svg";
-
 import HintBanner from "../common/HintBanner.vue";
-
+import LogoNest from "../common/LogoNest.vue";
 import Btn from "../ui/Btn.vue";
 
 import Input from "../ui/Input.vue";
@@ -226,7 +224,7 @@ async function submitReset() {
 
       <div class="text-center">
 
-        <img :src="logoNest" alt="" width="48" height="48" class="mx-auto h-12 w-12" />
+        <LogoNest :size="48" class="mx-auto h-12 w-12" />
 
         <div
 

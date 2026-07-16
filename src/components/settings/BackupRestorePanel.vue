@@ -217,7 +217,7 @@ async function refreshAfterMerge(mode: "merge" | "merge-documents", result?: Imp
     const assetCount = result?.mergedAssets ?? 0;
     ui.showToast(
       "success",
-      `已合并 ${docCount} 篇文档${assetCount ? `、${assetCount} 个资源` : ""}、密码本、上线记录、幕布及设置`,
+      `已合并 ${docCount} 篇文档${assetCount ? `、${assetCount} 个资源` : ""}、密码本、上线记录、织念及设置`,
     );
   } else {
     ui.showToast("success", "已合并 AI、CC 工作台、文件夹、标签与对话记录等设置");
@@ -442,7 +442,7 @@ const busy = () => exporting.value || exportingMd.value || exportingMdFolder.val
     <h2 class="settings-panel__title mb-3">备份与恢复</h2>
 
     <p class="settings-panel__desc mb-3">
-      导出完整备份（.lizhi）含文档、资源、历史版本、需求/小记、密码本、上线记录、幕布、文件夹与标签、AI/CC/MCP 配置。历史版本较多时备份体积会增大。
+      导出完整备份（.lizhi）含文档、资源、历史版本、需求/小记、密码本、上线记录、织念、文件夹与标签、AI/CC/MCP 配置。历史版本较多时备份体积会增大。
       换机请用「从备份恢复」整库替换；「合并备份设置」或「合并备份文档」可保留当前库并导入备份内容。
       <template v-if="vault.encryptionEnabled">
         已启用主密码时，整库恢复与合并加密备份需验证主密码；文档、数据库与 AI/CC 密钥（ai-secrets / cc-secrets）在备份内保持加密。

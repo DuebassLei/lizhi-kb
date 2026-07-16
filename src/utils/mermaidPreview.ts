@@ -6,7 +6,7 @@ let initializedTheme: "dark" | "default" | null = null;
 function resolveMermaidTheme(): "dark" | "default" {
   if (document.documentElement.style.colorScheme === "light") return "default";
   const theme = document.documentElement.dataset.theme;
-  if (theme === "light" || theme === "warm" || theme === "eye" || theme === "reading") {
+  if (theme === "light" || theme === "warm" || theme === "eye" || theme === "celadon") {
     return "default";
   }
   return "dark";

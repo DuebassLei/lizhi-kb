@@ -122,7 +122,7 @@ export async function updateMubuDoc(
   return withFallback("update_mubu_doc", { id, patch }, () => {
     const data = loadStored();
     const doc = data.docs.find((d) => d.id === id);
-    if (!doc) throw new Error("幕布文档不存在");
+    if (!doc) throw new Error("织念文档不存在");
     if (patch.title !== undefined) {
       const t = patch.title.trim() || "未命名";
       doc.title = t;
@@ -164,7 +164,7 @@ export async function saveMubuTree(
     () => {
       const data = loadStored();
       const doc = data.docs.find((d) => d.id === docId);
-      if (!doc) throw new Error("幕布文档不存在");
+      if (!doc) throw new Error("织念文档不存在");
       const ts = now();
       const root = nodes.find((n) => n.parentId === null);
       doc.title = title?.trim() || root?.text.trim() || doc.title;
