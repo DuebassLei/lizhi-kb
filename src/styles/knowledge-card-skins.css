@@ -213,13 +213,47 @@
   font-weight: 700;
 }
 
-/* ── plain：极简标题 ── */
+/* ── plain：空白画布（画廊主题用 customCSS 定义正文排版）── */
+.knowledge-card.skin-plain .knowledge-card-content {
+  display: block;
+  gap: unset;
+  overflow: hidden;
+}
+.knowledge-card.skin-plain .knowledge-card-content > .card-block + .card-block {
+  margin-top: var(--card-block-gap, 20px);
+}
 .knowledge-card.skin-plain .card-block.block-heading {
   text-align: left;
 }
 .knowledge-card.skin-plain .card-block.block-heading h1,
-.knowledge-card.skin-plain .card-block.block-heading h2 {
-  letter-spacing: -0.02em;
+.knowledge-card.skin-plain .card-block.block-heading h2,
+.knowledge-card.skin-plain .card-block.block-heading h3,
+.knowledge-card.skin-plain .card-block.block-heading h4,
+.knowledge-card.skin-plain .card-block.block-heading h5,
+.knowledge-card.skin-plain .card-block.block-heading h6 {
+  font-size: unset;
+  font-weight: unset;
+  line-height: unset;
+  letter-spacing: unset;
+  margin: 0;
+}
+.knowledge-card.skin-plain.has-hero .card-block.block-heading.is-hero + .card-block.block-paragraph {
+  font-size: unset;
+  opacity: unset;
+}
+.knowledge-card.skin-plain .card-block blockquote {
+  border-left: none;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+}
+.knowledge-card.skin-plain .card-block.block-list ul {
+  list-style: none;
+  padding-left: 0;
+}
+.knowledge-card.skin-plain .card-block.block-list li::marker {
+  content: none;
+  color: transparent;
 }
 
 /* ── letter：信笺文雅（加粗/列表/引用/代码）── */

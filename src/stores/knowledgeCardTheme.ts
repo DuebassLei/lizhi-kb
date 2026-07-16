@@ -4,6 +4,7 @@ import type { CardFormatId } from "../types/knowledgeCards";
 import {
   DEFAULT_BUILTIN_THEME_ID,
   themeRegistry,
+  normalizeThemeShell,
   type CardTheme,
 } from "../themes/knowledgeCards";
 import { getCardFormat } from "../utils/knowledgeCards/cardFormats";
@@ -37,8 +38,11 @@ function loadCustomThemes(): CardTheme[] {
   try {
     const raw = localStorage.getItem(CUSTOM_KEY);
     if (!raw) return [];
-    const parsed = JSON.parse(raw) as CardTheme[];
-    return Array.isArray(parsed) ? parsed : [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((t): t is CardTheme => Boolean(t && typeof t === "object" && "id" in t))
+      .map((t) => normalizeThemeShell(t));
   } catch {
     return [];
   }
@@ -65,8 +69,12 @@ export const useKnowledgeCardThemeStore = defineStore("knowledgeCardTheme", () =
   const customSize = ref(loadCustomSize());
 
   themeRegistry.syncCustom(customThemes.value);
+  try {
+    localStorage.setItem(CUSTOM_KEY, JSON.stringify(customThemes.value));
+  } catch {
+    /* ignore */
+  }
 
-  // 旧内置主题 ID（如 xhs-content）已下线时回退到默认
   if (!themeRegistry.get(currentThemeId.value)) {
     currentThemeId.value = DEFAULT_BUILTIN_THEME_ID;
   }
@@ -141,7 +149,7 @@ export const useKnowledgeCardThemeStore = defineStore("knowledgeCardTheme", () =
   }
 
   function addCustomTheme(theme: CardTheme) {
-    const next = { ...theme, builtin: false };
+    const next = normalizeThemeShell({ ...theme, builtin: false });
     const idx = customThemes.value.findIndex((t) => t.id === next.id);
     if (idx >= 0) {
       customThemes.value = customThemes.value.map((t, i) => (i === idx ? next : t));

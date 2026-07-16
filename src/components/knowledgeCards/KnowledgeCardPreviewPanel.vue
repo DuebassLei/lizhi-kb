@@ -12,6 +12,9 @@ import {
   loadStoredWatermarkNickname,
 } from "../../utils/watermarkSetting";
 
+// 画廊主题专用字体（懒加载本面板时才拉）
+import "../../styles/knowledge-card-fonts";
+
 const props = defineProps<{
   content: string;
   embedded?: boolean;

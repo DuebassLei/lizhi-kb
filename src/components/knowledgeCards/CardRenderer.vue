@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import type { Card } from "../../types/knowledgeCards";
 import type { CardTheme } from "../../themes/knowledgeCards/types";
 import { themeToCssVars } from "../../themes/knowledgeCards/types";
@@ -19,18 +19,18 @@ const props = defineProps<{
 }>();
 
 const cardEl = ref<HTMLElement | null>(null);
+const themeStyleEl = ref<HTMLStyleElement | { $el?: HTMLStyleElement } | null>(null);
 defineExpose({ cardEl });
 
-const chrome = computed(() => props.theme.decorations.chrome ?? "default");
 const corners = computed(() => props.theme.decorations.corners ?? "none");
 const mascot = computed(() => props.theme.decorations.mascot ?? "none");
-const skin = computed(() => props.theme.decorations.skin ?? "default");
+const skin = computed(() => props.theme.decorations.skin ?? "plain");
 
 const heroEnabled = computed(() => {
   const mode = props.theme.decorations.heroMode;
   if (mode === "off") return false;
   if (mode === "first-h1") return true;
-  return props.theme.group !== "minimal";
+  return false;
 });
 
 const hasHero = computed(() => {
@@ -47,7 +47,6 @@ const hasHeadingGradient = computed(() => {
 const overlayWatermark = computed(() => {
   const w = props.theme.decorations.watermark?.trim();
   if (!w) return "";
-  // 页脚已有水印时，角标叠层用品牌名避免重复
   if (props.theme.decorations.watermarkPosition?.startsWith("footer")) {
     return props.theme.decorations.brandLabel || w;
   }
@@ -79,27 +78,59 @@ function isHeroBlock(blockId: string): boolean {
   return Boolean(first && first.id === blockId);
 }
 
+/** 首个段落块（用于对白泡 / deck 等；不能用 :first-of-type，块全是 div） */
+function isLeadParagraph(blockId: string): boolean {
+  const first = props.card.blocks.find((b) => b.type === "paragraph");
+  return Boolean(first && first.id === blockId);
+}
+
 const scopedCustomCss = computed(() => {
   const raw = props.theme.customCSS?.trim();
   if (!raw) return "";
   const safe = sanitizeThemeCss(raw);
+  const themeRoot = `.knowledge-card.theme-${props.theme.id}`;
   return safe.replace(/(^|})\s*([^{}@]+)\s*{/g, (_, brace: string, sel: string) => {
-    const scoped = sel
+    const parts = sel
       .split(",")
-      .map((s) => {
-        const t = s.trim();
-        if (t.startsWith(".knowledge-card") || t.startsWith(".kc-") || t.startsWith(".card-block")) {
-          return `.knowledge-card.theme-${props.theme.id} ${t.replace(/^\.knowledge-card\s*/, "")}`.replace(
-            /\s+/g,
-            " ",
-          );
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return `${brace} {`;
+    const scoped = parts
+      .map((t) => {
+        if (t.startsWith(".knowledge-card")) {
+          return `${themeRoot}${t.slice(".knowledge-card".length)}`;
         }
-        return `.knowledge-card.theme-${props.theme.id} ${t}`;
+        if (t.startsWith(".kc-") || t.startsWith(".card-block")) {
+          return `${themeRoot} ${t}`;
+        }
+        return `${themeRoot} ${t}`;
       })
       .join(", ");
     return `${brace} ${scoped} {`;
   });
 });
+
+function resolveStyleNode(): HTMLStyleElement | null {
+  const el = themeStyleEl.value;
+  if (!el) return null;
+  if (el instanceof HTMLStyleElement) return el;
+  const maybe = (el as { $el?: unknown }).$el;
+  return maybe instanceof HTMLStyleElement ? maybe : null;
+}
+
+function applyThemeStyle(css: string) {
+  const node = resolveStyleNode();
+  if (!node) return;
+  if (node.textContent !== css) node.textContent = css;
+}
+
+watch(scopedCustomCss, (css) => applyThemeStyle(css), { flush: "post" });
+watch(
+  () => props.theme.id,
+  () => applyThemeStyle(scopedCustomCss.value),
+  { flush: "post" },
+);
+onMounted(() => applyThemeStyle(scopedCustomCss.value));
 </script>
 
 <template>
@@ -108,7 +139,6 @@ const scopedCustomCss = computed(() => {
     class="knowledge-card"
     :class="[
       `theme-${theme.id}`,
-      `chrome-${chrome}`,
       `skin-${skin}`,
       `footer-${theme.decorations.footerStyle ?? 'none'}`,
       `corner-${corners}`,
@@ -120,21 +150,18 @@ const scopedCustomCss = computed(() => {
     :style="styleVars"
     data-testid="knowledge-card"
   >
-    <component :is="'style'" v-if="scopedCustomCss">{{ scopedCustomCss }}</component>
+    <component :is="'style'" ref="themeStyleEl" />
+
+    <CardChrome :theme="theme" :page="card.pageNumber" :total="card.totalPages" />
 
     <div class="knowledge-card__shell">
       <CornerDecoration :type="corners" />
       <CardMascot :kind="mascot" :label="theme.decorations.brandLabel" />
       <span v-if="hasOverflow" class="knowledge-card__scale-warn">内容已缩放适配</span>
-      <span
-        v-if="overlayWatermark && chrome !== 'window'"
-        class="knowledge-card__watermark"
-        aria-hidden="true"
-      >
+      <span v-if="overlayWatermark" class="knowledge-card__watermark" aria-hidden="true">
         {{ overlayWatermark }}
       </span>
 
-      <CardChrome :theme="theme" :page="card.pageNumber" :total="card.totalPages" />
       <CardHeader :theme="theme" />
 
       <div class="knowledge-card-content" :class="{ 'is-centered': theme.typography.textAlign === 'center' }">
@@ -142,14 +169,14 @@ const scopedCustomCss = computed(() => {
           v-for="block in card.blocks"
           :key="block.id"
           class="card-block"
-          :class="[`block-${block.type}`, isHeroBlock(block.id) ? 'is-hero' : '']"
+          :class="[
+            `block-${block.type}`,
+            isHeroBlock(block.id) ? 'is-hero' : '',
+            isLeadParagraph(block.id) ? 'is-lead' : '',
+          ]"
           :style="
             block.scale !== undefined && block.scale < 1
-              ? {
-                  transform: `scale(${block.scale})`,
-                  transformOrigin: 'top left',
-                  width: `${100 / block.scale}%`,
-                }
+              ? { transform: `scale(${block.scale})`, transformOrigin: 'top left' }
               : undefined
           "
           v-html="block.html"

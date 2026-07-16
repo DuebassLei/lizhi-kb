@@ -1,62 +1,31 @@
 import type { CardFormatId } from "../../types/knowledgeCards";
 
-/** 卡片外框/装饰布局（决定视觉骨架，不单靠配色） */
-export type CardLayoutChrome =
-  | "default"
-  | "poster"
-  | "letter"
-  | "window"
-  | "nebula"
-  | "tech";
-
 /**
- * 统一皮肤：标题（H1/H2/Hero）+ Markdown 语法（加粗/列表/引用/代码）一整套。
- * 由 `.skin-*` class 驱动，不再拆成「标题布局 × 内容皮」。
+ * 皮肤仅作可选基底；画廊主题一律 plain，外壳+MD 写在本主题 CSS。
  */
-export type CardSkin =
-  | "default"
-  | "wechat"
-  | "xhs"
-  | "cover"
-  | "letter"
-  | "ink"
-  | "sticker"
-  | "retro"
-  | "nebula"
-  | "neon"
-  | "tech"
-  | "plain";
+export type CardSkin = "plain" | "default";
 
 export const CARD_SKIN_LABELS: Record<CardSkin, string> = {
+  plain: "一体样式",
   default: "默认",
-  wechat: "微信贴图",
-  xhs: "种草内容",
-  cover: "海报封面",
-  letter: "信笺启封",
-  ink: "水墨长卷",
-  sticker: "手帐贴纸",
-  retro: "复古窗口",
-  nebula: "星云玻璃",
-  neon: "午夜霓虹",
-  tech: "技术札记",
-  plain: "极简",
 };
 
+export const CARD_SKIN_OPTIONS = (
+  Object.entries(CARD_SKIN_LABELS) as [CardSkin, string][]
+).map(([id, label]) => ({ id, label }));
+
 export type ThemeGroupId =
-  | "social"
-  | "letter"
-  | "retro"
-  | "modern"
+  | "cartoon"
+  | "pro"
+  | "fun"
+  | "cute"
   | "tech"
-  | "minimal"
   | "custom";
 
 export interface CardTheme {
   id: string;
   name: string;
-  /** 分组（主题选择器） */
   group?: ThemeGroupId;
-  /** 一句话描述 */
   description?: string;
   format: CardFormatId;
   colors: {
@@ -68,11 +37,8 @@ export interface CardTheme {
     codeText: string;
     blockquoteBorder: string;
     blockquoteBackground: string;
-    /** 外框/背景板（nebula 等） */
     frame?: string;
-    /** 标题可用渐变（CSS background-image） */
     headingGradient?: string;
-    /** 高亮笔触色 */
     highlight?: string;
   };
   typography: {
@@ -95,11 +61,9 @@ export interface CardTheme {
     style: "solid" | "dashed" | "dotted" | "double" | "none";
     color: string;
     radius: number;
-    /** 信笺双线框 */
     doubleInset?: boolean;
   };
   decorations: {
-    chrome?: CardLayoutChrome;
     corners?: "none" | "flower" | "triangle" | "dot" | "wave";
     watermark?: string;
     watermarkPosition?: "none" | "footer-left" | "footer-right" | "footer-center";
@@ -107,33 +71,49 @@ export interface CardTheme {
     footerStyle?: "none" | "page-number" | "dots" | "progress-bar" | "letter-meta" | "brand";
     backgroundImage?: string;
     backgroundMode?: "cover" | "contain" | "repeat";
-    /** 窗口标题栏文案 */
-    windowTitle?: string;
-    /** 品牌角标 */
     brandLabel?: string;
-    /** 邮戳 / 像素吉祥物 */
     mascot?: "none" | "stamp" | "pixel";
-    /** 顶部色条（tech） */
     topAccentBar?: boolean;
-    /**
-     * 首页首个 H1 放大为海报标题（MD2Card 式大标题）。
-     * 默认：非 minimal 主题开启。
-     */
     heroMode?: "first-h1" | "off";
-    /** 统一皮肤：标题 + Markdown 语法一整套 */
+    /** 画廊主题固定 plain；一体样式在 customCSS */
     skin?: CardSkin;
   };
+  /** 外壳 + MD 语法，通常来自同名 .css?raw */
   customCSS?: string;
   builtin?: boolean;
 }
 
+/** 剥离遗留 chrome / windowTitle */
+export function normalizeThemeShell(theme: CardTheme): CardTheme {
+  if (!theme || typeof theme !== "object") {
+    throw new Error("invalid custom theme");
+  }
+  const decorations = {
+    ...(theme.decorations && typeof theme.decorations === "object"
+      ? theme.decorations
+      : {}),
+  } as CardTheme["decorations"] & {
+    chrome?: unknown;
+    windowTitle?: unknown;
+  };
+  delete decorations.chrome;
+  delete decorations.windowTitle;
+  return {
+    ...theme,
+    decorations: {
+      ...decorations,
+      skin: decorations.skin ?? "plain",
+    },
+    customCSS: typeof theme.customCSS === "string" ? theme.customCSS : "",
+  };
+}
+
 export const THEME_GROUP_LABELS: Record<ThemeGroupId, string> = {
-  social: "社交分享",
-  letter: "信笺仪式",
-  retro: "复古界面",
-  modern: "现代玻璃",
-  tech: "技术极客",
-  minimal: "极简",
+  cartoon: "卡通",
+  pro: "专业",
+  fun: "趣味",
+  cute: "可爱",
+  tech: "科技",
   custom: "自定义",
 };
 

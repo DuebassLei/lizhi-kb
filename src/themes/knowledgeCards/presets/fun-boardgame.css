@@ -1,0 +1,192 @@
+.knowledge-card {
+  position: relative;
+  background: #efe6d4;
+  color: #2b2418;
+  border: 3px solid #2b2418;
+  box-shadow: none;
+  padding: 18px;
+}
+.kc-ornament {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.kc-ornament__box-title {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #2b2418;
+  color: #efe6d4;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 3;
+  font-family: "ZCOOL QingKe HuangYou", sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+}
+.kc-ornament__dice {
+  width: 28px;
+  height: 28px;
+  background: #fff;
+  color: #2b2418;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 14px;
+  font-family: "Noto Sans SC", sans-serif;
+}
+.knowledge-card .knowledge-card__shell {
+  position: relative;
+  z-index: 1;
+  padding-top: 52px;
+}
+.knowledge-card .knowledge-card-content {
+  position: relative;
+  z-index: 1;
+  display: block !important;
+  font-family: "Noto Sans SC", sans-serif !important;
+  font-size: 22px !important;
+  line-height: 1.6 !important;
+}
+.knowledge-card .knowledge-card-content > .card-block + .card-block {
+  margin-top: 8px !important;
+}
+.card-block.block-heading {
+  margin-top: 6px !important;
+  margin-bottom: 4px !important;
+}
+.card-block.block-heading.is-hero {
+  display: none !important;
+}
+.card-block.block-heading h1 {
+  font-family: "ZCOOL QingKe HuangYou", sans-serif !important;
+  font-size: 16px !important;
+  font-weight: 400 !important;
+  color: #2b2418 !important;
+  margin: 0 !important;
+}
+.card-block.block-heading.is-hero h1 {
+  font-family: "ZCOOL QingKe HuangYou", sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  color: #2b2418 !important;
+  margin: 0 !important;
+}
+.card-block.block-heading h2 {
+  font-family: "ZCOOL QingKe HuangYou", sans-serif !important;
+  font-size: 26px !important;
+  font-weight: 400 !important;
+  color: #2b2418 !important;
+  line-height: 1.3 !important;
+  margin: 0 !important;
+  border-bottom: 2px solid #e85d04 !important;
+  padding-bottom: 4px !important;
+}
+.card-block.block-heading h3 {
+  font-family: "Noto Sans SC", sans-serif !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: #2b2418 !important;
+  line-height: 1.35 !important;
+  margin: 0 !important;
+}
+.card-block.block-heading h4,
+.card-block.block-heading h5,
+.card-block.block-heading h6 {
+  font-family: "Noto Sans SC", sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: #4a3a28 !important;
+  line-height: 1.4 !important;
+  margin: 0 !important;
+}
+.card-block.block-paragraph {
+  font-size: 22px !important;
+  line-height: 1.55 !important;
+  color: #2b2418 !important;
+}
+.card-block.block-blockquote {
+  background: #fff !important;
+  border: 2px dashed #2b2418 !important;
+  padding: 12px 14px !important;
+  font-size: 18px !important;
+  border-radius: 0 !important;
+  margin-top: 10px !important;
+  color: #2b2418 !important;
+}
+.card-block.block-blockquote blockquote {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+.card-block.block-list ul {
+  list-style: none !important;
+  padding-left: 0 !important;
+  counter-reset: board-step !important;
+  margin-top: 10px !important;
+}
+.card-block.block-list ul > li {
+  position: relative !important;
+  margin: 0 0 10px 0 !important;
+  padding: 10px 10px 10px 48px !important;
+  border: 1.5px solid #2b2418 !important;
+  background: #fffaf0 !important;
+  transform: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-size: 18px !important;
+  counter-increment: board-step !important;
+  color: #2b2418 !important;
+}
+.card-block.block-list ul > li:nth-child(even) {
+  transform: none !important;
+}
+.card-block.block-list ul > li::before {
+  content: counter(board-step) !important;
+  position: absolute !important;
+  left: 10px !important;
+  top: 10px !important;
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 50% !important;
+  background: #e85d04 !important;
+  color: #fff !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.card-block.block-list ul ul {
+  margin-top: 0.4em !important;
+  margin-bottom: 0.2em !important;
+  padding-left: 0.6em !important;
+  counter-reset: board-sub !important;
+}
+.card-block.block-list ul ul > li {
+  font-size: 16px !important;
+  padding: 8px 8px 8px 40px !important;
+  background: #fff !important;
+  counter-increment: board-sub !important;
+}
+.card-block.block-list ul ul > li::before {
+  content: counter(board-sub, lower-alpha) !important;
+  width: 24px !important;
+  height: 24px !important;
+  font-size: 12px !important;
+  background: #2b2418 !important;
+  color: #efe6d4 !important;
+}
+.card-block.block-list p {
+  font-size: 15px !important;
+  line-height: 1.45 !important;
+  margin: 0.3em 0 0 !important;
+  color: #5a4a38 !important;
+}

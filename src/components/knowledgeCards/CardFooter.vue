@@ -103,15 +103,4 @@ const dateLabel = computed(() => {
       <span>{{ page }} / {{ total }}</span>
     </template>
   </div>
-
-  <!-- 复古窗口底部输入条 -->
-  <div
-    v-if="theme.decorations.chrome === 'window'"
-    class="knowledge-card__chatbar"
-    aria-hidden="true"
-  >
-    <span class="knowledge-card__chat-avatar" />
-    <span class="knowledge-card__chat-input">{{ dateLabel }} · 第 {{ page }} 页</span>
-    <span class="knowledge-card__chat-tools">✦ ♥ ★</span>
-  </div>
 </template>

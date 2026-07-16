@@ -1,31 +1,58 @@
 import type { CardTheme } from "./types";
-import letterInvite from "./presets/letter-invite";
-import nebula from "./presets/nebula";
-import techNotes from "./presets/tech-notes";
-import inkScroll from "./presets/ink-scroll";
+import { normalizeThemeShell } from "./types";
+import cartoonComic from "./presets/cartoon-comic";
+import cartoonSticker from "./presets/cartoon-sticker";
+import cartoonPixel from "./presets/cartoon-pixel";
+import proEditorial from "./presets/pro-editorial";
+import proBrief from "./presets/pro-brief";
+import proLecture from "./presets/pro-lecture";
+import funChalk from "./presets/fun-chalk";
+import funSoda from "./presets/fun-soda";
+import funBoardgame from "./presets/fun-boardgame";
+import cuteMemo from "./presets/cute-memo";
+import cutePaw from "./presets/cute-paw";
+import cuteParty from "./presets/cute-party";
+import techCli from "./presets/tech-cli";
+import techHud from "./presets/tech-hud";
+import techPcb from "./presets/tech-pcb";
 
-export type {
-  CardTheme,
-  ThemeGroupId,
-  CardLayoutChrome,
-  CardSkin,
+export type { CardTheme, ThemeGroupId, CardSkin } from "./types";
+export {
+  themeToCssVars,
+  THEME_GROUP_LABELS,
+  CARD_SKIN_LABELS,
+  CARD_SKIN_OPTIONS,
+  normalizeThemeShell,
 } from "./types";
-export { themeToCssVars, THEME_GROUP_LABELS, CARD_SKIN_LABELS } from "./types";
 
 /** 默认内置主题（本地无记录或旧 ID 失效时回退） */
-export const DEFAULT_BUILTIN_THEME_ID = "letter-invite";
+export const DEFAULT_BUILTIN_THEME_ID = "cartoon-sticker";
 
-/** 为旧预设补齐 group，避免选择器空分组 */
-function withGroup(theme: CardTheme, group: CardTheme["group"]): CardTheme {
-  return { ...theme, group: theme.group ?? group };
+function buildBuiltinThemes(): CardTheme[] {
+  try {
+    return [
+      cartoonComic,
+      cartoonSticker,
+      cartoonPixel,
+      proEditorial,
+      proBrief,
+      proLecture,
+      funChalk,
+      funSoda,
+      funBoardgame,
+      cuteMemo,
+      cutePaw,
+      cuteParty,
+      techCli,
+      techHud,
+      techPcb,
+    ];
+  } catch {
+    return [cartoonSticker];
+  }
 }
 
-const builtinThemes: CardTheme[] = [
-  withGroup(letterInvite, "letter"),
-  withGroup(inkScroll, "letter"),
-  withGroup(nebula, "modern"),
-  withGroup(techNotes, "tech"),
-];
+const builtinThemes: CardTheme[] = buildBuiltinThemes();
 
 class ThemeRegistry {
   private themes = new Map<string, CardTheme>();
@@ -63,7 +90,8 @@ class ThemeRegistry {
       if (!t.builtin) this.themes.delete(id);
     }
     for (const t of custom) {
-      this.themes.set(t.id, { ...t, builtin: false, group: "custom" });
+      const next = normalizeThemeShell({ ...t, builtin: false, group: "custom" });
+      this.themes.set(next.id, next);
     }
   }
 }

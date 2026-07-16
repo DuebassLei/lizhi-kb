@@ -56,6 +56,15 @@ function onToggleCollapse(id: string) {
   store.setTree(next);
 }
 
+function onUpdateText(id: string, text: string) {
+  if (!store.tree) return;
+  const next = structuredClone(store.tree);
+  const node = findMubuNode(next, id);
+  if (!node) return;
+  node.text = text;
+  store.setTree(next);
+}
+
 function formatTime(ms: number) {
   try {
     return new Date(ms).toLocaleString("zh-CN", {
@@ -169,8 +178,10 @@ function formatTime(ms: number) {
               v-else
               :root="store.tree"
               :selected-id="store.selectedNodeId"
+              :title="store.activeDoc.title"
               @select="store.selectedNodeId = $event"
               @toggle-collapse="onToggleCollapse"
+              @update-text="onUpdateText"
             />
           </div>
           <div class="mubu-statusbar" data-testid="mubu-statusbar">

@@ -11,6 +11,9 @@ importers:
       '@codemirror/commands':
         specifier: ^6.10.4
         version: 6.10.4
+      '@codemirror/lang-css':
+        specifier: ^6.3.1
+        version: 6.3.1
       '@codemirror/lang-markdown':
         specifier: ^6.5.0
         version: 6.5.0
@@ -23,15 +26,36 @@ importers:
       '@codemirror/view':
         specifier: ^6.43.6
         version: 6.43.6
+      '@fontsource/bangers':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/caveat':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/fredoka':
+        specifier: ^5.2.10
+        version: 5.2.10
       '@fontsource/inter':
         specifier: ^5.2.8
         version: 5.2.8
       '@fontsource/jetbrains-mono':
         specifier: ^5.2.8
         version: 5.2.8
+      '@fontsource/ma-shan-zheng':
+        specifier: ^5.2.9
+        version: 5.2.9
       '@fontsource/noto-sans-sc':
         specifier: ^5.2.9
         version: 5.2.9
+      '@fontsource/noto-serif-sc':
+        specifier: ^5.2.8
+        version: 5.2.8
+      '@fontsource/press-start-2p':
+        specifier: ^5.2.7
+        version: 5.2.7
+      '@fontsource/zcool-kuaile':
+        specifier: ^5.2.8
+        version: 5.2.8
       '@lezer/highlight':
         specifier: ^1.2.3
         version: 1.2.3
@@ -381,14 +405,35 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@fontsource/bangers@5.2.8':
+    resolution: {integrity: sha512-fFFXg+IHf05TEQ4U0gS8f7B0JHrhAN7oEw/Q8wR0APPLXnhnQSfZz2QDjg0kmVuM+IsM28ODga+0rSpnHLqFfQ==}
+
+  '@fontsource/caveat@5.2.8':
+    resolution: {integrity: sha512-9fUUfFE2IQFKbx+xOcaeQxxmh8iJguEb8z+j1PeueO4UUx+XfT4pRm/B04ZDvFA794/iRxY/IibmP8ZKtIf4rw==}
+
+  '@fontsource/fredoka@5.2.10':
+    resolution: {integrity: sha512-DyzPCmTf0PkBbAu+gNvnPzfD/dYIXlyp+Zcb76jEQyt/vmRKGZgkH8FFF9W2sICDaA5p+GLk1XGFjWh5PPX+lg==}
+
   '@fontsource/inter@5.2.8':
     resolution: {integrity: sha512-P6r5WnJoKiNVV+zvW2xM13gNdFhAEpQ9dQJHt3naLvfg+LkF2ldgSLiF4T41lf1SQCM9QmkqPTn4TH568IRagg==}
 
   '@fontsource/jetbrains-mono@5.2.8':
     resolution: {integrity: sha512-6w8/SG4kqvIMu7xd7wt6x3idn1Qux3p9N62s6G3rfldOUYHpWcc2FKrqf+Vo44jRvqWj2oAtTHrZXEP23oSKwQ==}
 
+  '@fontsource/ma-shan-zheng@5.2.9':
+    resolution: {integrity: sha512-5Pvpb5q6sq00/g+yLLE8iYWcsAqnoIqCloBsjN0bphkGWU3Wp3EfT0CgTsKOiLsPM8GN3AUP0ZaFM2/JR33C/g==}
+
   '@fontsource/noto-sans-sc@5.2.9':
     resolution: {integrity: sha512-bTUIWGBgJDpwi5qAr+x0/lcgv80IHTB9vl6s2f6EymZEa7qYV99yNRBZuKFT+SYDKVunZrjCEhWtpxqmbXWl5Q==}
+
+  '@fontsource/noto-serif-sc@5.2.8':
+    resolution: {integrity: sha512-C7fAr+d1GjOAw1qIbntsnqbA3l5dkdzcmNNgeCXLC8QZ7VNubL7MTrX8UcYKHceX4mI//z8gGtXbOeeQrB6P7g==}
+
+  '@fontsource/press-start-2p@5.2.7':
+    resolution: {integrity: sha512-ezSxYRchANoteja170ZHh2Tt4oejmVEvX42VFPOVVvERSZ68pcuZFjbhHfrK/sNjYmaGg656y7B3431ojO9PCQ==}
+
+  '@fontsource/zcool-kuaile@5.2.8':
+    resolution: {integrity: sha512-pIeFNRM0rwrJkO+TP7WG+KXvqy0YFRrPecNNzHTNOQLYhxrqN67/wzyx3fH+Ky63Y/Am5heB5XIzsEx/Io+P4w==}
 
   '@hono/node-server@1.19.14':
     resolution: {integrity: sha512-GwtvgtXxnWsucXvbQXkRgqksiH2Qed37H9xHZocE5sA3N8O8O8/8FA3uclQXxXVzc9XBZuEOMK7+r02FmSpHtw==}
@@ -2568,11 +2613,25 @@ snapshots:
   '@esbuild/win32-x64@0.25.12':
     optional: true
 
+  '@fontsource/bangers@5.2.8': {}
+
+  '@fontsource/caveat@5.2.8': {}
+
+  '@fontsource/fredoka@5.2.10': {}
+
   '@fontsource/inter@5.2.8': {}
 
   '@fontsource/jetbrains-mono@5.2.8': {}
 
+  '@fontsource/ma-shan-zheng@5.2.9': {}
+
   '@fontsource/noto-sans-sc@5.2.9': {}
+
+  '@fontsource/noto-serif-sc@5.2.8': {}
+
+  '@fontsource/press-start-2p@5.2.7': {}
+
+  '@fontsource/zcool-kuaile@5.2.8': {}
 
   '@hono/node-server@1.19.14(hono@4.12.28)':
     dependencies:

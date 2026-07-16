@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
-import { Check, LayoutTemplate, X } from "@lucide/vue";
+import { Check, LayoutTemplate, Pencil, Trash2, X } from "@lucide/vue";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 import { useKnowledgeCardThemeStore } from "../../stores/knowledgeCardTheme";
 import {
   THEME_GROUP_LABELS,
@@ -8,11 +9,11 @@ import {
   type ThemeGroupId,
 } from "../../themes/knowledgeCards/types";
 import {
-  themeChromeLabel,
   themeSkin,
   themeSkinLabel,
   themeThumbStyle,
 } from "../../utils/knowledgeCards/themeThumb";
+import { useUiStore } from "../../stores/ui";
 
 const props = defineProps<{
   open: boolean;
@@ -20,17 +21,21 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:open": [value: boolean];
-  customize: [];
+  edit: [themeId: string];
 }>();
 
 const themeStore = useKnowledgeCardThemeStore();
+const ui = useUiStore();
 
 const activeGroup = ref<ThemeGroupId | "all">("all");
 const storeRef = ref<HTMLElement | null>(null);
+const pendingDelete = ref<CardTheme | null>(null);
 
 const groupOrder: ThemeGroupId[] = [
-  "letter",
-  "modern",
+  "cartoon",
+  "pro",
+  "fun",
+  "cute",
   "tech",
   "custom",
 ];
@@ -38,7 +43,7 @@ const groupOrder: ThemeGroupId[] = [
 const grouped = computed(() => {
   const map = new Map<ThemeGroupId, CardTheme[]>();
   for (const t of themeStore.allThemes) {
-    const g: ThemeGroupId = t.builtin ? (t.group ?? "social") : "custom";
+    const g: ThemeGroupId = t.builtin ? (t.group ?? "cartoon") : "custom";
     const list = map.get(g) ?? [];
     list.push(t);
     map.set(g, list);
@@ -61,7 +66,10 @@ const visibleThemes = computed(() => {
 watch(
   () => props.open,
   async (v) => {
-    if (!v) return;
+    if (!v) {
+      pendingDelete.value = null;
+      return;
+    }
     activeGroup.value = "all";
     await nextTick();
     storeRef.value
@@ -79,15 +87,47 @@ function selectTheme(id: string) {
   close();
 }
 
+function onEdit(theme: CardTheme, e: Event) {
+  e.stopPropagation();
+  emit("edit", theme.id);
+  close();
+}
+
+function onDeleteClick(theme: CardTheme, e: Event) {
+  e.stopPropagation();
+  if (theme.builtin) return;
+  pendingDelete.value = theme;
+}
+
+function confirmDelete() {
+  const theme = pendingDelete.value;
+  pendingDelete.value = null;
+  if (!theme || theme.builtin) return;
+  themeStore.removeCustomTheme(theme.id);
+  ui.showToast("success", `已删除「${theme.name}」`);
+}
+
+function cancelDelete() {
+  pendingDelete.value = null;
+}
+
 function onKeydown(e: KeyboardEvent) {
   if (e.key === "Escape") {
     e.stopPropagation();
+    if (pendingDelete.value) {
+      cancelDelete();
+      return;
+    }
     close();
   }
 }
 
 function skinLabel(theme: CardTheme) {
   return themeSkinLabel(theme);
+}
+
+function editTitle(theme: CardTheme) {
+  return theme.builtin ? "复制并编辑" : "编辑主题";
 }
 </script>
 
@@ -144,51 +184,33 @@ function skinLabel(theme: CardTheme) {
 
         <div v-if="visibleThemes.length === 0" class="kc-theme-store__empty">
           <p>当前分组暂无主题</p>
-          <button type="button" class="kc-btn kc-btn--primary" @click="emit('customize')">
-            去自定义
-          </button>
         </div>
 
         <div v-else class="kc-theme-store__grid" role="list">
-          <button
+          <div
             v-for="theme in visibleThemes"
             :key="theme.id"
-            type="button"
             role="listitem"
             class="kc-theme-store__card"
             :class="{ 'is-active': theme.id === themeStore.currentThemeId }"
             data-testid="kc-theme-store-card"
+            tabindex="0"
             :aria-pressed="theme.id === themeStore.currentThemeId"
             :aria-label="`应用主题 ${theme.name}`"
             @click="selectTheme(theme.id)"
+            @keydown.enter.prevent="selectTheme(theme.id)"
+            @keydown.space.prevent="selectTheme(theme.id)"
           >
             <div
               class="kc-thumb"
               :class="[
                 `skin-${themeSkin(theme)}`,
-                `chrome-${theme.decorations.chrome ?? 'default'}`,
                 theme.colors.headingGradient ? 'has-grad' : '',
               ]"
               :style="themeThumbStyle(theme)"
               aria-hidden="true"
             >
               <div v-if="theme.decorations.topAccentBar" class="kc-thumb__topbar" />
-              <div
-                v-if="
-                  (theme.decorations.chrome ?? 'default') !== 'default' &&
-                  theme.decorations.chrome !== 'window'
-                "
-                class="kc-thumb__chrome"
-              >
-                <span class="kc-thumb__chip">1/1</span>
-                <span class="kc-thumb__brand">
-                  {{ theme.decorations.brandLabel || themeChromeLabel(theme) }}
-                </span>
-              </div>
-              <div v-else-if="theme.decorations.chrome === 'window'" class="kc-thumb__winbar">
-                <i /><i /><i />
-                <span>{{ theme.decorations.windowTitle || "窗口" }}</span>
-              </div>
               <h3 class="kc-thumb__h1">读书笔记</h3>
               <p class="kc-thumb__p">
                 这是一段
@@ -214,28 +236,59 @@ function skinLabel(theme: CardTheme) {
               <p class="kc-theme-store__desc">
                 {{ theme.description || skinLabel(theme) }}
               </p>
-              <div class="kc-theme-store__tags">
-                <span class="kc-theme-store__tag">{{ skinLabel(theme) }}</span>
-                <span v-if="!theme.builtin" class="kc-theme-store__tag kc-theme-store__tag--custom">
-                  自定义
-                </span>
+              <div class="kc-theme-store__meta-foot">
+                <div class="kc-theme-store__tags">
+                  <span
+                    v-if="!theme.builtin"
+                    class="kc-theme-store__tag kc-theme-store__tag--custom"
+                  >
+                    自定义
+                  </span>
+                </div>
+                <div class="kc-theme-store__actions" @click.stop>
+                  <button
+                    type="button"
+                    class="kc-theme-store__action"
+                    data-testid="kc-theme-store-edit"
+                    :title="editTitle(theme)"
+                    :aria-label="editTitle(theme)"
+                    @click="onEdit(theme, $event)"
+                  >
+                    <Pencil class="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                  <button
+                    v-if="!theme.builtin"
+                    type="button"
+                    class="kc-theme-store__action kc-theme-store__action--danger"
+                    data-testid="kc-theme-store-delete"
+                    title="删除主题"
+                    aria-label="删除主题"
+                    @click="onDeleteClick(theme, $event)"
+                  >
+                    <Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
+                  </button>
+                </div>
               </div>
             </div>
-          </button>
+          </div>
         </div>
 
         <footer class="kc-theme-store__footer">
           <p class="kc-theme-store__hint">当前：{{ themeStore.currentTheme.name }}</p>
-          <button
-            type="button"
-            class="kc-btn"
-            data-testid="kc-theme-store-customize"
-            @click="emit('customize')"
-          >
-            自定义主题
-          </button>
         </footer>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="Boolean(pendingDelete)"
+      title="删除主题"
+      :item-name="pendingDelete?.name"
+      description="删除后不可恢复。若当前正在使用该主题，将回退到默认主题。"
+      confirm-label="删除"
+      destructive
+      test-id="kc-theme-store-delete-confirm"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
   </Teleport>
 </template>

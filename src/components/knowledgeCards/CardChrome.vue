@@ -1,220 +1,115 @@
 <script setup lang="ts">
-import type { CardTheme } from "../../themes/knowledgeCards/types";
+import { computed } from "vue";
+import { BUILTIN_THEME_IDS, type CardTheme } from "../../themes/knowledgeCards";
 
-defineProps<{
+const props = defineProps<{
   theme: CardTheme;
   page: number;
   total: number;
 }>();
+
+/** 内置 id，或自「内置-custom-xxx」副本解析出的画廊基底 */
+const ornamentId = computed(() => {
+  const id = props.theme.id;
+  if (BUILTIN_THEME_IDS.includes(id)) return id;
+  const hit = BUILTIN_THEME_IDS.find(
+    (bid) => id === bid || id.startsWith(`${bid}-custom-`),
+  );
+  return hit ?? "";
+});
 </script>
 
 <template>
-  <!-- 海报社交：页码胶囊 + 品牌角标 -->
+  <!-- 画廊结构装饰：无法单靠伪元素表达的 DOM（按 theme 基底 id） -->
   <div
-    v-if="theme.decorations.chrome === 'poster'"
-    class="kc-chrome kc-chrome--poster"
+    v-if="ornamentId"
+    class="kc-ornament"
+    :data-ornament="ornamentId"
     aria-hidden="true"
   >
-    <span class="kc-chrome__page-chip">{{ page }}/{{ total }}</span>
-    <span class="kc-chrome__poster-tag">{{ theme.decorations.brandLabel || theme.name }}</span>
-  </div>
+    <template v-if="ornamentId === 'cartoon-comic'">
+      <span class="kc-ornament__halftone" />
+      <span class="kc-ornament__burst">哇!</span>
+      <span class="kc-ornament__tag">漫画卡</span>
+    </template>
 
-  <!-- 信笺：邀请抬头 -->
-  <div
-    v-else-if="theme.decorations.chrome === 'letter'"
-    class="kc-chrome kc-chrome--letter"
-    aria-hidden="true"
-  >
-    <p class="kc-chrome__invite">{{ theme.decorations.windowTitle || "邀您启封" }}</p>
-  </div>
+    <template v-else-if="ornamentId === 'cartoon-sticker'">
+      <span class="kc-ornament__tag">手帐卡</span>
+    </template>
 
-  <!-- 复古窗口标题栏 + 菜单 -->
-  <div
-    v-else-if="theme.decorations.chrome === 'window'"
-    class="kc-chrome kc-chrome--window"
-    aria-hidden="true"
-  >
-    <div class="kc-chrome__titlebar">
-      <span class="kc-chrome__folder" />
-      <span class="kc-chrome__title">{{ theme.decorations.windowTitle || "聊天室" }}</span>
-      <span class="kc-chrome__win-btns">
+    <template v-else-if="ornamentId === 'cartoon-pixel'">
+      <div class="kc-ornament__hp">
+        <span>HP</span>
+        <div class="kc-ornament__bar"><i /></div>
+      </div>
+      <div class="kc-ornament__quest">
+        <span>LIZHI QUEST</span>
+        <span>SAVE {{ String(page).padStart(2, "0") }}</span>
+      </div>
+    </template>
+
+    <template v-else-if="ornamentId === 'pro-editorial'">
+      <div class="kc-ornament__mast">
+        <span>狸知月刊</span>
+        <span>Vol. 07 · Essay</span>
+      </div>
+    </template>
+
+    <template v-else-if="ornamentId === 'pro-brief'">
+      <div class="kc-ornament__tag">BRIEFING</div>
+      <div class="kc-ornament__kpis">
+        <div class="kc-ornament__kpi"><b>3:4</b><span>社交主比例</span></div>
+        <div class="kc-ornament__kpi"><b>×N</b><span>主题皮肤</span></div>
+      </div>
+    </template>
+
+    <template v-else-if="ornamentId === 'pro-lecture'">
+      <div class="kc-ornament__margin-num">LECTURE {{ String(page).padStart(2, "0") }}</div>
+      <div class="kc-ornament__fn">注：好的卡片主题，是一套完整的视觉语法。</div>
+    </template>
+
+    <template v-else-if="ornamentId === 'fun-chalk'">
+      <span class="kc-ornament__doodle" />
+    </template>
+
+    <template v-else-if="ornamentId === 'fun-soda'">
+      <span class="kc-ornament__pop">POP!</span>
+    </template>
+
+    <template v-else-if="ornamentId === 'fun-boardgame'">
+      <div class="kc-ornament__box-title">
+        <span>知识卡片</span>
+        <span class="kc-ornament__dice">6</span>
+      </div>
+    </template>
+
+    <template v-else-if="ornamentId === 'cute-memo'">
+      <span class="kc-ornament__tag">MEMO</span>
+    </template>
+
+    <template v-else-if="ornamentId === 'cute-party'">
+      <div class="kc-ornament__balloons">
         <i /><i /><i />
-      </span>
-    </div>
-    <div class="kc-chrome__menubar">
-      <span>File</span><span>Edit</span><span>View</span><span>Help</span>
-    </div>
-  </div>
+      </div>
+    </template>
 
-  <!-- Nebula：红绿灯 + 品牌 -->
-  <div
-    v-else-if="theme.decorations.chrome === 'nebula'"
-    class="kc-chrome kc-chrome--nebula"
-    aria-hidden="true"
-  >
-    <span class="kc-chrome__traffic">
-      <i class="r" /><i class="y" /><i class="g" />
-    </span>
-    <span class="kc-chrome__brand">{{ theme.decorations.brandLabel || "LIZHI NEBULA" }}</span>
-  </div>
+    <template v-else-if="ornamentId === 'tech-cli'">
+      <div class="kc-ornament__prompt">~/notes › cat card.md</div>
+      <div class="kc-ornament__ready">
+        ready<span class="kc-ornament__cursor" />
+      </div>
+    </template>
 
-  <!-- Tech：顶部色条已由 CSS 处理，这里放工具图标行 -->
-  <div
-    v-else-if="theme.decorations.chrome === 'tech'"
-    class="kc-chrome kc-chrome--tech"
-    aria-hidden="true"
-  >
-    <span class="kc-chrome__tech-icon" title="code">⌘</span>
-    <span class="kc-chrome__brand-muted">{{ theme.decorations.brandLabel || "TECH NOTES" }}</span>
+    <template v-else-if="ornamentId === 'tech-hud'">
+      <i class="kc-ornament__corner kc-ornament__corner--tl" />
+      <i class="kc-ornament__corner kc-ornament__corner--tr" />
+      <i class="kc-ornament__corner kc-ornament__corner--bl" />
+      <i class="kc-ornament__corner kc-ornament__corner--br" />
+      <div class="kc-ornament__status">
+        <span>SYS.OK</span>
+        <span>RATIO 3:4</span>
+        <span>MODE CARD</span>
+      </div>
+    </template>
   </div>
 </template>
-
-<style scoped>
-.kc-chrome--poster {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 28px;
-}
-.kc-chrome__page-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2.4em;
-  padding: 0.28em 0.7em;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--card-accent) 16%, transparent);
-  border: 1.5px solid color-mix(in srgb, var(--card-accent) 42%, transparent);
-  color: var(--card-accent);
-  font-size: 0.58em;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-.kc-chrome__poster-tag {
-  font-size: 0.5em;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--card-text) 42%, transparent);
-}
-
-.kc-chrome--letter {
-  text-align: center;
-  margin-bottom: 8px;
-}
-.kc-chrome__invite {
-  margin: 0;
-  font-family: var(--card-heading-font);
-  font-size: 1.35em;
-  font-weight: 700;
-  letter-spacing: 0.18em;
-  color: var(--card-heading);
-}
-
-.kc-chrome--window {
-  margin: calc(-1 * var(--card-padding-top)) calc(-1 * var(--card-padding-right))
-    20px calc(-1 * var(--card-padding-left));
-}
-.kc-chrome__titlebar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 18px;
-  background: var(--card-accent);
-  color: #fff;
-  font-size: 0.72em;
-  font-weight: 700;
-}
-.kc-chrome__folder {
-  width: 22px;
-  height: 16px;
-  border: 2px solid #fff;
-  border-radius: 2px 2px 0 0;
-  position: relative;
-  opacity: 0.95;
-}
-.kc-chrome__folder::before {
-  content: "";
-  position: absolute;
-  top: -6px;
-  left: 0;
-  width: 10px;
-  height: 6px;
-  border: 2px solid #fff;
-  border-bottom: none;
-  border-radius: 2px 2px 0 0;
-}
-.kc-chrome__title {
-  flex: 1;
-}
-.kc-chrome__win-btns {
-  display: flex;
-  gap: 8px;
-}
-.kc-chrome__win-btns i {
-  display: block;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  border-radius: 2px;
-}
-.kc-chrome__menubar {
-  display: flex;
-  gap: 20px;
-  padding: 8px 18px;
-  background: color-mix(in srgb, var(--card-accent) 18%, #fff);
-  color: color-mix(in srgb, var(--card-accent) 70%, #333);
-  font-size: 0.55em;
-  font-weight: 600;
-}
-
-.kc-chrome--nebula {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 28px;
-}
-.kc-chrome__traffic {
-  display: flex;
-  gap: 10px;
-}
-.kc-chrome__traffic i {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  display: block;
-}
-.kc-chrome__traffic .r {
-  background: #ff5f57;
-}
-.kc-chrome__traffic .y {
-  background: #febc2e;
-}
-.kc-chrome__traffic .g {
-  background: #28c840;
-}
-.kc-chrome__brand {
-  font-size: 0.48em;
-  letter-spacing: 0.14em;
-  color: color-mix(in srgb, var(--card-text) 45%, transparent);
-  font-weight: 600;
-}
-
-.kc-chrome--tech {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-}
-.kc-chrome__tech-icon {
-  font-size: 0.7em;
-  opacity: 0.55;
-}
-.kc-chrome__brand-muted {
-  font-size: 0.48em;
-  letter-spacing: 0.12em;
-  opacity: 0.45;
-  font-weight: 700;
-}
-</style>

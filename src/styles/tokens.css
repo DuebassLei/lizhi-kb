@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* 主题样式以 ?raw 注入卡片，勿纳入 Tailwind 源扫描 */
+@source not "../themes/knowledgeCards/presets";
+
 @theme {
   /* ── 背景层级（Obsidian 式 4 层）── */
   --color-base: #1a1d23;

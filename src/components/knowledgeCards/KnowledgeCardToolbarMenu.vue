@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
-import { FileDown, SeparatorHorizontal, Palette, Loader2 } from "@lucide/vue";
+import { FileDown, SeparatorHorizontal, Loader2 } from "@lucide/vue";
 import FormatPicker from "./FormatPicker.vue";
 import ThemePicker from "./ThemePicker.vue";
 import ExportDialog from "./ExportDialog.vue";
@@ -29,6 +29,7 @@ const { exportCards } = useKnowledgeCardExport();
 
 const exportOpen = ref(false);
 const themeEditorOpen = ref(false);
+const editingThemeId = ref<string | null>(null);
 const exporting = ref(false);
 const exportCurrent = ref(0);
 const exportTotal = ref(0);
@@ -53,6 +54,11 @@ const defaultFilename = computed(() => {
 
 function insertPageBreak() {
   emit("insert", "\n\n---\n\n");
+}
+
+function openThemeEditor(themeId: string) {
+  editingThemeId.value = themeId;
+  themeEditorOpen.value = true;
 }
 
 function resolveCardEls(): HTMLElement[] {
@@ -113,7 +119,7 @@ async function onExportConfirm(options: ExportOptions) {
 
     <div class="kc-studio__rail-group">
       <FormatPicker />
-      <ThemePicker @customize="themeEditorOpen = true" />
+      <ThemePicker @edit="openThemeEditor" />
     </div>
 
     <span v-if="isPreview" class="kc-studio__rail-sep" aria-hidden="true" />
@@ -131,20 +137,6 @@ async function onExportConfirm(options: ExportOptions) {
       >
         <SeparatorHorizontal class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         <span v-if="isPreview">分页</span>
-      </button>
-
-      <button
-        type="button"
-        class="kc-btn"
-        :class="isPreview ? '' : 'kc-btn--icon'"
-        title="自定义主题"
-        aria-label="自定义主题"
-        data-testid="kc-open-theme-editor"
-        :disabled="exporting"
-        @click="themeEditorOpen = true"
-      >
-        <Palette class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        <span v-if="isPreview">自定义</span>
       </button>
 
       <button
@@ -174,7 +166,7 @@ async function onExportConfirm(options: ExportOptions) {
       :default-filename="defaultFilename"
       @confirm="onExportConfirm"
     />
-    <ThemeEditor v-model:open="themeEditorOpen" />
+    <ThemeEditor v-model:open="themeEditorOpen" :theme-id="editingThemeId" />
   </div>
 
   <Teleport to="body">

@@ -1,0 +1,210 @@
+.knowledge-card {
+  position: relative;
+  background:
+    repeating-linear-gradient(0deg, transparent, transparent 27px, rgba(90, 140, 180, 0.18) 28px),
+    #f4f7fb;
+  color: #2c3a4a;
+  border: none;
+  box-shadow: 0 16px 40px rgba(40, 60, 90, 0.14);
+  padding: 32px 22px 20px;
+}
+.kc-ornament {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.knowledge-card::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 88px;
+  height: 22px;
+  background: rgba(255, 214, 120, 0.55);
+  border: 1px dashed rgba(180, 120, 40, 0.35);
+  z-index: 3;
+  pointer-events: none;
+}
+.knowledge-card::after {
+  content: "已贴!";
+  position: absolute;
+  right: 18px;
+  top: 48px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #ff8fab;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  transform: rotate(12deg);
+  box-shadow: 0 4px 0 #e56b8a;
+  z-index: 3;
+  pointer-events: none;
+}
+.kc-ornament__tag {
+  position: absolute;
+  top: 52px;
+  left: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #2c3a4a;
+  z-index: 4;
+}
+.knowledge-card .knowledge-card__shell {
+  position: relative;
+  z-index: 1;
+  background: #fff;
+  border: 1px solid #d9e2ec;
+  padding: 16px 16px 32px;
+  transform: rotate(-1.5deg);
+  box-shadow: 0 10px 24px rgba(40, 60, 90, 0.12);
+  margin: 20px 0 0;
+}
+.knowledge-card .knowledge-card-content {
+  position: relative;
+  z-index: 1;
+  display: block !important;
+  font-family: "Fredoka", "Noto Sans SC", sans-serif !important;
+  font-size: 20px !important;
+  line-height: 1.6 !important;
+}
+.knowledge-card .knowledge-card-content > .card-block + .card-block {
+  margin-top: 14px !important;
+}
+.card-block.block-heading {
+  margin-top: 8px !important;
+  margin-bottom: 6px !important;
+}
+.card-block.block-heading h1 {
+  font-family: Fredoka, "Noto Sans SC", sans-serif !important;
+  font-size: 40px !important;
+  color: #24527a !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.01em !important;
+  margin: 0 !important;
+}
+.card-block.block-heading.is-hero h1 {
+  font-family: Fredoka, "Noto Sans SC", sans-serif !important;
+  font-size: 44px !important;
+  color: #24527a !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.01em !important;
+  margin: 0 !important;
+}
+.card-block.block-heading h2 {
+  font-family: Fredoka, "Noto Sans SC", sans-serif !important;
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: #24527a !important;
+  line-height: 1.25 !important;
+  margin: 0 !important;
+  display: inline-block !important;
+  background: #ffb3c6 !important;
+  padding: 4px 12px !important;
+  border-radius: 6px !important;
+  transform: rotate(-1deg) !important;
+}
+.card-block.block-heading h3 {
+  font-family: Fredoka, "Noto Sans SC", sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  color: #2c3a4a !important;
+  line-height: 1.3 !important;
+  margin: 0 !important;
+}
+.card-block.block-heading h4,
+.card-block.block-heading h5,
+.card-block.block-heading h6 {
+  font-family: "Noto Sans SC", sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  color: #4a5a6a !important;
+  line-height: 1.35 !important;
+  margin: 0 !important;
+}
+.card-block.block-paragraph {
+  font-size: 20px !important;
+  line-height: 1.65 !important;
+  color: #2c3a4a !important;
+}
+.card-block.block-blockquote {
+  background: #fff3c4 !important;
+  border-radius: 8px !important;
+  padding: 12px 14px !important;
+  border: 2px dashed #e8c45a !important;
+  transform: rotate(0.8deg) !important;
+  font-size: 18px !important;
+  margin-top: 12px !important;
+  color: #2c3a4a !important;
+}
+.card-block.block-blockquote blockquote {
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+}
+.card-block.block-list ul {
+  list-style: none !important;
+  padding-left: 0 !important;
+  margin-top: 10px !important;
+}
+.card-block.block-list ul > li {
+  position: relative !important;
+  margin: 0.45em 0 !important;
+  padding: 0.2em 0 0.2em 1.75em !important;
+  border: none !important;
+  background: transparent !important;
+  transform: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-size: 18px !important;
+  color: #2c3a4a !important;
+}
+.card-block.block-list ul > li:nth-child(even) {
+  transform: none !important;
+}
+.card-block.block-list ul > li::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0.35em !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 4px !important;
+  background: conic-gradient(from 30deg, #7bdff2, #b2f7ef, #eff7f6, #f7d6e0, #7bdff2) !important;
+  border: 1.5px solid #4a6fa5 !important;
+  box-shadow: none !important;
+}
+.card-block.block-list ul ul {
+  margin-top: 0.35em !important;
+  margin-bottom: 0.2em !important;
+  padding-left: 1.4em !important;
+}
+.card-block.block-list ul ul > li {
+  font-size: 16px !important;
+  padding-left: 1.6em !important;
+}
+.card-block.block-list ul ul > li::before {
+  width: 12px !important;
+  height: 12px !important;
+  border-radius: 2px !important;
+  background: conic-gradient(from 60deg, #f7d6e0, #ffb3c6, #7bdff2) !important;
+  border: 1.5px solid #e56b8a !important;
+}
+.card-block.block-list p {
+  font-size: 16px !important;
+  line-height: 1.55 !important;
+  margin: 0.3em 0 0 !important;
+  color: #5a6a7a !important;
+}

@@ -5,7 +5,7 @@ import { useKnowledgeCardThemeStore } from "../../stores/knowledgeCardTheme";
 import ThemeStoreDialog from "./ThemeStoreDialog.vue";
 
 const emit = defineEmits<{
-  customize: [];
+  edit: [themeId: string];
 }>();
 
 const themeStore = useKnowledgeCardThemeStore();
@@ -18,9 +18,9 @@ function openStore() {
   storeOpen.value = true;
 }
 
-function onCustomize() {
+function onEdit(themeId: string) {
   storeOpen.value = false;
-  emit("customize");
+  emit("edit", themeId);
 }
 </script>
 
@@ -40,6 +40,6 @@ function onCustomize() {
       <ChevronDown class="h-3 w-3 shrink-0 opacity-55" aria-hidden="true" />
     </button>
 
-    <ThemeStoreDialog v-model:open="storeOpen" @customize="onCustomize" />
+    <ThemeStoreDialog v-model:open="storeOpen" @edit="onEdit" />
   </div>
 </template>

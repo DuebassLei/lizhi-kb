@@ -42,6 +42,7 @@ function insertWechatModuleSnippet(snippet: string) {
 
 const editingTitle = ref(false);
 const titleDraft = ref("");
+const titleInputRef = ref<HTMLInputElement | null>(null);
 const cmRef = ref<InstanceType<typeof MarkdownCodeEditor> | null>(null);
 const findReplaceRef = ref<InstanceType<typeof EditorFindReplace> | null>(null);
 const splitContainerRef = ref<HTMLElement | null>(null);
@@ -170,20 +171,35 @@ function onWordCount(count: number) {
   editor.wordCount = count;
 }
 
-function startEditTitle() {
+async function startEditTitle() {
   titleDraft.value = activeTitle.value;
   editingTitle.value = true;
+  await nextTick();
+  const el = titleInputRef.value;
+  if (!el) return;
+  el.focus();
+  el.select();
+}
+
+function cancelTitleEdit() {
+  editingTitle.value = false;
+  titleDraft.value = activeTitle.value;
 }
 
 async function commitTitle() {
+  if (!editingTitle.value) return;
   editingTitle.value = false;
-  if (!documents.activeId || titleDraft.value.trim() === activeTitle.value) return;
+  const next = titleDraft.value.replace(/\s+/g, " ").trim();
+  if (!documents.activeId || !next || next === activeTitle.value) {
+    titleDraft.value = activeTitle.value;
+    return;
+  }
 
   cancel();
   if (editor.isDirty) {
     await flush();
   }
-  await documents.renameTitle(documents.activeId, titleDraft.value);
+  await documents.renameTitle(documents.activeId, next);
 }
 
 function onTocSelect(payload: { text: string; lineIndex: number }) {
@@ -301,26 +317,30 @@ async function retrySave() {
         <span class="text-text-secondary">{{ activeTitle }}</span>
       </nav>
 
-      <div class="flex min-w-0 items-start gap-3">
+      <div class="doc-title-row flex min-w-0 items-center gap-3">
         <input
           v-if="editingTitle"
+          ref="titleInputRef"
           v-model="titleDraft"
           type="text"
-          class="field-input focus-ring min-w-0 flex-1 rounded-md border border-border bg-surface-1 px-3 py-1 text-[2rem] font-semibold leading-tight"
+          class="doc-title-field doc-title-field--editing"
           data-testid="title-input"
           aria-label="文档标题"
-          @keydown.enter="commitTitle"
+          spellcheck="false"
+          @keydown.enter.prevent="commitTitle"
+          @keydown.escape.prevent="cancelTitleEdit"
           @blur="commitTitle"
         />
         <h1
           v-else
-          class="min-w-0 flex-1 cursor-text text-[2rem] font-semibold leading-tight tracking-tight text-[var(--color-text)]"
+          class="doc-title-field doc-title-field--view"
           data-testid="doc-title"
+          title="点击编辑标题"
           @click="startEditTitle"
         >
           {{ activeTitle }}
         </h1>
-        <div class="mt-2 shrink-0">
+        <div class="shrink-0">
           <RevisionHistoryPanel :doc-id="documents.activeId" />
         </div>
       </div>

@@ -54,3 +54,21 @@ export function collectVisibleIds(
   }
   return out;
 }
+
+/** 大纲导出：整树写出，忽略 collapsed */
+export function mubuTreeToMarkdown(root: MubuTreeNode): string {
+  const lines: string[] = [];
+  const walk = (n: MubuTreeNode, depth: number) => {
+    const indent = "  ".repeat(depth);
+    const icon = n.decor?.icon ? `${n.decor.icon} ` : "";
+    const body = `${icon}${n.text}`.trim() || "未命名";
+    if (n.isTodo) {
+      lines.push(`${indent}- [${n.isDone ? "x" : " "}] ${body}`);
+    } else {
+      lines.push(`${indent}- ${body}`);
+    }
+    for (const c of n.children) walk(c, depth + 1);
+  };
+  walk(root, 0);
+  return lines.join("\n") + "\n";
+}

@@ -26,7 +26,7 @@ function heroModeOn(theme: CardTheme): boolean {
   const mode = theme.decorations.heroMode;
   if (mode === "off") return false;
   if (mode === "first-h1") return true;
-  return theme.group !== "minimal";
+  return false;
 }
 
 function applyMeasureTheme(el: HTMLDivElement, format: CardFormat, theme: CardTheme): void {
@@ -138,8 +138,5 @@ export function availableContentHeight(format: CardFormat, theme: CardTheme): nu
     theme.decorations.headerStyle && theme.decorations.headerStyle !== "none" ? 48 : 0;
   const footer =
     theme.decorations.footerStyle && theme.decorations.footerStyle !== "none" ? 56 : 0;
-  const chrome = theme.decorations.chrome ?? "default";
-  const chromeExtra =
-    chrome === "default" ? 0 : chrome === "window" ? 88 : chrome === "letter" ? 52 : 48;
-  return Math.max(100, format.height - pt - pb - header - footer - chromeExtra);
+  return Math.max(100, format.height - pt - pb - header - footer);
 }
