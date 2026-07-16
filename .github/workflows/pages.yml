@@ -29,6 +29,9 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          # 仓库尚未启用 Pages 时自动开启（Source = GitHub Actions）
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
