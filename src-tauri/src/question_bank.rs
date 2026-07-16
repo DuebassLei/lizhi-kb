@@ -277,7 +277,7 @@ impl DocumentService {
 
     pub fn search_questions(&self, params: &QuestionSearchParams) -> Result<QuestionSearchResult, AppError> {
         let page = params.page.max(1);
-        let page_size = params.page_size.max(1).min(100);
+        let page_size = params.page_size.clamp(1, 100);
         let offset = (page - 1) * page_size;
         let has_keyword = params.keyword.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false);
 
