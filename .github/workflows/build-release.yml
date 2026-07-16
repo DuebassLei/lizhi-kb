@@ -106,9 +106,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lizhi-kb-macos
-          path: |
-            src-tauri/target/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/macos/*.app
+          path: src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
 
       - name: Upload artifacts (Linux)
@@ -140,7 +138,10 @@ jobs:
         with:
           draft: false
           generate_release_notes: true
+          overwrite_files: true
           files: |
-            artifacts/lizhi-kb-windows/**/*
-            artifacts/lizhi-kb-macos/**/*
-            artifacts/lizhi-kb-linux/**/*
+            artifacts/**/*.msi
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.deb
+            artifacts/**/*.AppImage
