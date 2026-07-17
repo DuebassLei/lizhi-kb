@@ -101,6 +101,7 @@ tests/e2e/        Playwright
 4. **安全优先** — 加密库项目：密钥不进日志、不进前端持久化明文
 5. **中文 UI** — 用户可见文案用中文
 6. **不主动 commit** — 除非用户明确要求
+7. **删除须二次确认** — 破坏性删除用 `ConfirmDialog`（见 `.cursor/rules/vue-frontend.mdc`）
 
 ## 多 Agent 工作流
 

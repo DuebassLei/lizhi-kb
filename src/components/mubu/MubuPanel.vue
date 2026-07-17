@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { Plus, Trash2 } from "@lucide/vue";
 import { useMubuStore } from "../../stores/mubu";
 import { countMubuStats } from "../../services/mubuService";
 import { findMubuNode } from "../../utils/mubuTree";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 import MubuEditor from "./MubuEditor.vue";
 import MubuMap from "./MubuMap.vue";
 import "../../styles/mubu.css";
 import "../../styles/mindmap.css";
 
 const store = useMubuStore();
+
+const deletePending = ref<{ id: string; title: string } | null>(null);
 
 const saveLabel = computed(() => {
   if (store.saving) return "保存中…";
@@ -37,9 +40,16 @@ async function onCreate() {
   await store.addDoc();
 }
 
-async function onDelete(id: string, e: Event) {
+function onDelete(id: string, e: Event) {
   e.stopPropagation();
-  if (!confirm("确定删除这篇织念？此操作不可撤销。")) return;
+  const doc = store.docs.find((d) => d.id === id);
+  deletePending.value = { id, title: doc?.title?.trim() || "未命名织念" };
+}
+
+async function confirmDeleteDoc() {
+  if (!deletePending.value) return;
+  const { id } = deletePending.value;
+  deletePending.value = null;
   await store.removeDoc(id);
 }
 
@@ -195,5 +205,17 @@ function formatTime(ms: number) {
         <button type="button" class="mm-btn mm-btn--primary" @click="onCreate">新建织念</button>
       </div>
     </section>
+
+    <ConfirmDialog
+      :open="!!deletePending"
+      title="删除织念"
+      :item-name="deletePending?.title"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-mubu-doc-dialog"
+      @confirm="confirmDeleteDoc"
+      @cancel="deletePending = null"
+    />
   </div>
 </template>

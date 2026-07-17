@@ -20,11 +20,13 @@ alwaysApply: false
 - Workspace 内编辑/图谱为**视图切换**，非独立顶级路由
 - 样式：`src/styles/tokens.css` + Tailwind 4
 - Wiki 链接：`extensions/WikiLink.ts`、`stores/links.ts`
+- **删除须二次确认**：用户可见的删除/清空/不可逆移除，必须用 `ConfirmDialog`（或同类应用内对话框），禁止仅靠一次点击；优先 `destructive` + 说明后果。原生 `window.confirm` 仅作过渡，新代码不要新增。
 
 ## 禁止
 
 - 在组件中硬编码 vault 路径或密钥
 - 引入与 spec Won't 冲突的功能（云同步、插件市场等）
+- 无二次确认的破坏性删除入口
 
 ## 验证
 

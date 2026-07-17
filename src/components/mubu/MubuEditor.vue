@@ -14,6 +14,7 @@ import {
   findMubuParent,
 } from "../../utils/mubuTree";
 import { parseTopicLabel } from "../../utils/mindmap/parseTopicLabel";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 
 const props = defineProps<{
   root: MubuTreeNode;
@@ -37,6 +38,7 @@ const menu = ref<{ id: string; x: number; y: number } | null>(null);
 const colorOpen = ref(false);
 const highlightOpen = ref(false);
 const iconOpen = ref(false);
+const deletePending = ref<{ id: string; label: string; childCount: number } | null>(null);
 
 const rows = computed(() => {
   const out: Row[] = [];
@@ -301,13 +303,36 @@ function toggleDone(id: string) {
   });
 }
 
-function deleteNode() {
+function requestDeleteNode() {
   if (!menu.value || menu.value.id === props.root.id) {
     closeMenu();
     return;
   }
   const id = menu.value.id;
+  const node = findMubuNode(props.root, id);
+  if (!node) {
+    closeMenu();
+    return;
+  }
+  const label = (node.text || "").trim() || "未命名主题";
+  const childCount = countDescendants(node);
   closeMenu();
+  deletePending.value = { id, label, childCount };
+}
+
+function countDescendants(node: MubuTreeNode): number {
+  let n = 0;
+  for (const c of node.children) {
+    n += 1 + countDescendants(c);
+  }
+  return n;
+}
+
+function confirmDeleteNode() {
+  if (!deletePending.value) return;
+  const { id } = deletePending.value;
+  deletePending.value = null;
+  if (id === props.root.id) return;
   const next = cloneRoot();
   const parent = findMubuParent(next, id);
   if (!parent) return;
@@ -318,6 +343,15 @@ function deleteNode() {
   commit(next);
   void focusNode(parent.id);
 }
+
+const deleteNodeDescription = computed(() => {
+  const pending = deletePending.value;
+  if (!pending) return "删除后无法恢复，请确认是否继续。";
+  if (pending.childCount > 0) {
+    return `将同时删除其下 ${pending.childCount} 条子主题，删除后无法恢复。`;
+  }
+  return "删除后无法恢复，请确认是否继续。";
+});
 
 function inputStyle(node: MubuTreeNode) {
   const d = node.decor ?? emptyDecor();
@@ -540,7 +574,7 @@ function headingClass(level: number) {
           type="button"
           class="mubu-menu__item mubu-menu__item--danger"
           :disabled="menuNode.id === root.id"
-          @click="deleteNode"
+          @click="requestDeleteNode"
         >
           删除
         </button>
@@ -551,4 +585,16 @@ function headingClass(level: number) {
       </p>
     </div>
   </div>
+
+  <ConfirmDialog
+    :open="!!deletePending"
+    title="删除主题"
+    :item-name="deletePending?.label"
+    :description="deleteNodeDescription"
+    confirm-label="删除"
+    destructive
+    test-id="delete-mubu-node-dialog"
+    @confirm="confirmDeleteNode"
+    @cancel="deletePending = null"
+  />
 </template>

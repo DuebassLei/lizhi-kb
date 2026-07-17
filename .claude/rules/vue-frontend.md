@@ -17,6 +17,7 @@ paths:
 - Composition API + `<script setup lang="ts">`
 - Token：`src/styles/tokens.css` + Tailwind 4
 - 产品 IA 路由见 AGENTS.md，勿照搬 prototype 七屏
+- **删除须二次确认**：破坏性删除用 `ConfirmDialog`；新代码勿新增裸 `window.confirm` / 一键删除
 
 ## 验证
 
