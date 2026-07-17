@@ -35,18 +35,11 @@ pub fn build_rag_context(
         .map_err(|e| e.to_string())?;
 
     let scoped_ids = scope_document_ids(&all_docs, request);
-    let excluded_ids: HashSet<&str> = all_docs
-        .iter()
-        .filter(|d| d.ai_exclude)
-        .map(|d| d.id.as_str())
-        .collect();
     let query_terms = extract_search_terms(&request.question);
 
     let mut hits = doc_service
-        .search_documents(&request.question, top_k * 3, dek)
+        .search_documents_for_ai(&request.question, top_k * 3, dek)
         .map_err(|e| e.to_string())?;
-
-    hits.retain(|h| !excluded_ids.contains(h.id.as_str()));
 
     if let Some(ids) = scoped_ids {
         let set: HashSet<&str> = ids.iter().map(String::as_str).collect();
@@ -60,7 +53,17 @@ pub fn build_rag_context(
     let mut seen = HashSet::new();
 
     if let Some(selection) = request.selection.as_ref().filter(|s| !s.trim().is_empty()) {
-        chunks.push(format!("【编辑器选区】\n{}", selection.trim()));
+        let selection_blocked = request
+            .document_id
+            .as_ref()
+            .and_then(|id| all_docs.iter().find(|d| d.id == *id))
+            .is_some_and(|d| d.ai_exclude);
+        if !selection_blocked {
+            let sanitized = crate::ai_privacy::sanitize_for_ai(selection.trim());
+            if !sanitized.trim().is_empty() {
+                chunks.push(format!("【编辑器选区】\n{sanitized}"));
+            }
+        }
     }
 
     for hit in &hits {
@@ -68,13 +71,9 @@ pub fn build_rag_context(
             continue;
         }
         citations.push((hit.id.clone(), hit.title.clone()));
-        match doc_service.read_document(&hit.id, dek) {
+        match doc_service.read_document_for_ai(&hit.id, dek) {
             Ok(DecryptedContent { content, .. }) => {
-                let excerpt = excerpt_around_terms(
-                    &crate::ai_privacy::sanitize_for_ai(&content),
-                    &query_terms,
-                    4000,
-                );
+                let excerpt = excerpt_around_terms(&content, &query_terms, 4000);
                 chunks.push(format!("【{}】\n{excerpt}", hit.title));
             }
             Err(_) => {
@@ -92,14 +91,12 @@ pub fn build_rag_context(
             if let Some(meta) = all_docs.iter().find(|d| d.id == *doc_id) {
                 if meta.ai_exclude {
                     // 整篇禁止喂 AI：不注入正文
-                } else if let Ok(DecryptedContent { content, .. }) = doc_service.read_document(doc_id, dek) {
+                } else if let Ok(DecryptedContent { content, .. }) =
+                    doc_service.read_document_for_ai(doc_id, dek)
+                {
                     if !content.trim().is_empty() {
                         citations.push((doc_id.clone(), meta.title.clone()));
-                        let excerpt = excerpt_around_terms(
-                            &crate::ai_privacy::sanitize_for_ai(&content),
-                            &query_terms,
-                            4000,
-                        );
+                        let excerpt = excerpt_around_terms(&content, &query_terms, 4000);
                         chunks.push(format!("【{}】\n{excerpt}", meta.title));
                     }
                 }

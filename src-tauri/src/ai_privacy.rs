@@ -2,15 +2,22 @@
 
 use crate::documents::{DocumentMeta, SearchHit};
 
-const AI_PRIVATE_OPEN: &str = ":::ai-private";
-
+/// 与前端 `aiPrivacy.ts` 的 `/^:::\s*ai-private\b/i` 对齐。
 fn is_ai_private_open(line: &str) -> bool {
     let t = line.trim();
-    t.eq_ignore_ascii_case(AI_PRIVATE_OPEN)
-        || t.to_ascii_lowercase()
-            .starts_with(":::ai-private")
-            && t.len() > AI_PRIVATE_OPEN.len()
-            && t.as_bytes().get(AI_PRIVATE_OPEN.len()).map(|b| b.is_ascii_whitespace()).unwrap_or(false)
+    let lower = t.to_ascii_lowercase();
+    let Some(after_colon) = lower.strip_prefix(":::") else {
+        return false;
+    };
+    let after_ws = after_colon.trim_start();
+    let Some(after_name) = after_ws.strip_prefix("ai-private") else {
+        return false;
+    };
+    // `\b`：结束，或下一字符非 [A-Za-z0-9_]
+    match after_name.chars().next() {
+        None => true,
+        Some(c) => !(c.is_ascii_alphanumeric() || c == '_'),
+    }
 }
 
 fn is_module_close(line: &str) -> bool {
@@ -88,6 +95,48 @@ pub fn filter_search_hits_for_ai(metas: &[DocumentMeta], hits: Vec<SearchHit>) -
         .collect()
 }
 
+/// MCP 图谱：去掉 ai_exclude 节点及其边（中心若被排除则返回空图）。
+pub fn filter_graph_for_ai(
+    metas: &[DocumentMeta],
+    mut graph: crate::link_index::GraphPayload,
+) -> crate::link_index::GraphPayload {
+    let excluded: std::collections::HashSet<&str> = metas
+        .iter()
+        .filter(|m| is_ai_excluded(m))
+        .map(|m| m.id.as_str())
+        .collect();
+    if excluded.contains(graph.center_id.as_str()) {
+        return crate::link_index::GraphPayload {
+            center_id: graph.center_id,
+            depth: graph.depth,
+            nodes: Vec::new(),
+            edges: Vec::new(),
+        };
+    }
+    graph.nodes.retain(|n| !excluded.contains(n.id.as_str()));
+    let keep: std::collections::HashSet<&str> =
+        graph.nodes.iter().map(|n| n.id.as_str()).collect();
+    graph
+        .edges
+        .retain(|e| keep.contains(e.from.as_str()) && keep.contains(e.to.as_str()));
+    graph
+}
+
+pub fn filter_link_mentions_for_ai(
+    metas: &[DocumentMeta],
+    mentions: Vec<crate::link_index::LinkMention>,
+) -> Vec<crate::link_index::LinkMention> {
+    let excluded: std::collections::HashSet<&str> = metas
+        .iter()
+        .filter(|m| is_ai_excluded(m))
+        .map(|m| m.id.as_str())
+        .collect();
+    mentions
+        .into_iter()
+        .filter(|m| !excluded.contains(m.id.as_str()))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,5 +165,24 @@ mod tests {
         let out = sanitize_for_ai(md);
         assert!(!out.contains("admin"));
         assert!(out.contains("正文"));
+    }
+
+    #[test]
+    fn strip_allows_space_after_colons() {
+        let md = "公开\n::: ai-private\n密码: x\n:::\n继续";
+        assert_eq!(strip_ai_private_blocks(md), "公开\n继续");
+    }
+
+    #[test]
+    fn strip_allows_bracket_title() {
+        let md = "公开\n:::ai-private[账号]\n密码: x\n:::\n继续";
+        assert_eq!(strip_ai_private_blocks(md), "公开\n继续");
+    }
+
+    #[test]
+    fn strip_ignores_similar_module_names() {
+        let md = "公开\n:::ai-privatex\n不是敏感\n:::\n继续";
+        let out = strip_ai_private_blocks(md);
+        assert!(out.contains("不是敏感"));
     }
 }

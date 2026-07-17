@@ -122,6 +122,11 @@ defineExpose({
             启用 AI 助手
           </label>
           <p class="mt-2 text-xs text-muted">开启后知识库侧栏与 /ai 页面可用</p>
+          <p class="mt-2 text-xs text-muted" data-testid="ai-privacy-hint">
+            隐私护栏：仅对已标记内容硬拦截——整篇「禁止喂 AI」，或
+            <code class="text-link">:::ai-private</code>
+            围栏。未标记明文仍可能进入模型；Agent 工作台「项目目录」模式可读盘绕过护栏。升级后首次检索可能重建全文索引，大库稍候即可。
+          </p>
         </section>
 
         <section v-show="currentTab === 'models'" class="ai-settings-panel" data-testid="ai-panel-models">

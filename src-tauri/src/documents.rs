@@ -376,12 +376,13 @@ impl DocumentService {
         let title_map = link_index::build_title_map(&metas);
         for meta in &metas {
             let content = self.read_document(&meta.id, dek)?.content;
+            let (fts_body, link_body) = self.index_bodies(meta.ai_exclude, &content);
             let conn = self.conn()?;
-            search_index::upsert_document(conn, &meta.id, &meta.title, &content)?;
+            search_index::upsert_document(conn, &meta.id, &meta.title, &fts_body)?;
             link_index::index_links_and_unlinked(
                 conn,
                 &meta.id,
-                &content,
+                &link_body,
                 &meta.title,
                 &title_map,
                 &metas,
@@ -391,6 +392,17 @@ impl DocumentService {
         Ok(())
     }
 
+    /// FTS / 双链索引用正文：剥离 ai-private；整篇 exclude 时 FTS body 为空。
+    fn index_bodies(&self, ai_exclude: bool, content: &str) -> (String, String) {
+        let sanitized = crate::ai_privacy::sanitize_for_ai(content);
+        let fts_body = if ai_exclude {
+            String::new()
+        } else {
+            sanitized.clone()
+        };
+        (fts_body, sanitized)
+    }
+
     fn index_document(
         &self,
         id: &str,
@@ -398,15 +410,20 @@ impl DocumentService {
         content: &str,
         metas: &[DocumentMeta],
     ) -> Result<(), AppError> {
+        let ai_exclude = self
+            .get_document_meta(id)
+            .map(|m| m.ai_exclude)
+            .unwrap_or(false);
+        let (fts_body, link_body) = self.index_bodies(ai_exclude, content);
         let conn = self.conn()?;
-        search_index::upsert_document(conn, id, title, content)?;
+        search_index::upsert_document(conn, id, title, &fts_body)?;
         let all_metas = if metas.is_empty() {
             self.list_documents()?
         } else {
             metas.to_vec()
         };
         let title_map = link_index::build_title_map(&all_metas);
-        link_index::index_links_and_unlinked(conn, id, content, title, &title_map, &all_metas)
+        link_index::index_links_and_unlinked(conn, id, &link_body, title, &title_map, &all_metas)
     }
 
     /// FTS5 全文检索
@@ -878,6 +895,7 @@ impl DocumentService {
         &mut self,
         id: &str,
         exclude: bool,
+        dek: Option<&[u8; DEK_LEN]>,
     ) -> Result<DocumentMeta, AppError> {
         let flag = i32::from(exclude);
         let updated = self.conn_mut()?.execute(
@@ -887,7 +905,10 @@ impl DocumentService {
         if updated == 0 {
             return Err(AppError::DocumentNotFound(id.to_string()));
         }
-        self.get_document_meta(id)
+        let meta = self.get_document_meta(id)?;
+        let content = self.read_content_resilient(&meta.folder, id, dek)?;
+        self.index_document(id, &meta.title, &content, &[])?;
+        Ok(meta)
     }
 
     pub fn read_document_for_ai(

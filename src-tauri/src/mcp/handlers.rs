@@ -331,6 +331,7 @@ fn dispatch(
                 })?
                 .list_documents()
                 .map_err(map_app_error)?;
+            let docs: Vec<_> = docs.into_iter().filter(|d| !d.ai_exclude).collect();
             Ok(json_response(StatusCode(200), &docs))
         }
         ("GET", "/folders") => {
@@ -380,7 +381,7 @@ fn dispatch(
                 return Err((StatusCode(400), "BAD_REQUEST", "缺少文档 id".into()));
             }
             let depth = parse_query_u32(url, "depth").unwrap_or(2).clamp(1, 3);
-            let graph = app_state
+            let service = app_state
                 .document_service
                 .lock()
                 .map_err(|_| {
@@ -389,30 +390,49 @@ fn dispatch(
                         "INTERNAL_ERROR",
                         "document service lock poisoned".into(),
                     )
-                })?
+                })?;
+            let metas = service.list_documents().map_err(map_app_error)?;
+            if metas.iter().any(|m| m.id == id && m.ai_exclude) {
+                return Err((
+                    StatusCode(403),
+                    "AI_EXCLUDE",
+                    "该笔记已禁止提供给 AI".into(),
+                ));
+            }
+            let graph = service
                 .get_local_graph(&id, depth, dek.as_ref())
                 .map_err(map_app_error)?;
+            let graph = crate::ai_privacy::filter_graph_for_ai(&metas, graph);
             Ok(json_response(StatusCode(200), &graph))
         }
         ("GET", path) if path.starts_with("/documents/") && path.ends_with("/backlinks") => {
             let id = parse_document_id(path, "backlinks")?;
-            let backlinks = doc_service_lock(app_state)?
+            let service = doc_service_lock(app_state)?;
+            let metas = service.list_documents().map_err(map_app_error)?;
+            let backlinks = service
                 .get_backlinks(&id, dek.as_ref())
                 .map_err(map_app_error)?;
+            let backlinks = crate::ai_privacy::filter_link_mentions_for_ai(&metas, backlinks);
             Ok(json_response(StatusCode(200), &backlinks))
         }
         ("GET", path) if path.starts_with("/documents/") && path.ends_with("/unlinked-mentions") => {
             let id = parse_document_id(path, "unlinked-mentions")?;
-            let mentions = doc_service_lock(app_state)?
+            let service = doc_service_lock(app_state)?;
+            let metas = service.list_documents().map_err(map_app_error)?;
+            let mentions = service
                 .get_unlinked_mentions(&id, dek.as_ref())
                 .map_err(map_app_error)?;
+            let mentions = crate::ai_privacy::filter_link_mentions_for_ai(&metas, mentions);
             Ok(json_response(StatusCode(200), &mentions))
         }
         ("GET", path) if path.starts_with("/documents/") && path.ends_with("/outbound-links") => {
             let id = parse_document_id(path, "outbound-links")?;
-            let links = doc_service_lock(app_state)?
+            let service = doc_service_lock(app_state)?;
+            let metas = service.list_documents().map_err(map_app_error)?;
+            let links = service
                 .get_outbound_links(&id, dek.as_ref())
                 .map_err(map_app_error)?;
+            let links = crate::ai_privacy::filter_link_mentions_for_ai(&metas, links);
             Ok(json_response(StatusCode(200), &links))
         }
         ("GET", path) if path.starts_with("/documents/") && path.ends_with("/tags") => {

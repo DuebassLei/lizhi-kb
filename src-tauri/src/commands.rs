@@ -305,11 +305,12 @@ pub fn set_document_ai_exclude(
     id: String,
     exclude: bool,
 ) -> Result<DocumentMeta, String> {
+    let dek = session_dek(&state)?;
     state
         .document_service
         .lock()
         .map_err(|_| "document service lock poisoned".to_string())?
-        .set_document_ai_exclude(&id, exclude)
+        .set_document_ai_exclude(&id, exclude, dek.as_ref())
         .map_err(|e| e.to_string())
 }
 

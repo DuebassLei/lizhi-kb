@@ -25,6 +25,15 @@ import { useWechatTheme } from "../../composables/useWechatTheme";
 import { insertModuleSnippet } from "../../services/wechatExport";
 import { appendToMarkdownContent } from "../../utils/editorContentInsert";
 import { insertAtCursor } from "../../utils/markdownInsert";
+import {
+  ignorePrivacyScan,
+  isPrivacyScanIgnored,
+  privacyScanFingerprint,
+  scanSuspectedSecrets,
+  wrapPrivacyHits,
+  type PrivacyScanHit,
+} from "../../utils/aiPrivacyScan";
+import AiPrivacyScanBanner from "./AiPrivacyScanBanner.vue";
 import { PenLine } from "@lucide/vue";
 
 const documents = useDocumentsStore();
@@ -34,6 +43,70 @@ const ui = useUiStore();
 const folders = useFoldersStore();
 const links = useLinksStore();
 const { themeId: wechatThemeId } = useWechatTheme();
+
+const privacyScanHits = ref<PrivacyScanHit[]>([]);
+const showPrivacyScanBanner = computed(
+  () =>
+    Boolean(documents.activeId) &&
+    privacyScanHits.value.length > 0 &&
+    !documents.isAiExcluded(documents.activeId!),
+);
+
+function evaluatePrivacyScan(content: string, docId: string | null) {
+  if (!docId || documents.isAiExcluded(docId)) {
+    privacyScanHits.value = [];
+    return;
+  }
+  const hits = scanSuspectedSecrets(content);
+  if (!hits.length) {
+    privacyScanHits.value = [];
+    return;
+  }
+  const fp = privacyScanFingerprint(hits);
+  if (isPrivacyScanIgnored(docId, fp)) {
+    privacyScanHits.value = [];
+    return;
+  }
+  privacyScanHits.value = hits;
+}
+
+async function onPrivacyScanWrap() {
+  const id = documents.activeId;
+  if (!id || !privacyScanHits.value.length) return;
+  const hitsSnapshot = [...privacyScanHits.value];
+  const prevContent = documents.content;
+  const next = wrapPrivacyHits(prevContent, hitsSnapshot);
+  documents.updateContent(next);
+  privacyScanHits.value = [];
+  editor.clearSaveError();
+  await editor.saveNow();
+  if (editor.saveError) {
+    documents.updateContent(prevContent);
+    privacyScanHits.value = hitsSnapshot;
+    ui.showToast("error", `${editor.saveError}，已恢复原文`);
+    return;
+  }
+  ui.showToast("success", "已包进隐藏信息围栏");
+}
+
+async function onPrivacyScanExclude() {
+  const id = documents.activeId;
+  if (!id) return;
+  try {
+    await documents.toggleAiExclude(id);
+    privacyScanHits.value = [];
+    ui.showToast("success", "已禁止本篇喂给 AI");
+  } catch (e) {
+    ui.showToast("error", e instanceof Error ? e.message : "设置失败");
+  }
+}
+
+function onPrivacyScanIgnore() {
+  const id = documents.activeId;
+  if (!id || !privacyScanHits.value.length) return;
+  ignorePrivacyScan(id, privacyScanFingerprint(privacyScanHits.value));
+  privacyScanHits.value = [];
+}
 
 function insertWechatModuleSnippet(snippet: string) {
   documents.updateContent(insertModuleSnippet(documents.content, snippet));
@@ -118,6 +191,7 @@ const { scheduleSave, flush, cancel } = useAutoSave({
     if (documents.activeId) {
       documents.patchMeta(documents.activeId, { updatedAt: savedAt });
       links.updatePlainTextForDoc(documents.activeId, documents.content);
+      evaluatePrivacyScan(documents.content, documents.activeId);
     }
   },
   onError: (error) => {
@@ -130,6 +204,7 @@ watch(
   () => documents.activeId,
   async (id, prev) => {
     editingTitle.value = false;
+    privacyScanHits.value = [];
     if (prev && editor.isDirty) {
       await flush();
     }
@@ -138,6 +213,17 @@ watch(
       if (doc) {
         folders.revealFolder(folders.normalizeFolder(doc.folder));
       }
+      await nextTick();
+      evaluatePrivacyScan(documents.content, id);
+    }
+  },
+);
+
+watch(
+  () => documents.loading,
+  (loading) => {
+    if (!loading && documents.activeId) {
+      evaluatePrivacyScan(documents.content, documents.activeId);
     }
   },
 );
@@ -362,6 +448,14 @@ async function retrySave() {
         重试
       </button>
     </div>
+
+    <AiPrivacyScanBanner
+      v-if="showPrivacyScanBanner"
+      :hit-count="privacyScanHits.length"
+      @wrap="onPrivacyScanWrap"
+      @exclude="onPrivacyScanExclude"
+      @ignore="onPrivacyScanIgnore"
+    />
 
     <div
       v-if="documents.loading"

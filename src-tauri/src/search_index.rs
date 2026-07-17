@@ -25,9 +25,8 @@ CREATE VIRTUAL TABLE IF NOT EXISTS documents_fts USING fts5(
 );
 ";
 
-/// Bumped to 3 for trigram tokenizer migration.
-/// Version 2 used unicode61; version 3 tries trigram first.
-const FTS_INDEX_FORMAT_VERSION: i64 = 3;
+/// Bumped to 4: FTS body 不含 :::ai-private / ai_exclude 正文（隐私护栏）。
+const FTS_INDEX_FORMAT_VERSION: i64 = 4;
 
 pub fn ensure_fts_schema(conn: &Connection) -> Result<(), AppError> {
     let exists: bool = conn

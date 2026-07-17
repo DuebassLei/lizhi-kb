@@ -19,6 +19,21 @@ describe("stripAiPrivateBlocks", () => {
     expect(out).not.toContain("secret");
     expect(out).toBe("前\n后");
   });
+
+  it("allows space after colons", () => {
+    const md = "公开\n::: ai-private\n密码: x\n:::\n继续";
+    expect(stripAiPrivateBlocks(md)).toBe("公开\n继续");
+  });
+
+  it("allows bracket title form", () => {
+    const md = "公开\n:::ai-private[账号]\n密码: x\n:::\n继续";
+    expect(stripAiPrivateBlocks(md)).toBe("公开\n继续");
+  });
+
+  it("does not match ai-privatex", () => {
+    const md = "公开\n:::ai-privatex\n不是敏感\n:::\n继续";
+    expect(stripAiPrivateBlocks(md)).toContain("不是敏感");
+  });
 });
 
 describe("AI_PRIVATE_SNIPPET", () => {
