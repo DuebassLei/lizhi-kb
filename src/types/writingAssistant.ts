@@ -11,9 +11,6 @@ export type WaStepId =
   | "cover"
   | "finalize";
 
-/** 大纲格式预设（书写形式） */
-export type WaOutlineFormat = "h2h3" | "cn" | "list" | "custom";
-
 /** 大纲结构框架（内容模版） */
 export type WaOutlineFramework =
   | "general"
@@ -21,15 +18,15 @@ export type WaOutlineFramework =
   | "howto"
   | "storyCase"
   | "comparison"
-  | "listicle";
+  | "listicle"
+  | "viral"
+  | "contrarian"
+  | "emotional";
 
-/** 写作风格预设 */
-export type WaStylePreset = "clear" | "story" | "rigorous" | "casual";
-
-/** 目标字数预设 */
+/** @deprecated 已由 targetWords 取代；仅迁移用 */
 export type WaLengthPreset = "short" | "medium" | "long";
 
-/** 去 AI 味强度 */
+/** @deprecated 已由 humanizeSkill 取代；仅迁移用 */
 export type WaHumanizeStrength = "light" | "medium" | "heavy";
 
 /** 配图版式 */
@@ -38,8 +35,15 @@ export type WaIllustrationLayout = "hero" | "split" | "bullets";
 /** 色板 mood */
 export type WaMood = "cool" | "warm" | "neutral";
 
-/** 封面模板 id */
+/** 封面模板 id（精品三套） */
 export type WaCoverTemplateId = "plain" | "grid" | "accent";
+
+/** 封面来源 */
+export type WaCoverSource = "template" | "upload" | "ai";
+
+/** AI 封面风格预设 */
+export type WaCoverAiStyle = "tech" | "comic" | "flat";
+
 
 /** 单条结构化配图提示词（契约，见 spec §5.2） */
 export interface WaIllustrationPrompt {
@@ -64,14 +68,18 @@ export interface WaTopicCandidate {
 
 /** 写作助手会话配置 */
 export interface WaConfig {
-  outlineFormat: WaOutlineFormat;
-  outlineFormatCustom?: string;
   /** 大纲结构框架模版 */
   outlineFramework: WaOutlineFramework;
-  stylePreset: WaStylePreset;
+  /** 风格包 id（内置或 vault） */
+  stylePackId: string;
   styleExtra?: string;
-  length: WaLengthPreset;
-  humanizeStrength: WaHumanizeStrength;
+  /** 目标字数（约 100–6000） */
+  targetWords: number;
+  /**
+   * 去 AI 味 Skill 名（如 humanizer-zh / /humanizer-zh）
+   * 空字符串 = 仅用内置兜底规则
+   */
+  humanizeSkill: string;
   useRag: boolean;
   enableCover: boolean;
   enableIllustrations: boolean;
@@ -105,9 +113,26 @@ export interface WaSessionSnapshot {
   illustrations: WaIllustrationPrompt[];
   /** 封面 asset ref */
   coverAssetRef?: string;
-  /** 封面用户上传 / 模板选择 */
+  /** 封面主标题（可改；空则回退选题） */
+  coverTitle?: string;
+  /** 封面来源 */
+  coverSource: WaCoverSource;
+  /** 上传 / AI 是否叠主副标题 */
+  coverOverlayText: boolean;
+  /** AI 生图风格 */
+  coverAiStyle: WaCoverAiStyle;
+  /** AI 生图 prompt（可改） */
+  coverAiPrompt?: string;
+  /** 封面模板选择 */
   coverTemplate: WaCoverTemplateId;
   coverSubtitle?: string;
+  /** 封面色板（模板路径） */
+  coverMood?: WaMood;
+  /**
+   * 最近一次落盘时的合成指纹（title|subtitle|overlay）
+   * 用于无原图 blob 时判断是否可直接采用已落盘图
+   */
+  coverComposeKey?: string;
   /** 定稿落点 */
   finalizeMode: "create" | "replace";
 }

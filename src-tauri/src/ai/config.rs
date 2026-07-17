@@ -15,6 +15,9 @@ pub struct CloudProvider {
     pub name: String,
     pub base_url: String,
     pub model: String,
+    /// 文生图模型 id（OpenAI 兼容 images/generations）；空则未配置
+    #[serde(default)]
+    pub image_model: String,
     #[serde(default = "default_enabled")]
     pub enabled: bool,
 }
@@ -98,6 +101,7 @@ pub struct CloudProviderPublic {
     pub name: String,
     pub base_url: String,
     pub model: String,
+    pub image_model: String,
     pub enabled: bool,
     pub api_key_masked: String,
     pub api_key: Option<String>,
@@ -126,6 +130,8 @@ pub struct CloudProviderUpdate {
     pub name: String,
     pub base_url: String,
     pub model: String,
+    #[serde(default)]
+    pub image_model: Option<String>,
     pub enabled: Option<bool>,
     pub api_key: Option<String>,
 }
@@ -262,6 +268,7 @@ pub fn provider_public(
         name: provider.name.clone(),
         base_url: provider.base_url.clone(),
         model: provider.model.clone(),
+        image_model: provider.image_model.clone(),
         api_key_masked: mask_secret(&key),
         api_key: if reveal_key && !key.is_empty() {
             Some(key)
@@ -343,6 +350,11 @@ pub fn apply_update(
                 name: item.name.trim().to_string(),
                 base_url: item.base_url.trim().to_string(),
                 model: item.model.trim().to_string(),
+                image_model: item
+                    .image_model
+                    .as_ref()
+                    .map(|s| s.trim().to_string())
+                    .unwrap_or_default(),
                 enabled: item.enabled.unwrap_or(true),
             });
         }

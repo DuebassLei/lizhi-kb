@@ -35,11 +35,18 @@ pub fn build_rag_context(
         .map_err(|e| e.to_string())?;
 
     let scoped_ids = scope_document_ids(&all_docs, request);
+    let excluded_ids: HashSet<&str> = all_docs
+        .iter()
+        .filter(|d| d.ai_exclude)
+        .map(|d| d.id.as_str())
+        .collect();
     let query_terms = extract_search_terms(&request.question);
 
     let mut hits = doc_service
         .search_documents(&request.question, top_k * 3, dek)
         .map_err(|e| e.to_string())?;
+
+    hits.retain(|h| !excluded_ids.contains(h.id.as_str()));
 
     if let Some(ids) = scoped_ids {
         let set: HashSet<&str> = ids.iter().map(String::as_str).collect();
@@ -63,11 +70,19 @@ pub fn build_rag_context(
         citations.push((hit.id.clone(), hit.title.clone()));
         match doc_service.read_document(&hit.id, dek) {
             Ok(DecryptedContent { content, .. }) => {
-                let excerpt = excerpt_around_terms(&content, &query_terms, 4000);
+                let excerpt = excerpt_around_terms(
+                    &crate::ai_privacy::sanitize_for_ai(&content),
+                    &query_terms,
+                    4000,
+                );
                 chunks.push(format!("【{}】\n{excerpt}", hit.title));
             }
             Err(_) => {
-                chunks.push(format!("【{}】\n{}", hit.title, hit.snippet));
+                chunks.push(format!(
+                    "【{}】\n{}",
+                    hit.title,
+                    crate::ai_privacy::sanitize_for_ai(&hit.snippet)
+                ));
             }
         }
     }
@@ -75,10 +90,16 @@ pub fn build_rag_context(
     if hits.is_empty() && matches!(request.scope, RagScope::CurrentDocument) {
         if let Some(doc_id) = request.document_id.as_ref().filter(|id| !id.is_empty()) {
             if let Some(meta) = all_docs.iter().find(|d| d.id == *doc_id) {
-                if let Ok(DecryptedContent { content, .. }) = doc_service.read_document(doc_id, dek) {
+                if meta.ai_exclude {
+                    // 整篇禁止喂 AI：不注入正文
+                } else if let Ok(DecryptedContent { content, .. }) = doc_service.read_document(doc_id, dek) {
                     if !content.trim().is_empty() {
                         citations.push((doc_id.clone(), meta.title.clone()));
-                        let excerpt = excerpt_around_terms(&content, &query_terms, 4000);
+                        let excerpt = excerpt_around_terms(
+                            &crate::ai_privacy::sanitize_for_ai(&content),
+                            &query_terms,
+                            4000,
+                        );
                         chunks.push(format!("【{}】\n{excerpt}", meta.title));
                     }
                 }

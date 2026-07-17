@@ -40,11 +40,15 @@ mod vault_lock;
 
 mod ai;
 
+mod ai_privacy;
+
 mod cc_workbench;
 
 mod prefs;
 
 mod revisions;
+
+mod writing_styles;
 
 
 
@@ -131,6 +135,10 @@ pub enum AppError {
     #[error("asset not found: {0}")]
 
     AssetNotFound(String),
+
+    #[error("该笔记已禁止提供给 AI")]
+
+    AiExclude,
 
     #[error("VAULT_LOCKED")]
 
@@ -355,6 +363,12 @@ pub fn run() {
 
             commands::move_document,
 
+            commands::set_document_ai_exclude,
+
+            commands::read_document_for_ai,
+
+            commands::search_documents_for_ai,
+
             commands::migrate_documents_folder,
 
             commands::get_edit_activity,
@@ -503,7 +517,7 @@ pub fn run() {
             commands::switch_cc_provider,
 
             commands::list_cc_skills,
-
+            commands::read_cc_skill_md,
             commands::list_cc_skill_market,
 
             commands::preview_cc_switch_import,
@@ -588,6 +602,12 @@ pub fn run() {
             commands::get_vault_ui_state,
 
             commands::save_vault_ui_state,
+
+            commands::list_writing_style_packs,
+            commands::get_writing_style_pack,
+            commands::save_writing_style_pack,
+            commands::delete_writing_style_pack,
+            commands::reset_writing_style_pack,
 
             commands::list_document_revisions,
             commands::read_document_revision,

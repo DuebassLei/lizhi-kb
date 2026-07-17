@@ -19,16 +19,39 @@ export interface CompressedImage {
 }
 
 export async function compressImageForAsset(file: File): Promise<CompressedImage> {
+  return compressImageWithLimits(file, MAX_WIDTH, MAX_IMAGE_BYTES, MAX_INPUT_BYTES);
+}
+
+/** 封面专用：更宽上限，尽量保真 */
+const COVER_MAX_WIDTH = 2560;
+const COVER_MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
+const COVER_MAX_INPUT_BYTES = 16 * 1024 * 1024;
+
+export async function compressImageForCover(file: File): Promise<CompressedImage> {
+  return compressImageWithLimits(
+    file,
+    COVER_MAX_WIDTH,
+    COVER_MAX_OUTPUT_BYTES,
+    COVER_MAX_INPUT_BYTES,
+  );
+}
+
+async function compressImageWithLimits(
+  file: File,
+  maxWidth: number,
+  maxOutputBytes: number,
+  maxInputBytes: number,
+): Promise<CompressedImage> {
   if (!ASSET_ACCEPTED_TYPES.has(file.type)) {
     throw new Error("仅支持 JPG、PNG、WebP、GIF 格式");
   }
-  if (file.size > MAX_INPUT_BYTES) {
-    throw new Error("图片过大，请选择 10MB 以内的文件");
+  if (file.size > maxInputBytes) {
+    throw new Error(`图片过大，请选择 ${Math.round(maxInputBytes / (1024 * 1024))}MB 以内的文件`);
   }
 
   if (file.type === "image/gif") {
-    if (file.size > MAX_IMAGE_BYTES) {
-      throw new Error("图片不能超过 5MB");
+    if (file.size > maxOutputBytes) {
+      throw new Error(`图片不能超过 ${Math.round(maxOutputBytes / (1024 * 1024))}MB`);
     }
     const bytes = new Uint8Array(await file.arrayBuffer());
     const dataUrl = await fileToDataUrl(file);
@@ -36,7 +59,7 @@ export async function compressImageForAsset(file: File): Promise<CompressedImage
   }
 
   const bitmap = await loadImageSource(file);
-  const { width, height } = fitWithin(bitmap.width, bitmap.height, MAX_WIDTH);
+  const { width, height } = fitWithin(bitmap.width, bitmap.height, maxWidth);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -52,11 +75,12 @@ export async function compressImageForAsset(file: File): Promise<CompressedImage
   const ext = mime === "image/png" ? "png" : "jpg";
   const dataUrl = canvas.toDataURL(mime, mime === "image/jpeg" ? JPEG_QUALITY : undefined);
   const bytes = dataUrlToBytes(dataUrl);
-  if (bytes.length > MAX_IMAGE_BYTES) {
-    throw new Error("图片不能超过 5MB");
+  if (bytes.length > maxOutputBytes) {
+    throw new Error(`图片不能超过 ${Math.round(maxOutputBytes / (1024 * 1024))}MB`);
   }
   return { bytes, mime, ext, dataUrl };
 }
+
 
 export async function fileToHeroBackgroundDataUrl(file: File): Promise<string> {
   if (!HERO_ACCEPTED_TYPES.has(file.type)) {

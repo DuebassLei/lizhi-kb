@@ -6,6 +6,7 @@ import {
   FolderOpen,
   Inbox,
   Library,
+  Lock,
   Star,
   Trash2,
 } from "@lucide/vue";
@@ -436,6 +437,13 @@ function onDocKeydown(e: KeyboardEvent, docId: string) {
             data-testid="doc-drop-indicator-after"
           />
           <FileText :size="12" class="shrink-0 text-muted" aria-hidden="true" />
+          <Lock
+            v-if="doc.aiExclude"
+            :size="11"
+            class="shrink-0 text-muted"
+            aria-label="已禁止喂 AI"
+            title="已禁止喂 AI"
+          />
           <span class="min-w-0 flex-1 truncate text-xs" :title="doc.title">{{ doc.title }}</span>
           <button
             type="button"

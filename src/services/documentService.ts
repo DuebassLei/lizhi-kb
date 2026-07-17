@@ -1,6 +1,8 @@
 import { tauriInvoke } from "../composables/useTauriCommand";
 import { isTauriRuntime } from "./vaultService";
 import { runConcurrent } from "../utils/readConcurrent";
+import { stripAiPrivateBlocks } from "../utils/aiPrivacy";
+import { searchDocuments, type SearchHit } from "../utils/documentSearch";
 import type {
   DashboardStats,
   DecryptedContent,
@@ -19,6 +21,7 @@ interface StoredDocument {
   createdAt: number;
   updatedAt: number;
   content: string;
+  aiExclude?: boolean;
 }
 
 interface LocalData {
@@ -63,6 +66,7 @@ function toMeta(doc: StoredDocument): DocumentMeta {
     folder: doc.folder,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
+    aiExclude: doc.aiExclude ?? false,
   };
 }
 
@@ -287,6 +291,53 @@ export async function moveDocumentToFolder(id: string, folder: string): Promise<
     "move_document",
     { id, folder },
     () => localMoveDocument(id, folder),
+  );
+}
+
+function localSetDocumentAiExclude(id: string, exclude: boolean): DocumentMeta {
+  const data = loadLocal();
+  const doc = data.documents[id];
+  if (!doc) throw new Error("document not found");
+  doc.aiExclude = exclude;
+  saveLocal(data);
+  return toMeta(doc);
+}
+
+function localReadDocumentForAi(id: string): DecryptedContent {
+  const data = loadLocal();
+  const doc = data.documents[id];
+  if (!doc) throw new Error("document not found");
+  if (doc.aiExclude) throw new Error("该笔记已禁止提供给 AI");
+  return { id: doc.id, content: stripAiPrivateBlocks(doc.content) };
+}
+
+function localSearchDocumentsForAi(query: string, limit: number): SearchHit[] {
+  const tree = localListDocuments();
+  const plainTextMap = Object.fromEntries(
+    Object.values(loadLocal().documents).map((d) => [d.id, d.content]),
+  );
+  return searchDocuments(tree, plainTextMap, query, limit)
+    .filter((h) => !tree.find((d) => d.id === h.id)?.aiExclude)
+    .map((h) => ({ ...h, snippet: stripAiPrivateBlocks(h.snippet) }));
+}
+
+export async function setDocumentAiExclude(id: string, exclude: boolean): Promise<DocumentMeta> {
+  return invokeBackend(
+    "set_document_ai_exclude",
+    { id, exclude },
+    () => localSetDocumentAiExclude(id, exclude),
+  );
+}
+
+export async function readDocumentForAi(id: string): Promise<DecryptedContent> {
+  return invokeBackend("read_document_for_ai", { id }, () => localReadDocumentForAi(id));
+}
+
+export async function searchDocumentsForAi(query: string, limit = 20): Promise<SearchHit[]> {
+  return invokeBackend(
+    "search_documents_for_ai",
+    { query, limit },
+    () => localSearchDocumentsForAi(query, limit),
   );
 }
 

@@ -288,6 +288,12 @@ fn migrate_documents_columns(conn: &Connection) -> SqliteResult<()> {
             [],
         )?;
     }
+    if !cols.iter().any(|c| c == "ai_exclude") {
+        conn.execute(
+            "ALTER TABLE documents ADD COLUMN ai_exclude INTEGER NOT NULL DEFAULT 0",
+            [],
+        )?;
+    }
     Ok(())
 }
 

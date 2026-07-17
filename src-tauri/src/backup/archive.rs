@@ -97,6 +97,7 @@ pub fn export_vault(
     collect_dir(&mut files, data_dir, "workspace")?;
     collect_dir(&mut files, data_dir, "assets")?;
     collect_dir(&mut files, data_dir, "revisions")?;
+    collect_dir(&mut files, data_dir, crate::writing_styles::WRITING_STYLES_DIR)?;
 
     for name in OPTIONAL_BACKUP_FILES {
         collect_file_optional(&mut files, data_dir, name)?;
@@ -410,6 +411,9 @@ fn apply_settings_merge(
         let merged = merge_ui_state(&existing, &incoming);
         save_ui_state(data_dir, &merged).map_err(|_| VaultError::InvalidData)?;
     }
+
+    crate::writing_styles::merge_from_staging(data_dir, staging).map_err(|_| VaultError::InvalidData)?;
+
     Ok(())
 }
 

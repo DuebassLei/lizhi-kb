@@ -374,6 +374,8 @@ async fn execute_tool(
             let mut hits = doc_service
                 .search_documents(query, 10, dek)
                 .map_err(|e| e.to_string())?;
+            let metas = doc_service.list_documents().map_err(|e| e.to_string())?;
+            hits = crate::ai_privacy::filter_search_hits_for_ai(&metas, hits);
             if let Some(ids) = scoped_ids {
                 let set: HashSet<&str> = ids.iter().map(String::as_str).collect();
                 hits.retain(|h| set.contains(h.id.as_str()));
@@ -390,7 +392,7 @@ async fn execute_tool(
                 .lock()
                 .map_err(|_| "document service lock poisoned".to_string())?;
             let doc = doc_service
-                .read_document(id, dek)
+                .read_document_for_ai(id, dek)
                 .map_err(|e| e.to_string())?;
             let title = doc_service
                 .list_documents()

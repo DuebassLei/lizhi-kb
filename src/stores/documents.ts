@@ -12,6 +12,7 @@ import {
   readDocument,
   renameDocument,
   saveDocument,
+  setDocumentAiExclude,
 } from "../services/documentService";
 import { extractH1Title } from "../utils/documentTitle";
 import { parseTagsFromFrontmatter, splitFrontmatter } from "../utils/frontmatter";
@@ -313,7 +314,7 @@ export const useDocumentsStore = defineStore("documents", () => {
 
   function patchMeta(
     id: string,
-    patch: Partial<Pick<DocumentMeta, "title" | "updatedAt" | "folder" | "path">>,
+    patch: Partial<Pick<DocumentMeta, "title" | "updatedAt" | "folder" | "path" | "aiExclude">>,
   ) {
     const idx = tree.value.findIndex((d) => d.id === id);
     if (idx >= 0) {
@@ -367,6 +368,17 @@ export const useDocumentsStore = defineStore("documents", () => {
 
   function togglePin(id: string) {
     pinnedIds.value = togglePinnedId(id);
+  }
+
+  async function toggleAiExclude(id: string) {
+    const doc = tree.value.find((d) => d.id === id);
+    if (!doc) return;
+    const meta = await setDocumentAiExclude(id, !doc.aiExclude);
+    patchMeta(id, { aiExclude: meta.aiExclude });
+  }
+
+  function isAiExcluded(id: string): boolean {
+    return tree.value.find((d) => d.id === id)?.aiExclude ?? false;
   }
 
   const pinnedDocs = computed(() => {
@@ -482,6 +494,8 @@ export const useDocumentsStore = defineStore("documents", () => {
     navigateBack,
     isPinned,
     togglePin,
+    toggleAiExclude,
+    isAiExcluded,
     renameTitle,
     resolveDocumentContent,
     restoreWorkspaceSession,

@@ -28,14 +28,34 @@ import { assembleMarkdown } from "../utils/writingAssistant/assembleMarkdown";
 import { WA_DEFAULT_CONFIG } from "../utils/writingAssistant/defaults";
 import {
   isOutlineEffectivelyEmpty,
+  isOutlineSkeletonOrEmpty,
+  recommendFrameworkFromTopic,
   renderOutlineFramework,
+  resolveSuggestedFramework,
 } from "../utils/writingAssistant/outlineFrameworks";
+import type { WaOutlineFramework } from "../types/writingAssistant";
 import { markStaleAfter } from "../utils/writingAssistant/stale";
+import { WA_BUILTIN_STYLE_PACKS } from "../utils/writingAssistant/stylePacks";
+import {
+  migrateWaConfig,
+  pickStylePack,
+} from "../utils/writingAssistant/stylePacks/stylePackUtils";
+import type { WaStylePack } from "../utils/writingAssistant/stylePacks/types";
+import type { WaStylePackWrite } from "../utils/writingAssistant/stylePacks/types";
+import {
+  deleteStylePack,
+  loadMergedStylePacks,
+  resetStylePack,
+  saveStylePack,
+} from "../services/writingStylePackService";
 import {
   WA_STEP_ORDER,
   type WaConfig,
+  type WaCoverAiStyle,
+  type WaCoverSource,
   type WaCoverTemplateId,
   type WaIllustrationPrompt,
+  type WaMood,
   type WaSessionSnapshot,
   type WaStepId,
   type WaTopicCandidate,
@@ -67,7 +87,7 @@ function loadDefaults(): WaConfig {
   try {
     const raw = localStorage.getItem(DEFAULTS_KEY);
     if (!raw) return { ...WA_DEFAULT_CONFIG };
-    return { ...WA_DEFAULT_CONFIG, ...(JSON.parse(raw) as Partial<WaConfig>) };
+    return migrateWaConfig(JSON.parse(raw) as Partial<WaConfig> & { stylePreset?: string });
   } catch {
     return { ...WA_DEFAULT_CONFIG };
   }
@@ -92,8 +112,30 @@ function emptySnapshot(config: WaConfig): WaSessionSnapshot {
     topicCandidates: [],
     illustrations: [],
     coverTemplate: config.defaultCoverTemplate,
+    coverSource: "template",
+    coverOverlayText: true,
+    coverAiStyle: "tech",
+    coverMood: "neutral",
     finalizeMode: "create",
   };
+}
+
+function migrateCoverFields(snap: WaSessionSnapshot): WaSessionSnapshot {
+  const legacyTpl = snap.coverTemplate as string;
+  const tplMap: Record<string, WaCoverTemplateId> = {
+    plain: "plain",
+    grid: "grid",
+    accent: "accent",
+    banner: "plain",
+    centered: "grid",
+    splitBar: "accent",
+  };
+  snap.coverTemplate = tplMap[legacyTpl] ?? "plain";
+  if (!snap.coverSource) snap.coverSource = "template";
+  if (snap.coverOverlayText == null) snap.coverOverlayText = true;
+  if (!snap.coverAiStyle) snap.coverAiStyle = "tech";
+  if (!snap.coverMood) snap.coverMood = "neutral";
+  return snap;
 }
 
 function loadDraft(): WaSessionSnapshot | null {
@@ -102,8 +144,10 @@ function loadDraft(): WaSessionSnapshot | null {
     if (!raw) return null;
     const snap = JSON.parse(raw) as WaSessionSnapshot;
     if (!snap.config) return null;
-    snap.config = { ...WA_DEFAULT_CONFIG, ...snap.config };
-    return snap;
+    snap.config = migrateWaConfig(
+      snap.config as WaConfig & { stylePreset?: string },
+    );
+    return migrateCoverFields(snap);
   } catch {
     return null;
   }
@@ -142,6 +186,10 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
   const isStreaming = ref(false);
   const streamStep = ref<WaStepId | null>(null);
   const errorMessage = ref<string | null>(null);
+  const stylePacks = ref<WaStylePack[]>(WA_BUILTIN_STYLE_PACKS.map((p) => ({ ...p })));
+  const stylePacksLoading = ref(false);
+  /** 选题采用后关键词推荐的框架（可为空） */
+  const topicFrameworkSuggestion = ref<WaOutlineFramework | null>(null);
 
   let cancelFlag = false;
 
@@ -166,6 +214,45 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
     }
   }
 
+  async function refreshStylePacks() {
+    stylePacksLoading.value = true;
+    try {
+      const packs = await loadMergedStylePacks();
+      stylePacks.value = packs;
+      const ids = new Set(packs.map((p) => p.id));
+      config.value = migrateWaConfig(
+        config.value as WaConfig & { stylePreset?: string },
+        ids,
+      );
+      snapshot.value.config = config.value;
+      saveDefaults(config.value);
+    } finally {
+      stylePacksLoading.value = false;
+    }
+  }
+
+  function currentStylePack(): WaStylePack {
+    return pickStylePack(stylePacks.value, config.value.stylePackId);
+  }
+
+  async function saveStylePackToVault(pack: WaStylePackWrite) {
+    await saveStylePack(pack);
+    await refreshStylePacks();
+  }
+
+  async function deleteStylePackFromVault(id: string) {
+    await deleteStylePack(id);
+    if (config.value.stylePackId === id) {
+      updateConfig({ stylePackId: "default" });
+    }
+    await refreshStylePacks();
+  }
+
+  async function resetStylePackInVault(id: string) {
+    await resetStylePack(id);
+    await refreshStylePacks();
+  }
+
   function persist() {
     saveDraft(snapshot.value);
   }
@@ -177,6 +264,7 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
     reloadFromDraft();
     open.value = true;
     void loadAiState();
+    void refreshStylePacks();
     if (snapshot.value.currentStep === "outline") {
       ensureOutlineSkeleton();
     }
@@ -200,21 +288,57 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
     config.value = { ...config.value, ...patch };
     saveDefaults(config.value);
     snapshot.value.config = config.value;
-    const frameworkChanged =
-      patch.outlineFramework != null ||
-      patch.outlineFormat != null ||
-      patch.outlineFormatCustom != null;
+    const frameworkChanged = patch.outlineFramework != null;
     if (frameworkChanged) {
       const draft = snapshot.value.outline.draft ?? "";
-      const isSkeleton =
-        isOutlineEffectivelyEmpty(draft) ||
-        draft.includes("<!-- 框架") ||
-        draft.includes("<!-- 预设结构");
-      if (isSkeleton) {
+      if (isOutlineSkeletonOrEmpty(draft)) {
         applyOutlineFramework(true);
       }
     }
     persist();
+  }
+
+  /**
+   * 综合建议框架：关键词（选题）> 风格软绑定
+   */
+  const suggestedOutlineFramework = computed(() => {
+    const topicText =
+      snapshot.value.topic.adopted ?? snapshot.value.topic.draft ?? "";
+    return resolveSuggestedFramework({
+      topicText,
+      stylePackId: config.value.stylePackId,
+    });
+  });
+
+  /**
+   * 应用建议的大纲框架。
+   * @returns appliedSkeleton 是否已写入骨架；skippedContent 是否因已有内容未覆盖
+   */
+  function applySuggestedFramework(): {
+    ok: boolean;
+    appliedSkeleton: boolean;
+    skippedContent: boolean;
+    label?: WaOutlineFramework;
+  } {
+    const suggested = suggestedOutlineFramework.value;
+    if (!suggested) return { ok: false, appliedSkeleton: false, skippedContent: false };
+    const draft = snapshot.value.outline.draft ?? "";
+    const canOverwrite = isOutlineSkeletonOrEmpty(draft);
+    updateConfig({ outlineFramework: suggested });
+    if (!canOverwrite) {
+      return {
+        ok: true,
+        appliedSkeleton: false,
+        skippedContent: true,
+        label: suggested,
+      };
+    }
+    return {
+      ok: true,
+      appliedSkeleton: true,
+      skippedContent: false,
+      label: suggested,
+    };
   }
 
   function resetConfig() {
@@ -259,9 +383,8 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
     const s = snapshot.value;
     const current = s.outline.draft ?? "";
     if (!force && !isOutlineEffectivelyEmpty(current)) return false;
-    const text = renderOutlineFramework(s.config.outlineFramework, s.config.outlineFormat, {
+    const text = renderOutlineFramework(s.config.outlineFramework, {
       title: (s.topic.adopted ?? s.topic.draft ?? "").trim() || undefined,
-      customHint: s.config.outlineFormatCustom,
     });
     s.outline = { ...s.outline, draft: text, done: false, stale: false };
     persist();
@@ -292,6 +415,7 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
     if (id === "topic") {
       s.topic = { done: true, stale: false, adopted: content, draft: content };
       s.topicCandidates = [];
+      topicFrameworkSuggestion.value = recommendFrameworkFromTopic(content) ?? null;
     } else if (id === "outline") {
       s.outline = { done: true, stale: false, adopted: content, draft: content };
     } else if (id === "body") {
@@ -316,9 +440,8 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
       if (s.currentStep === "outline") {
         const cur = s.outline.draft ?? s.outline.adopted ?? "";
         if (isOutlineEffectivelyEmpty(cur)) {
-          const text = renderOutlineFramework(s.config.outlineFramework, s.config.outlineFormat, {
+          const text = renderOutlineFramework(s.config.outlineFramework, {
             title: (s.topic.adopted ?? "").trim() || undefined,
-            customHint: s.config.outlineFormatCustom,
           });
           s.outline = { ...s.outline, draft: text, done: false, stale: false };
         }
@@ -364,6 +487,41 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
 
   function setCoverSubtitle(sub: string) {
     snapshot.value.coverSubtitle = sub;
+    persist();
+  }
+
+  function setCoverTitle(title: string) {
+    snapshot.value.coverTitle = title;
+    persist();
+  }
+
+  function setCoverSource(source: WaCoverSource) {
+    snapshot.value.coverSource = source;
+    persist();
+  }
+
+  function setCoverOverlayText(on: boolean) {
+    snapshot.value.coverOverlayText = on;
+    persist();
+  }
+
+  function setCoverAiStyle(style: WaCoverAiStyle) {
+    snapshot.value.coverAiStyle = style;
+    persist();
+  }
+
+  function setCoverAiPrompt(prompt: string) {
+    snapshot.value.coverAiPrompt = prompt;
+    persist();
+  }
+
+  function setCoverMood(mood: WaMood) {
+    snapshot.value.coverMood = mood;
+    persist();
+  }
+
+  function setCoverComposeKey(key: string | undefined) {
+    snapshot.value.coverComposeKey = key;
     persist();
   }
 
@@ -424,6 +582,7 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
     const s = snapshot.value;
     return {
       config: config.value,
+      stylePack: currentStylePack(),
       intent: s.topic.draft ?? s.topic.adopted ?? "",
       topicTitle: s.topic.adopted ?? "",
       outline: s.outline.adopted ?? s.outline.draft ?? "",
@@ -650,6 +809,10 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
     isStreaming,
     streamStep,
     errorMessage,
+    stylePacks,
+    stylePacksLoading,
+    topicFrameworkSuggestion,
+    suggestedOutlineFramework,
     visibleSteps,
     currentStep,
     openDialog,
@@ -657,6 +820,7 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
     abandon,
     updateConfig,
     resetConfig,
+    applySuggestedFramework,
     setLlmTarget,
     setCurrentStep,
     stepStatus,
@@ -670,9 +834,21 @@ export const useWritingAssistantStore = defineStore("writingAssistant", () => {
     setCoverAssetRef,
     setCoverTemplate,
     setCoverSubtitle,
+    setCoverTitle,
+    setCoverSource,
+    setCoverOverlayText,
+    setCoverAiStyle,
+    setCoverAiPrompt,
+    setCoverMood,
+    setCoverComposeKey,
     setFinalizeMode,
     resolveLlmTarget,
     loadAiState,
+    refreshStylePacks,
+    currentStylePack,
+    saveStylePackToVault,
+    deleteStylePackFromVault,
+    resetStylePackInVault,
     runTextStep,
     runIllustrations,
     stopStream,

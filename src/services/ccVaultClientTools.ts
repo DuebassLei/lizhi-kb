@@ -1,5 +1,4 @@
-import { readDocument } from "./documentService";
-import { searchKnowledgeBase } from "./knowledgeIndexService";
+import { readDocumentForAi, searchDocumentsForAi } from "./documentService";
 import type { CcMessageBlock } from "../utils/ccMessageBlocks";
 import {
   extractVaultDocumentIds,
@@ -109,7 +108,7 @@ export async function runVaultClientPrefetchForWeakModel(options: {
     const docs: Array<{ id: string; title: string; content: string }> = [];
     for (const id of docIds.slice(0, 3)) {
       try {
-        const { content } = await readDocument(id);
+        const { content } = await readDocumentForAi(id);
         const title = extractDocTitle(content, id);
         docs.push({ id, title, content });
         blocks.push(buildReadToolBlock(id, title, content, nowTs));
@@ -127,7 +126,7 @@ export async function runVaultClientPrefetchForWeakModel(options: {
   const query = extractVaultSearchQuery(options.userText);
   if (!query) return null;
   try {
-    const hits = await searchKnowledgeBase([], {}, query, 10);
+    const hits = await searchDocumentsForAi(query, 10);
     return {
       promptPrefix: formatVaultPrefetchForPrompt(hits, query),
       blocks: [buildSearchToolBlock(query, hits, nowTs)],
@@ -158,7 +157,7 @@ export async function resolveAssistantPseudoVaultTools(options: {
         const dedupe = `${keyName}:${input}`;
         if (seen.has(dedupe)) continue;
         try {
-          const { content: body } = await readDocument(call.docId);
+          const { content: body } = await readDocumentForAi(call.docId);
           const title = extractDocTitle(body, call.docId);
           blocks.push(buildReadToolBlock(call.docId, title, body, nowTs));
           seen.add(dedupe);
@@ -173,7 +172,7 @@ export async function resolveAssistantPseudoVaultTools(options: {
         const dedupe = `${keyName}:${input}`;
         if (seen.has(dedupe)) continue;
         try {
-          const hits = await searchKnowledgeBase([], {}, call.query, 10);
+          const hits = await searchDocumentsForAi(call.query, 10);
           blocks.push(buildSearchToolBlock(call.query, hits, nowTs));
           seen.add(dedupe);
         } catch {

@@ -6,6 +6,7 @@ import {
   FolderOpen,
   Inbox,
   Library,
+  Lock,
   Star,
   Trash2,
 } from "@lucide/vue";
@@ -197,6 +198,13 @@ const rowStyle = computed(() => ({
             data-testid="doc-drop-indicator-after"
           />
           <FileText :size="12" class="shrink-0 text-muted" aria-hidden="true" />
+          <Lock
+            v-if="row.doc.aiExclude"
+            :size="11"
+            class="shrink-0 text-muted"
+            aria-label="已禁止喂 AI"
+            title="已禁止喂 AI"
+          />
           <span class="min-w-0 flex-1 truncate text-xs" :title="row.doc.title">{{ row.doc.title }}</span>
           <button
             type="button"

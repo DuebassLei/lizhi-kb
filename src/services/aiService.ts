@@ -20,6 +20,8 @@ export interface CloudProviderPublic {
   name: string;
   baseUrl: string;
   model: string;
+  /** 文生图模型；空表示未配置 */
+  imageModel?: string;
   enabled?: boolean;
   apiKeyMasked: string;
   apiKey?: string | null;
@@ -30,6 +32,7 @@ export interface CloudProviderInput {
   name: string;
   baseUrl: string;
   model: string;
+  imageModel?: string;
   enabled?: boolean;
   apiKey?: string;
 }
@@ -173,7 +176,9 @@ export async function setAiConfig(update: AiConfigUpdate): Promise<AiConfigPubli
         name: p.name,
         baseUrl: p.baseUrl,
         model: p.model,
+        imageModel: p.imageModel ?? "",
         apiKeyMasked: p.apiKey ? "••••" : "",
+        apiKey: p.apiKey ?? null,
       }));
     }
     return next;

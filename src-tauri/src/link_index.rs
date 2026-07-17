@@ -611,6 +611,7 @@ mod tests {
                 folder: String::new(),
                 created_at: 0,
                 updated_at: 0,
+                ai_exclude: false,
             },
             DocumentMeta {
                 id: "b".into(),
@@ -619,6 +620,7 @@ mod tests {
                 folder: String::new(),
                 created_at: 0,
                 updated_at: 0,
+                ai_exclude: false,
             },
         ];
         let map = build_title_map(&metas);
@@ -653,6 +655,7 @@ mod tests {
                 folder: String::new(),
                 created_at: 0,
                 updated_at: 0,
+                ai_exclude: false,
             },
             DocumentMeta {
                 id: "b".into(),
@@ -661,6 +664,7 @@ mod tests {
                 folder: String::new(),
                 created_at: 0,
                 updated_at: 0,
+                ai_exclude: false,
             },
         ];
         index_links_and_unlinked(&conn, "a", "mentions Beta in plain text", "Alpha", &build_title_map(&metas), &metas).unwrap();
@@ -692,6 +696,7 @@ mod tests {
                 folder: String::new(),
                 created_at: 0,
                 updated_at: 0,
+                ai_exclude: false,
             },
             DocumentMeta {
                 id: "b".into(),
@@ -700,6 +705,7 @@ mod tests {
                 folder: String::new(),
                 created_at: 0,
                 updated_at: 0,
+                ai_exclude: false,
             },
         ];
         let map = build_title_map(&metas);

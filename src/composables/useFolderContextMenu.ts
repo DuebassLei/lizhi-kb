@@ -143,6 +143,11 @@ export function useFolderContextMenu() {
         run: () => documents.togglePin(docId),
       },
       {
+        id: "ai-exclude",
+        label: doc.aiExclude ? "允许喂 AI" : "禁止喂 AI",
+        run: async () => documents.toggleAiExclude(docId),
+      },
+      {
         id: "delete",
         label: "删除文档",
         danger: true,

@@ -424,7 +424,7 @@ fn dispatch(
         ("GET", path) if path.starts_with("/documents/") => {
             let id = parse_document_id(path, "")?;
             let doc = doc_service_lock(app_state)?
-                .read_document(&id, dek.as_ref())
+                .read_document_for_ai(&id, dek.as_ref())
                 .map_err(map_app_error)?;
             Ok(json_response(StatusCode(200), &doc))
         }
@@ -440,7 +440,7 @@ fn dispatch(
                         "document service lock poisoned".into(),
                     )
                 })?
-                .search_documents(&body.query, body.limit.min(100), dek.as_ref())
+                .search_documents_for_ai(&body.query, body.limit.min(100), dek.as_ref())
                 .map_err(map_app_error)?;
             Ok(json_response(StatusCode(200), &hits))
         }
@@ -489,9 +489,27 @@ fn dispatch(
         }
         ("POST", "/documents/batch-read") => {
             let body: BatchReadBody = read_json_body(request)?;
-            let docs = doc_service_lock(app_state)?
-                .read_documents_batch(body.ids, dek.as_ref())
-                .map_err(map_app_error)?;
+            let service = doc_service_lock(app_state)?;
+            let metas = service.list_documents().map_err(map_app_error)?;
+            let docs: Vec<DecryptedContent> = if let Some(ids) = body.ids.filter(|list| !list.is_empty()) {
+                ids.into_iter()
+                    .filter_map(|id| {
+                        let meta = metas.iter().find(|m| m.id == id)?;
+                        if meta.ai_exclude {
+                            return None;
+                        }
+                        service
+                            .read_document_for_ai(&id, dek.as_ref())
+                            .ok()
+                    })
+                    .collect()
+            } else {
+                metas
+                    .iter()
+                    .filter(|m| !m.ai_exclude)
+                    .filter_map(|m| service.read_document_for_ai(&m.id, dek.as_ref()).ok())
+                    .collect()
+            };
             Ok(json_response(StatusCode(200), &docs))
         }
         ("POST", "/documents") => {
@@ -766,6 +784,11 @@ fn map_app_error(err: crate::AppError) -> (StatusCode, &'static str, String) {
             StatusCode(400),
             "BAD_REQUEST",
             message,
+        ),
+        crate::AppError::AiExclude => (
+            StatusCode(403),
+            "AI_EXCLUDE",
+            "该笔记已禁止提供给 AI".into(),
         ),
         other => (StatusCode(500), "INTERNAL_ERROR", other.to_string()),
     }

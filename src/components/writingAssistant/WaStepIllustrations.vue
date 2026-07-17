@@ -89,7 +89,7 @@ watch(illustrations, () => { /* reactivity trigger */ }, { deep: true });
 <template>
   <div class="wa-pane" data-testid="wa-step-illustrations">
     <h2 class="wa-pane__section-title">配图</h2>
-    <p class="wa-pane__hint">为每个小节生成结构化提示词，本地 Canvas 合成版式卡。非 AI 文生图。</p>
+    <p class="wa-pane__hint">为每个小节生成结构化提示词并本地 Canvas 合成；上传 / AI 生图下期复用。</p>
 
     <div class="flex items-center gap-2 mb-4">
       <button

@@ -1,13 +1,18 @@
 import { marked } from "marked";
+import { AI_PRIVATE_PREVIEW_LABEL } from "../../utils/aiPrivacy";
 import { getThemeAccent, getThemeBg, type WechatThemeId } from "./themes";
 import { renderSupportPlugin } from "./supportPluginRender";
+import { ADVANCED_RENDERERS } from "./layoutModulesAdvanced";
+import { CHART_RENDERERS } from "./layoutModulesCharts";
+import { PRACTICAL_RENDERERS } from "./layoutModulesPractical";
+import type {
+  LayoutModuleRenderer,
+  ModuleBody,
+  ModuleRenderContext,
+  PTitleLevel1Item,
+} from "./layoutModuleTypes";
 
-export interface ModuleBody {
-  label?: string;
-  fields: Record<string, string>;
-  rows: string[][];
-  rawBody: string;
-}
+export type { ModuleBody, ModuleRenderContext, PTitleLevel1Item };
 
 function esc(text: string): string {
   return text
@@ -480,7 +485,19 @@ function renderFallback(name: string, body: ModuleBody, themeId: WechatThemeId):
   return cardFrame(accent, bg, inner);
 }
 
+function renderAiPrivate(_body: ModuleBody, themeId: WechatThemeId): string {
+  const accent = getThemeAccent(themeId);
+  const bg = `color-mix(in srgb, ${accent} 6%, #f8fafc)`;
+  return (
+    `<section class="layout-module preview-ai-private-card" style="margin:16px 0;padding:12px 14px;` +
+    `border:1px dashed color-mix(in srgb, ${accent} 35%, #cbd5e1);border-radius:8px;` +
+    `background:${bg};font-size:13px;color:#64748b;text-align:center">` +
+    `${esc(AI_PRIVATE_PREVIEW_LABEL)}</section>`
+  );
+}
+
 const RENDERERS: Record<string, (body: ModuleBody, themeId: WechatThemeId) => string> = {
+  "ai-private": renderAiPrivate,
   tip: (b, t) => renderCallout("tip", b, t),
   note: (b, t) => renderCallout("note", b, t),
   info: (b, t) => renderCallout("info", b, t),
@@ -531,15 +548,30 @@ const RENDERERS: Record<string, (body: ModuleBody, themeId: WechatThemeId) => st
   "share-plugin": (_b, _t) => renderSupportPlugin(_b),
 };
 
+type RendererFn = LayoutModuleRenderer;
+
+const ALL_RENDERERS: Record<string, RendererFn> = {
+  ...(RENDERERS as Record<string, RendererFn>),
+  ...ADVANCED_RENDERERS,
+  ...CHART_RENDERERS,
+  ...PRACTICAL_RENDERERS,
+};
+
 export function renderLayoutModule(
   name: string,
   label: string | undefined,
   body: ModuleBody,
   themeId: WechatThemeId,
+  ctx?: ModuleRenderContext,
 ): string {
   if (label && !body.label) body.label = label;
   const key = name.toLowerCase();
-  const fn = RENDERERS[key];
-  if (fn) return fn(body, themeId);
+  const fn = ALL_RENDERERS[key];
+  if (fn) return fn(body, themeId, ctx);
   return renderFallback(name, body, themeId);
+}
+
+/** 已注册的模块名（测试 / 调试用） */
+export function listRegisteredLayoutModules(): string[] {
+  return Object.keys(ALL_RENDERERS).sort();
 }

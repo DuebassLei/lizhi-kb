@@ -350,6 +350,17 @@ onUnmounted(() => {
   color: var(--color-link-hover);
 }
 
+.markdown-preview :deep(.preview-ai-private-card) {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px dashed color-mix(in srgb, var(--color-border) 80%, var(--color-paw));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-surface-2) 70%, transparent);
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
 .typewriter-preview {
   max-width: var(--measure-prose);
   padding-top: 35vh;

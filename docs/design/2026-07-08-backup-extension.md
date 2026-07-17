@@ -70,6 +70,7 @@ cc-workbench.json
 cc-secrets.json / cc-secrets.json.enc
 vault-ui-state.json
 revisions/
+writing-styles/
 ```
 
 收集规则：文件/目录存在则打包并写入 manifest；不存在则跳过（兼容旧库）。

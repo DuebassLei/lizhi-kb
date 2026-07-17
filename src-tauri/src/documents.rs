@@ -23,6 +23,7 @@ pub struct DocumentMeta {
     pub folder: String,
     pub created_at: i64,
     pub updated_at: i64,
+    pub ai_exclude: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -261,19 +262,10 @@ impl DocumentService {
 
     pub fn list_documents(&self) -> Result<Vec<DocumentMeta>, AppError> {
         let mut stmt = self.conn()?.prepare(
-            "SELECT id, title, path, folder, created_at, updated_at FROM documents ORDER BY updated_at DESC",
+            "SELECT id, title, path, folder, created_at, updated_at, ai_exclude FROM documents ORDER BY updated_at DESC",
         )?;
 
-        let rows = stmt.query_map([], |row| {
-            Ok(DocumentMeta {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                path: row.get(2)?,
-                folder: row.get(3)?,
-                created_at: row.get(4)?,
-                updated_at: row.get(5)?,
-            })
-        })?;
+        let rows = stmt.query_map([], map_document_meta)?;
 
         rows.collect::<Result<Vec<_>, _>>().map_err(AppError::from)
     }
@@ -327,6 +319,7 @@ impl DocumentService {
             folder: folder.clone(),
             created_at: now,
             updated_at: now,
+            ai_exclude: false,
         };
 
         self.index_document(&meta.id, &meta.title, "", &[])?;
@@ -873,21 +866,55 @@ impl DocumentService {
     fn get_document_meta(&self, id: &str) -> Result<DocumentMeta, AppError> {
         self.conn()?
             .query_row(
-                "SELECT id, title, path, folder, created_at, updated_at FROM documents WHERE id = ?1",
+                "SELECT id, title, path, folder, created_at, updated_at, ai_exclude FROM documents WHERE id = ?1",
                 params![id],
-                |row| {
-                    Ok(DocumentMeta {
-                        id: row.get(0)?,
-                        title: row.get(1)?,
-                        path: row.get(2)?,
-                        folder: row.get(3)?,
-                        created_at: row.get(4)?,
-                        updated_at: row.get(5)?,
-                    })
-                },
+                map_document_meta,
             )
             .optional()?
             .ok_or_else(|| AppError::DocumentNotFound(id.to_string()))
+    }
+
+    pub fn set_document_ai_exclude(
+        &mut self,
+        id: &str,
+        exclude: bool,
+    ) -> Result<DocumentMeta, AppError> {
+        let flag = i32::from(exclude);
+        let updated = self.conn_mut()?.execute(
+            "UPDATE documents SET ai_exclude = ?1 WHERE id = ?2",
+            params![flag, id],
+        )?;
+        if updated == 0 {
+            return Err(AppError::DocumentNotFound(id.to_string()));
+        }
+        self.get_document_meta(id)
+    }
+
+    pub fn read_document_for_ai(
+        &self,
+        id: &str,
+        dek: Option<&[u8; DEK_LEN]>,
+    ) -> Result<DecryptedContent, AppError> {
+        let meta = self.get_document_meta(id)?;
+        if meta.ai_exclude {
+            return Err(AppError::AiExclude);
+        }
+        let content = self.read_content_resilient(&meta.folder, id, dek)?;
+        Ok(DecryptedContent {
+            id: id.to_string(),
+            content: crate::ai_privacy::sanitize_for_ai(&content),
+        })
+    }
+
+    pub fn search_documents_for_ai(
+        &self,
+        query: &str,
+        limit: usize,
+        dek: Option<&[u8; DEK_LEN]>,
+    ) -> Result<Vec<SearchHit>, AppError> {
+        let metas = self.list_documents()?;
+        let hits = self.search_documents(query, limit, dek)?;
+        Ok(crate::ai_privacy::filter_search_hits_for_ai(&metas, hits))
     }
 
     fn document_dir(&self, folder: &str) -> PathBuf {
@@ -1210,6 +1237,18 @@ fn format_date(date: NaiveDate) -> String {
 
 fn now_millis() -> i64 {
     Local::now().timestamp_millis()
+}
+
+fn map_document_meta(row: &rusqlite::Row<'_>) -> rusqlite::Result<DocumentMeta> {
+    Ok(DocumentMeta {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        path: row.get(2)?,
+        folder: row.get(3)?,
+        created_at: row.get(4)?,
+        updated_at: row.get(5)?,
+        ai_exclude: row.get::<_, i32>(6)? != 0,
+    })
 }
 
 fn count_words(content: &str) -> i64 {

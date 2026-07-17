@@ -58,6 +58,14 @@
       <BtnIcon label="链接" @click="insertLink">
         <Link class="h-3.5 w-3.5" aria-hidden="true" />
       </BtnIcon>
+      <BtnIcon
+        label="隐藏信息"
+        title="插入 :::ai-private（有选区则包裹）"
+        data-testid="editor-toolbar-ai-private"
+        @click="insertAiPrivate(view)"
+      >
+        <Lock class="h-3.5 w-3.5" aria-hidden="true" />
+      </BtnIcon>
       <BtnIcon label="插入图片" @click="insertImage">
         <ImageIcon class="h-3.5 w-3.5" aria-hidden="true" />
       </BtnIcon>
@@ -147,9 +155,10 @@ import {
   Link,
   Image as ImageIcon,
   Sparkles,
+  Lock,
 } from "@lucide/vue";
 import { insertImageFromFile } from "../../utils/editorImageInsert";
-import { insertAtCursor, insertTableAtCursor, prefixLines, wrapSelection } from "../../utils/markdownInsert";
+import { insertAtCursor, insertAiPrivate, insertTableAtCursor, prefixLines, wrapSelection } from "../../utils/markdownInsert";
 import { useUiStore } from "../../stores/ui";
 import { useWritingAssistantStore } from "../../stores/writingAssistant";
 import InputDialog from "../common/InputDialog.vue";

@@ -263,6 +263,14 @@ export async function listCcSkills(): Promise<CcSkillEntry[]> {
   return tauriInvoke<CcSkillEntry[]>("list_cc_skills");
 }
 
+/** 读取已安装 Skill 的 SKILL.md 全文 */
+export async function readCcSkillMd(name: string): Promise<string> {
+  if (!isTauriRuntime()) {
+    throw new Error("仅桌面端可读取 Skill");
+  }
+  return tauriInvoke<string>("read_cc_skill_md", { name });
+}
+
 export async function listCcSkillMarket(): Promise<CcSkillMarketEntry[]> {
   if (!isTauriRuntime()) return [];
   return tauriInvoke<CcSkillMarketEntry[]>("list_cc_skill_market");

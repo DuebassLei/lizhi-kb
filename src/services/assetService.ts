@@ -1,6 +1,11 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { tauriInvoke } from "../composables/useTauriCommand";
-import { compressImageForAsset, compressDataUrlForWechat, urlToDataUrl } from "../utils/imageDataUrl";
+import {
+  compressImageForAsset,
+  compressImageForCover,
+  compressDataUrlForWechat,
+  urlToDataUrl,
+} from "../utils/imageDataUrl";
 import { isTauriRuntime } from "./vaultService";
 
 export const ASSET_PREFIX = "asset://";
@@ -82,6 +87,39 @@ export async function saveAsset(file: File): Promise<string> {
     throw new Error("图片保存失败，请重试");
   }
 }
+
+/** 封面高清落盘（更高压缩上限） */
+export async function saveCoverAsset(file: File): Promise<string> {
+  const { bytes, ext, dataUrl } = await compressImageForCover(file);
+
+  if (isTauriRuntime()) {
+    try {
+      const id = await tauriSaveAsset(bytes, ext);
+      return toAssetRef(id);
+    } catch {
+      throw new Error("封面保存失败，请重试");
+    }
+  }
+
+  try {
+    const id = localSaveAsset(dataUrl, ext);
+    return toAssetRef(id);
+  } catch {
+    throw new Error("封面保存失败，请重试");
+  }
+}
+
+/** 已压缩 bytes 直接落盘（Canvas / AI blob） */
+export async function saveAssetFromBlob(blob: Blob, filename = "cover.png"): Promise<string> {
+  const ext = filename.toLowerCase().endsWith(".jpg") || filename.toLowerCase().endsWith(".jpeg")
+    ? "jpg"
+    : filename.toLowerCase().endsWith(".webp")
+      ? "webp"
+      : "png";
+  const file = new File([blob], filename, { type: blob.type || `image/${ext === "jpg" ? "jpeg" : ext}` });
+  return saveCoverAsset(file);
+}
+
 
 export async function resolveAssetUrl(src: string): Promise<string> {
   if (!isAssetRef(src)) return src;

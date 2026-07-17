@@ -97,6 +97,47 @@ pub fn list_all_skills(data_dir: &Path, project_path: Option<&str>) -> Vec<CcSki
     skills
 }
 
+fn skill_name_matches(entry: &CcSkillEntry, query: &str) -> bool {
+    let q = query.trim().trim_start_matches('/').to_ascii_lowercase();
+    if q.is_empty() {
+        return false;
+    }
+    if entry.name.to_ascii_lowercase() == q {
+        return true;
+    }
+    Path::new(&entry.path)
+        .file_name()
+        .map(|n| n.to_string_lossy().to_ascii_lowercase() == q)
+        .unwrap_or(false)
+}
+
+/// 按 Skill 目录名读取 SKILL.md 全文。优先项目已启用，其次全局已启用，最后任意匹配。
+pub fn read_skill_md_by_name(
+    data_dir: &Path,
+    project_path: Option<&str>,
+    name: &str,
+) -> Result<String, String> {
+    let query = name.trim().trim_start_matches('/');
+    if query.is_empty() {
+        return Err("Skill 名称为空".to_string());
+    }
+    let skills = list_all_skills(data_dir, project_path);
+    let pick = skills
+        .iter()
+        .find(|s| s.enabled && s.scope == "project" && skill_name_matches(s, query))
+        .or_else(|| {
+            skills
+                .iter()
+                .find(|s| s.enabled && s.scope == "global" && skill_name_matches(s, query))
+        })
+        .or_else(|| skills.iter().find(|s| skill_name_matches(s, query)))
+        .ok_or_else(|| format!("未找到 Skill「{query}」，请先在 Agent 工作台安装"))?;
+
+    let dir = PathBuf::from(&pick.path);
+    let md = locate_skill_md(&dir).ok_or_else(|| format!("Skill「{query}」缺少 SKILL.md"))?;
+    fs::read_to_string(&md).map_err(|e| format!("读取 Skill 失败：{e}"))
+}
+
 fn scan_skills_dir(dir: &Path, scope: &str, enabled: bool, out: &mut Vec<CcSkillEntry>) {
     let entries = match fs::read_dir(dir) {
         Ok(e) => e,

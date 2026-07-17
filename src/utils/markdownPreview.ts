@@ -1,4 +1,9 @@
 import { lowlight } from "./lowlightSetup";
+import {
+  isAiPrivateOpenLine,
+  isModuleCloseLine,
+  renderAiPrivatePreviewHtml,
+} from "./aiPrivacy";
 
 function escapeHtml(text: string): string {
   return text
@@ -201,6 +206,17 @@ export function markdownToPreviewHtml(content: string): string {
     }
 
     const trimmed = line.trimEnd();
+
+    if (isAiPrivateOpenLine(trimmed)) {
+      closeLists();
+      i += 1;
+      while (i < lines.length && !isModuleCloseLine(lines[i].trim())) {
+        i += 1;
+      }
+      if (i < lines.length) i += 1;
+      parts.push(renderAiPrivatePreviewHtml());
+      continue;
+    }
 
     if (
       isTableRow(trimmed) &&

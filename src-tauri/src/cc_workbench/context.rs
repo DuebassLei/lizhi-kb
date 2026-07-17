@@ -165,10 +165,14 @@ fn resolve_vault_files(
         let Some(meta) = metas.iter().find(|m| m.path == path || m.id == path) else {
             continue;
         };
+        if meta.ai_exclude {
+            continue;
+        }
         let content = doc_service
             .read_document(&meta.id, dek)
             .map_err(|e| format!("读取笔记「{}」失败: {e}", meta.title))?
             .content;
+        let content = crate::ai_privacy::sanitize_for_ai(&content);
         let (content, truncated) = truncate_content(content, &mut budget);
         if content.is_empty() && truncated {
             break;

@@ -14,6 +14,7 @@ export interface DocumentMeta {
   folder: string;
   createdAt: number;
   updatedAt: number;
+  aiExclude: boolean;
 }
 
 export interface DecryptedContent {

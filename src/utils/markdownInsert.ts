@@ -1,4 +1,5 @@
 import type { EditorView } from "@codemirror/view";
+import { AI_PRIVATE_SNIPPET } from "./aiPrivacy";
 
 export function insertAtCursor(view: EditorView, text: string) {
   const { from, to } = view.state.selection.main;
@@ -66,5 +67,26 @@ export function insertTableAtCursor(view: EditorView) {
     changes: { from, to, insert: TABLE_TEMPLATE },
     selection: { anchor: headerStart, head: headerEnd },
   });
+  view.focus();
+}
+
+/** 插入或包裹 :::ai-private 围栏 */
+export function insertAiPrivate(view: EditorView) {
+  const { from, to } = view.state.selection.main;
+  const selected = view.state.sliceDoc(from, to);
+  if (!selected) {
+    const anchorLine = "账号：";
+    const anchorOffset = AI_PRIVATE_SNIPPET.indexOf(anchorLine) + anchorLine.length;
+    view.dispatch({
+      changes: { from, to, insert: AI_PRIVATE_SNIPPET },
+      selection: { anchor: from + anchorOffset },
+    });
+  } else {
+    const insert = `:::ai-private\n${selected}\n:::\n`;
+    view.dispatch({
+      changes: { from, to, insert },
+      selection: { anchor: from + insert.length },
+    });
+  }
   view.focus();
 }

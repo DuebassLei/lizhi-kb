@@ -139,6 +139,16 @@ export const OPENAI_PRESET: AiCloudPreset = {
     { id: "gpt-4o-mini", label: "GPT-4o Mini（对话，推荐）", kind: "chat" },
     { id: "gpt-4o", label: "GPT-4o", kind: "chat" },
     { id: "gpt-4.1-mini", label: "GPT-4.1 Mini", kind: "chat" },
+    {
+      id: "dall-e-3",
+      label: "DALL·E 3（文生图）",
+      kind: "image",
+    },
+    {
+      id: "gpt-image-1",
+      label: "GPT Image 1（文生图）",
+      kind: "image",
+    },
   ],
   docsUrl: "https://platform.openai.com/docs/api-reference",
   docsLabel: "OpenAI API",
@@ -158,6 +168,11 @@ export const SILICONFLOW_PRESET: AiCloudPreset = {
     },
     { id: "Qwen/Qwen2.5-72B-Instruct", label: "Qwen 2.5 72B", kind: "chat" },
     { id: "Pro/deepseek-ai/DeepSeek-R1", label: "DeepSeek R1", kind: "chat" },
+    {
+      id: "black-forest-labs/FLUX.1-schnell",
+      label: "FLUX.1 Schnell（文生图）",
+      kind: "image",
+    },
   ],
   docsUrl: "https://docs.siliconflow.cn/",
   docsLabel: "硅基流动文档",

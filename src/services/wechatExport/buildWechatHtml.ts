@@ -8,6 +8,7 @@ import {
 } from "./highlightCodeForWechat";
 import { postProcessForWechat } from "./postProcessHtml";
 import { markdownUsesLayoutModules, parseLayoutMarkdown } from "./parseLayoutMarkdown";
+import { stripAiPrivateBlocks } from "../../utils/aiPrivacy";
 import { applyThemeWechatDecor, getThemeCss, type WechatThemeId } from "./themes";
 import { WECHAT_BASE_CSS } from "./wechatBaseCss";
 import { marked } from "marked";
@@ -117,7 +118,7 @@ export async function buildWechatArticleHtml(
   markdown: string,
   themeId: WechatThemeId,
 ): Promise<string> {
-  const normalized = (await embedAssetsInMarkdown(markdown)).trim();
+  const normalized = stripAiPrivateBlocks((await embedAssetsInMarkdown(markdown)).trim());
   if (!normalized) return "";
 
   let markdownHtml = renderMarkdownHtml(normalized, themeId);

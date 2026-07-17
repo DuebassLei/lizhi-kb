@@ -13,6 +13,7 @@ import {
   Eye,
   PanelLeftClose,
   PanelLeftOpen,
+  Lock,
 } from "@lucide/vue";
 import { useDocumentsStore } from "../../stores/documents";
 import { useEditorStore } from "../../stores/editor";
@@ -91,6 +92,9 @@ function toggleSplitGraph() {
 const isPinned = computed(() =>
   documents.activeId ? documents.isPinned(documents.activeId) : false,
 );
+const isAiExcluded = computed(() =>
+  documents.activeId ? documents.isAiExcluded(documents.activeId) : false,
+);
 </script>
 
 <template>
@@ -130,6 +134,17 @@ const isPinned = computed(() =>
         :class="isPinned ? 'fill-paw text-paw' : ''"
         aria-hidden="true"
       />
+    </BtnIcon>
+
+    <BtnIcon
+      v-if="documents.activeId && !ui.focusMode"
+      :label="isAiExcluded ? '允许喂 AI' : '禁止喂 AI'"
+      :title="isAiExcluded ? '当前笔记已禁止喂 AI，点击恢复' : '整篇禁止提供给 AI'"
+      :pressed="isAiExcluded"
+      data-testid="toggle-ai-exclude-toolbar"
+      @click="documents.toggleAiExclude(documents.activeId!)"
+    >
+      <Lock class="h-3.5 w-3.5" :class="isAiExcluded ? 'text-paw' : ''" aria-hidden="true" />
     </BtnIcon>
 
     <div

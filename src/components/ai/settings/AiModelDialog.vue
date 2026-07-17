@@ -102,20 +102,46 @@ function patchProvider(patch: Partial<ProviderDraft>) {
             />
           </div>
           <div>
-            <label class="ai-model-dialog__label">模型</label>
+            <label class="ai-model-dialog__label">对话模型</label>
             <Input
               :model-value="provider.model"
               :disabled="saving"
-              :list="preset ? 'ai-model-preset-options' : undefined"
-              :placeholder="preset ? preset.models[0]?.id : undefined"
+              :list="preset ? 'ai-model-preset-chat' : undefined"
+              :placeholder="preset?.models.find((m) => m.kind === 'chat')?.id"
               @update:model-value="patchProvider({ model: $event })"
             />
-            <datalist v-if="preset" id="ai-model-preset-options">
-              <option v-for="m in preset.models" :key="m.id" :value="m.id">
+            <datalist v-if="preset" id="ai-model-preset-chat">
+              <option
+                v-for="m in preset.models.filter((x) => x.kind === 'chat')"
+                :key="m.id"
+                :value="m.id"
+              >
                 {{ m.label }}
               </option>
             </datalist>
             <p v-if="preset" class="ai-model-dialog__field-hint">可从列表选择或手动输入模型 ID</p>
+          </div>
+          <div>
+            <label class="ai-model-dialog__label">图片模型（文生图，可选）</label>
+            <Input
+              :model-value="provider.imageModel"
+              :disabled="saving"
+              :list="preset ? 'ai-model-preset-image' : undefined"
+              :placeholder="preset?.models.find((m) => m.kind === 'image')?.id || '留空则不可 AI 生图'"
+              @update:model-value="patchProvider({ imageModel: $event })"
+            />
+            <datalist v-if="preset" id="ai-model-preset-image">
+              <option
+                v-for="m in preset.models.filter((x) => x.kind === 'image')"
+                :key="m.id"
+                :value="m.id"
+              >
+                {{ m.label }}
+              </option>
+            </datalist>
+            <p class="ai-model-dialog__field-hint">
+              用于写作助手封面 AI 生图（OpenAI 兼容 /images/generations）
+            </p>
           </div>
           <div>
             <label class="ai-model-dialog__label">API Key</label>

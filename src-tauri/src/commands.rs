@@ -285,37 +285,64 @@ pub fn delete_document(state: State<Arc<AppState>>, id: String) -> Result<(), St
 
 
 #[tauri::command]
-
 pub fn move_document(
-
     state: State<Arc<AppState>>,
-
     id: String,
-
     folder: String,
-
 ) -> Result<DocumentMeta, String> {
-
     let dek = session_dek(&state)?;
-
     state
-
         .document_service
-
         .lock()
-
         .map_err(|_| "document service lock poisoned".to_string())?
-
         .move_document(&id, folder, dek.as_ref())
-
         .map_err(|e| e.to_string())
-
 }
 
-
+#[tauri::command]
+pub fn set_document_ai_exclude(
+    state: State<Arc<AppState>>,
+    id: String,
+    exclude: bool,
+) -> Result<DocumentMeta, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .set_document_ai_exclude(&id, exclude)
+        .map_err(|e| e.to_string())
+}
 
 #[tauri::command]
+pub fn read_document_for_ai(
+    state: State<Arc<AppState>>,
+    id: String,
+) -> Result<DecryptedContent, String> {
+    let dek = session_dek(&state)?;
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .read_document_for_ai(&id, dek.as_ref())
+        .map_err(|e| e.to_string())
+}
 
+#[tauri::command]
+pub fn search_documents_for_ai(
+    state: State<Arc<AppState>>,
+    query: String,
+    limit: Option<usize>,
+) -> Result<Vec<SearchHit>, String> {
+    let dek = session_dek(&state)?;
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .search_documents_for_ai(&query, limit.unwrap_or(20).min(100), dek.as_ref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub fn migrate_documents_folder(
 
     state: State<Arc<AppState>>,
@@ -1999,6 +2026,17 @@ pub fn list_cc_skills() -> Result<Vec<crate::cc_workbench::CcSkillEntry>, String
 }
 
 #[tauri::command]
+pub fn read_cc_skill_md(name: String) -> Result<String, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let config = crate::cc_workbench::config::load_config_ready(&data_dir)?;
+    crate::cc_workbench::skills::read_skill_md_by_name(
+        &data_dir,
+        config.project_path.as_deref(),
+        &name,
+    )
+}
+
+#[tauri::command]
 pub fn list_cc_skill_market() -> Result<Vec<crate::cc_workbench::CcSkillMarketEntry>, String> {
     crate::cc_workbench::skill_market::list_skill_market()
 }
@@ -2721,5 +2759,39 @@ pub fn read_document_revision(
         dek.as_ref(),
     )
     .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_writing_style_packs() -> Result<Vec<crate::writing_styles::WritingStylePackDto>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    crate::writing_styles::list_vault_packs(&data_dir)
+}
+
+#[tauri::command]
+pub fn get_writing_style_pack(
+    id: String,
+) -> Result<Option<crate::writing_styles::WritingStylePackDto>, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    crate::writing_styles::get_vault_pack(&data_dir, &id)
+}
+
+#[tauri::command]
+pub fn save_writing_style_pack(
+    pack: crate::writing_styles::WritingStylePackWrite,
+) -> Result<(), String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    crate::writing_styles::save_vault_pack(&data_dir, &pack)
+}
+
+#[tauri::command]
+pub fn delete_writing_style_pack(id: String) -> Result<bool, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    crate::writing_styles::delete_vault_pack(&data_dir, &id)
+}
+
+#[tauri::command]
+pub fn reset_writing_style_pack(id: String) -> Result<bool, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    crate::writing_styles::delete_vault_pack(&data_dir, &id)
 }
 

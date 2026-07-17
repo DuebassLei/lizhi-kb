@@ -24,6 +24,18 @@ const canGenerate = computed(() => !store.isStreaming && store.aiEnabled);
 const frameworkLabel = computed(
   () => WA_OUTLINE_FRAMEWORK_LABELS[store.config.outlineFramework] ?? "总分总",
 );
+
+const showTopicFrameworkSuggest = computed(() => {
+  if (props.kind !== "outline") return false;
+  const s = store.suggestedOutlineFramework;
+  return Boolean(s && s !== store.config.outlineFramework);
+});
+
+const topicSuggestLabel = computed(() => {
+  const s = store.suggestedOutlineFramework;
+  return s ? WA_OUTLINE_FRAMEWORK_LABELS[s] : "";
+});
+
 const placeholder = computed(() => {
   if (props.kind === "topic") return "描述你想写什么，例如「面向新手的本地知识库选型指南」…";
   if (props.kind === "outline") return "将自动套入结构框架；也可点「套用框架」或「生成」让 AI 充实…";
@@ -41,6 +53,10 @@ function generate() {
 function applyFramework() {
   store.applyOutlineFramework(true);
 }
+
+function applySuggest() {
+  store.applySuggestedFramework();
+}
 </script>
 
 <template>
@@ -52,6 +68,24 @@ function applyFramework() {
     </p>
     <p v-else-if="kind === 'body'" class="wa-pane__hint">按大纲逐节流式生成；可随时停止或手工编辑。</p>
     <p v-else class="wa-pane__hint">按强度改写，去除机械感；可对比后采用。</p>
+
+    <div
+      v-if="showTopicFrameworkSuggest"
+      class="wa-style-suggest mb-3"
+      data-testid="wa-outline-topic-suggest"
+    >
+      <p class="wa-style-suggest__text">
+        根据选题，更建议框架「{{ topicSuggestLabel }}」。
+      </p>
+      <button
+        type="button"
+        class="focus-ring wa-dialog__text-btn"
+        style="color: var(--color-text)"
+        @click="applySuggest"
+      >
+        应用建议
+      </button>
+    </div>
 
     <div class="flex items-center gap-2 mb-3 flex-wrap">
       <button

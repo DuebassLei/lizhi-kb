@@ -33,6 +33,8 @@ export interface ProviderDraft {
   name: string;
   baseUrl: string;
   model: string;
+  /** 文生图模型 */
+  imageModel: string;
   apiKey: string;
   apiKeyMasked: string;
   enabled?: boolean;
@@ -84,11 +86,14 @@ export function useAiSettings(options?: { autoLoad?: boolean }) {
   });
 
   function draftFromPreset(preset: AiCloudPreset): ProviderDraft {
+    const defaultImage =
+      preset.models.find((m) => m.kind === "image")?.id ?? "";
     return {
       presetId: preset.id,
       name: preset.name,
       baseUrl: preset.baseUrl,
       model: preset.model,
+      imageModel: defaultImage,
       apiKey: "",
       apiKeyMasked: "",
       enabled: true,
@@ -100,6 +105,7 @@ export function useAiSettings(options?: { autoLoad?: boolean }) {
       name: "新提供商",
       baseUrl: "https://api.deepseek.com/v1",
       model: "deepseek-chat",
+      imageModel: "",
       apiKey: "",
       apiKeyMasked: "",
       enabled: true,
@@ -138,6 +144,7 @@ export function useAiSettings(options?: { autoLoad?: boolean }) {
           name: p.name,
           baseUrl: p.baseUrl,
           model: p.model,
+          imageModel: p.imageModel ?? "",
           apiKey: p.apiKey ?? "",
           apiKeyMasked: p.apiKeyMasked,
           enabled: p.enabled !== false,
@@ -166,6 +173,7 @@ export function useAiSettings(options?: { autoLoad?: boolean }) {
       name: d.name.trim(),
       baseUrl: d.baseUrl.trim(),
       model: d.model.trim(),
+      imageModel: d.imageModel.trim(),
       enabled: d.enabled !== false,
     };
     if (d.apiKey.trim()) {

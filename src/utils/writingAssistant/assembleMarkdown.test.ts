@@ -10,7 +10,9 @@ describe("assembleMarkdown", () => {
     expect(out).toContain("正文");
     expect(out).not.toContain("cover:");
     // 免责注释默认开启
-    expect(out).toContain("<!-- 配图与封面为本地 Canvas 版式卡，非 AI 文生图 -->");
+    expect(out).toContain(
+      "<!-- 封面/配图可为本地版式、上传图或 AI 生成（若已配置图片模型） -->",
+    );
   });
 
   it("strips a leading H1 equal to title to avoid duplicate", () => {
