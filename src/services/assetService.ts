@@ -181,15 +181,56 @@ function mimeFromId(id: string): string {
   return "application/octet-stream";
 }
 
-/** 将 asset:// 或本地 asset 协议 URL 转为 data URL，供微信公众号粘贴 */
-export async function resolveAssetAsDataUrl(src: string): Promise<string> {
-  if (src.startsWith("data:")) return src;
+type AssetBytesResponse = {
+  id: string;
+  mimeType: string;
+  dataBase64: string;
+  size: number;
+};
 
-  const url = isAssetRef(src) ? await resolveAssetUrl(src) : src;
-  if (url.startsWith("data:")) return url;
-  if (url.startsWith("asset://")) {
-    throw new Error("找不到图片资源");
+/** 经 Rust 读解密后的字节（避免 fetch(convertFileSrc) 在 WebView 中 CORS/失败） */
+async function tauriReadAssetAsDataUrl(id: string): Promise<string> {
+  const res = await tauriInvoke<AssetBytesResponse>("read_asset_bytes", { id });
+  const mime = res.mimeType || mimeFromId(id);
+  return `data:${mime};base64,${res.dataBase64}`;
+}
+
+async function assetRefToDataUrl(ref: string): Promise<string> {
+  const id = parseAssetId(ref);
+  if (!id) throw new Error("找不到图片资源");
+
+  if (isTauriRuntime()) {
+    try {
+      return await tauriReadAssetAsDataUrl(id);
+    } catch {
+      // 回退：明文库缓存路径 + convertFileSrc
+    }
   }
 
-  return compressDataUrlForWechat(await urlToDataUrl(url));
+  const url = await resolveAssetUrl(ref);
+  if (url.startsWith("data:")) return url;
+  if (url.startsWith("asset://")) throw new Error("找不到图片资源");
+  return urlToDataUrl(url);
+}
+
+export type ResolveAssetDataUrlOptions = {
+  /** 微信粘贴体积限制；Word/PDF/HTML 导出勿开 */
+  compressForWechat?: boolean;
+};
+
+/** 将 asset:// 或可访问 URL 转为 data URL（导出 / 微信内联） */
+export async function resolveAssetAsDataUrl(
+  src: string,
+  options?: ResolveAssetDataUrlOptions,
+): Promise<string> {
+  let dataUrl: string;
+  if (src.startsWith("data:")) {
+    dataUrl = src;
+  } else if (isAssetRef(src)) {
+    dataUrl = await assetRefToDataUrl(src);
+  } else {
+    dataUrl = await urlToDataUrl(src);
+  }
+
+  return options?.compressForWechat ? compressDataUrlForWechat(dataUrl) : dataUrl;
 }

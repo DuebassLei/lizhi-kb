@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import {
   buildWechatPreviewHtml,
   getThemeCss,
@@ -8,8 +8,11 @@ import {
 import { WECHAT_CODE_HLJS_CSS } from "../../services/wechatExport/highlightCodeForWechat";
 import { WECHAT_BASE_CSS } from "../../services/wechatExport/wechatBaseCss";
 import WechatToolbarMenu from "./WechatToolbarMenu.vue";
+import { useIdlePreviewSchedule } from "../../composables/useIdlePreviewSchedule";
+import { editorPerfMark, editorPerfMeasure } from "../../utils/editorPerf";
 
 const WECHAT_HTML_ROOT = "#lizhi-wechat-html";
+const WECHAT_PREVIEW_IDLE_MS = 600;
 
 const props = withDefaults(
   defineProps<{
@@ -31,6 +34,7 @@ const emit = defineEmits<{
 const previewHtml = ref("");
 const loading = ref(false);
 const containerRef = ref<HTMLElement | null>(null);
+const { schedule, runNow, isCurrent } = useIdlePreviewSchedule(WECHAT_PREVIEW_IDLE_MS);
 
 defineExpose({ containerRef });
 
@@ -41,39 +45,31 @@ const themeStyle = computed(() => {
   return `${baseCss}\n${hljsCss}\n${themeCss}`;
 });
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-let renderGeneration = 0;
-
-async function renderPreview() {
-  const generation = ++renderGeneration;
+async function renderPreview(token: number) {
   loading.value = true;
+  editorPerfMark("preview:wechat-start");
   try {
     const html = await buildWechatPreviewHtml(props.content, props.themeId);
-    if (generation !== renderGeneration) return;
+    if (!isCurrent(token)) return;
     // 统一根选择器：主题 CSS 只作用于正文，不波及预览顶栏
     previewHtml.value = html.replace(/\bid="nice"/, `id="lizhi-wechat-html"`);
   } finally {
-    if (generation === renderGeneration) loading.value = false;
+    editorPerfMark("preview:wechat-end");
+    editorPerfMeasure("preview:wechat-render", "preview:wechat-start", "preview:wechat-end");
+    if (isCurrent(token)) loading.value = false;
   }
 }
 
-function scheduleRender() {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    void renderPreview();
-  }, 280);
-}
-
 watch(
-  () => [props.content, props.themeId] as const,
-  () => scheduleRender(),
+  () => props.content,
+  () => schedule((token) => renderPreview(token)),
   { immediate: true },
 );
 
-onUnmounted(() => {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  renderGeneration += 1;
-});
+watch(
+  () => props.themeId,
+  () => runNow((token) => renderPreview(token)),
+);
 </script>
 
 <template>

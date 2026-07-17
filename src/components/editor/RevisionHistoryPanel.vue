@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch } from "vue";
 import { History, RotateCcw } from "@lucide/vue";
 import Btn from "../ui/Btn.vue";
 import { listDocumentRevisions, readDocumentRevision, type RevisionMeta } from "../../services/revisionService";
@@ -15,6 +15,7 @@ const ui = useUiStore();
 const open = ref(false);
 const loading = ref(false);
 const items = ref<RevisionMeta[]>([]);
+const rootRef = ref<HTMLElement | null>(null);
 
 async function load() {
   if (!props.docId) {
@@ -29,9 +30,40 @@ async function load() {
   }
 }
 
+function close() {
+  if (!open.value) return;
+  open.value = false;
+}
+
+function toggle() {
+  open.value = !open.value;
+}
+
+function onDocumentClick(e: MouseEvent) {
+  if (!open.value) return;
+  const root = rootRef.value;
+  if (root && !root.contains(e.target as Node)) close();
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === "Escape" && open.value) {
+    e.preventDefault();
+    close();
+  }
+}
+
 watch(() => props.docId, () => void load(), { immediate: true });
 
-onMounted(() => void load());
+onMounted(() => {
+  void load();
+  document.addEventListener("click", onDocumentClick);
+  document.addEventListener("keydown", onKeydown);
+});
+
+onUnmounted(() => {
+  document.removeEventListener("click", onDocumentClick);
+  document.removeEventListener("keydown", onKeydown);
+});
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleString("zh-CN", {
@@ -50,7 +82,7 @@ async function restore(revision: RevisionMeta) {
     documents.content = content;
     await documents.saveContent(content);
     ui.showToast("success", "已恢复历史版本");
-    open.value = false;
+    close();
   } catch (e) {
     ui.showToast("error", e instanceof Error ? e.message : "恢复失败");
   }
@@ -58,12 +90,14 @@ async function restore(revision: RevisionMeta) {
 </script>
 
 <template>
-  <div class="relative" data-testid="revision-history">
+  <div ref="rootRef" class="relative" data-testid="revision-history">
     <button
       type="button"
       class="focus-ring flex items-center gap-1 rounded-md border border-border px-2 py-1 text-[11px] text-muted hover:bg-surface-2 hover:text-[var(--color-text)]"
       :disabled="!docId"
-      @click="open = !open"
+      :aria-expanded="open"
+      aria-haspopup="dialog"
+      @click.stop="toggle"
     >
       <History class="h-3.5 w-3.5" />
       历史版本

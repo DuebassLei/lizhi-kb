@@ -1,6 +1,7 @@
 import { onBeforeUnmount } from "vue";
 import { saveDocument } from "../services/documentService";
 import { useEditorStore } from "../stores/editor";
+import { editorPerfMark, editorPerfMeasure } from "../utils/editorPerf";
 
 export interface AutoSaveOptions {
   getContent: () => string;
@@ -12,7 +13,7 @@ export interface AutoSaveOptions {
 
 export function useAutoSave(options: AutoSaveOptions) {
   const editor = useEditorStore();
-  const debounceMs = options.debounceMs ?? 800;
+  const debounceMs = options.debounceMs ?? 1200;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let saving = false;
 
@@ -30,6 +31,7 @@ export function useAutoSave(options: AutoSaveOptions) {
 
     saving = true;
     editor.isSaving = true;
+    editorPerfMark("autosave:ipc-start");
     try {
       const result = await saveDocument(id, options.getContent());
       editor.isDirty = false;
@@ -39,6 +41,8 @@ export function useAutoSave(options: AutoSaveOptions) {
       editor.saveError = e instanceof Error ? e.message : String(e);
       options.onError?.(e);
     } finally {
+      editorPerfMark("autosave:ipc-end");
+      editorPerfMeasure("autosave:ipc", "autosave:ipc-start", "autosave:ipc-end");
       saving = false;
       editor.isSaving = false;
     }

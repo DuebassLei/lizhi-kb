@@ -221,31 +221,23 @@ pub fn read_all_documents(state: State<Arc<AppState>>) -> Result<Vec<DecryptedCo
 
 
 #[tauri::command]
-
 pub fn save_document(
-
     state: State<Arc<AppState>>,
-
     id: String,
-
     content: String,
-
 ) -> Result<SaveResult, String> {
-
     let dek = session_dek(&state)?;
-
-    state
-
+    let result = state
         .document_service
-
         .lock()
-
         .map_err(|_| "document service lock poisoned".to_string())?
+        .save_document_fast(&id, &content, dek.as_ref())
+        .map_err(|e| e.to_string())?;
 
-        .save_document(&id, &content, dek.as_ref())
+    // 未链接扫描 + revision 合并到后台，避免自动保存卡住打字
+    crate::save_postprocess::schedule(state.inner().clone(), id, content, dek);
 
-        .map_err(|e| e.to_string())
-
+    Ok(result)
 }
 
 

@@ -34,7 +34,14 @@ import {
   type PrivacyScanHit,
 } from "../../utils/aiPrivacyScan";
 import AiPrivacyScanBanner from "./AiPrivacyScanBanner.vue";
+import EditorPerfHud from "./EditorPerfHud.vue";
 import { PenLine } from "@lucide/vue";
+import { editorPerfMark, editorPerfMeasure, runWhenIdle } from "../../utils/editorPerf";
+
+const isDev = import.meta.env.DEV;
+
+/** 打字期内容先留在 draft，短 debounce 再写 Pinia，减轻每键响应式风暴 */
+const PINIA_CONTENT_SYNC_MS = 120;
 
 const documents = useDocumentsStore();
 const route = useRoute();
@@ -43,6 +50,43 @@ const ui = useUiStore();
 const folders = useFoldersStore();
 const links = useLinksStore();
 const { themeId: wechatThemeId } = useWechatTheme();
+
+/** 编辑缓冲：CM / 预览读这里；Pinia 延迟对齐 */
+const draftContent = ref(documents.content);
+let piniaSyncTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushDraftToStore() {
+  if (piniaSyncTimer) {
+    clearTimeout(piniaSyncTimer);
+    piniaSyncTimer = null;
+  }
+  if (documents.content !== draftContent.value) {
+    documents.updateContent(draftContent.value);
+  }
+}
+
+function schedulePiniaSync() {
+  if (piniaSyncTimer) clearTimeout(piniaSyncTimer);
+  piniaSyncTimer = setTimeout(() => {
+    piniaSyncTimer = null;
+    if (documents.content === draftContent.value) return;
+    editorPerfMark("editor:content-update-start");
+    documents.updateContent(draftContent.value);
+    editorPerfMark("editor:content-update-end");
+    editorPerfMeasure(
+      "editor:content-update",
+      "editor:content-update-start",
+      "editor:content-update-end",
+    );
+  }, PINIA_CONTENT_SYNC_MS);
+}
+
+watch(
+  () => documents.content,
+  (content) => {
+    if (content !== draftContent.value) draftContent.value = content;
+  },
+);
 
 const privacyScanHits = ref<PrivacyScanHit[]>([]);
 const showPrivacyScanBanner = computed(
@@ -74,9 +118,11 @@ async function onPrivacyScanWrap() {
   const id = documents.activeId;
   if (!id || !privacyScanHits.value.length) return;
   const hitsSnapshot = [...privacyScanHits.value];
+  flushDraftToStore();
   const prevContent = documents.content;
   const next = wrapPrivacyHits(prevContent, hitsSnapshot);
   documents.updateContent(next);
+  draftContent.value = next;
   privacyScanHits.value = [];
   editor.clearSaveError();
   await editor.saveNow();
@@ -109,7 +155,10 @@ function onPrivacyScanIgnore() {
 }
 
 function insertWechatModuleSnippet(snippet: string) {
-  documents.updateContent(insertModuleSnippet(documents.content, snippet));
+  flushDraftToStore();
+  const next = insertModuleSnippet(draftContent.value, snippet);
+  draftContent.value = next;
+  documents.updateContent(next);
   void editor.saveNow();
 }
 
@@ -150,7 +199,8 @@ function selectBreadcrumbFolder(folderId: string) {
 
 const { tree: headingTree, refreshImmediate: refreshHeadingTree } = useHeadingTree({
   title: () => activeTitle.value,
-  content: () => documents.content,
+  content: () => draftContent.value,
+  debounceMs: 280,
 });
 
 watch(
@@ -184,15 +234,20 @@ const editorPaneStyle = computed(() => ({
 }));
 
 const { scheduleSave, flush, cancel } = useAutoSave({
-  getContent: () => documents.content,
+  getContent: () => draftContent.value,
   getDocId: () => documents.activeId,
-  debounceMs: 800,
+  debounceMs: 1200,
   onSaved: (savedAt) => {
-    if (documents.activeId) {
-      documents.patchMeta(documents.activeId, { updatedAt: savedAt });
-      links.updatePlainTextForDoc(documents.activeId, documents.content);
-      evaluatePrivacyScan(documents.content, documents.activeId);
-    }
+    flushDraftToStore();
+    if (!documents.activeId) return;
+    const id = documents.activeId;
+    const content = draftContent.value;
+    documents.patchMeta(id, { updatedAt: savedAt });
+    runWhenIdle(() => {
+      if (documents.activeId !== id) return;
+      void links.updatePlainTextForDoc(id, content);
+      evaluatePrivacyScan(content, id);
+    });
   },
   onError: (error) => {
     const message = error instanceof Error ? error.message : "自动保存失败";
@@ -206,15 +261,17 @@ watch(
     editingTitle.value = false;
     privacyScanHits.value = [];
     if (prev && editor.isDirty) {
+      flushDraftToStore();
       await flush();
     }
+    draftContent.value = documents.content;
     if (id) {
       const doc = documents.tree.find((d) => d.id === id);
       if (doc) {
         folders.revealFolder(folders.normalizeFolder(doc.folder));
       }
       await nextTick();
-      evaluatePrivacyScan(documents.content, id);
+      evaluatePrivacyScan(draftContent.value, id);
     }
   },
 );
@@ -223,7 +280,8 @@ watch(
   () => documents.loading,
   (loading) => {
     if (!loading && documents.activeId) {
-      evaluatePrivacyScan(documents.content, documents.activeId);
+      draftContent.value = documents.content;
+      evaluatePrivacyScan(draftContent.value, documents.activeId);
     }
   },
 );
@@ -238,18 +296,22 @@ function onFindShortcut(e: KeyboardEvent) {
 
 onMounted(() => {
   editor.registerSaveHandler(async () => {
+    flushDraftToStore();
     await flush();
   });
   window.addEventListener("keydown", onFindShortcut);
 });
 
 onBeforeUnmount(() => {
+  if (piniaSyncTimer) clearTimeout(piniaSyncTimer);
+  flushDraftToStore();
   editor.unregisterSaveHandler();
   window.removeEventListener("keydown", onFindShortcut);
 });
 
 function onUpdate(value: string) {
-  documents.updateContent(value);
+  draftContent.value = value;
+  schedulePiniaSync();
   scheduleSave();
 }
 
@@ -283,13 +345,14 @@ async function commitTitle() {
 
   cancel();
   if (editor.isDirty) {
+    flushDraftToStore();
     await flush();
   }
   await documents.renameTitle(documents.activeId, next);
 }
 
 function onTocSelect(payload: { text: string; lineIndex: number }) {
-  const occurrence = extractHeadings(documents.content).filter(
+  const occurrence = extractHeadings(draftContent.value).filter(
     (h) => h.text === payload.text && h.lineIndex < payload.lineIndex,
   ).length;
   void scrollToHeading(payload.text, payload.lineIndex, occurrence);
@@ -303,7 +366,7 @@ async function scrollToHeading(text: string, lineIndex?: number, occurrence = 0)
       headingText: text,
       lineIndex,
       occurrence,
-      content: documents.content,
+      content: draftContent.value,
       scrollEditorLine: (line) => cmRef.value?.scrollToLine(line),
       splitPreviewVisible: ui.splitPreviewVisible || ui.previewOnlyMode,
       splitPreviewKind: ui.splitPreviewKind,
@@ -338,9 +401,14 @@ function insertEditorSnippet(snippet: string) {
   const view = cmView.value;
   if (view) {
     insertAtCursor(view, snippet);
-    documents.updateContent(view.state.doc.toString());
+    const next = view.state.doc.toString();
+    draftContent.value = next;
+    documents.updateContent(next);
   } else {
-    documents.updateContent(appendToMarkdownContent(documents.content, snippet));
+    flushDraftToStore();
+    const next = appendToMarkdownContent(draftContent.value, snippet);
+    draftContent.value = next;
+    documents.updateContent(next);
   }
   void editor.saveNow();
 }
@@ -352,10 +420,15 @@ watch(
     const view = cmView.value;
     if (view && documents.activeId) {
       insertAtCursor(view, md.endsWith("\n") ? md : `${md}\n`);
+      draftContent.value = view.state.doc.toString();
+      flushDraftToStore();
       void editor.saveNow();
       ui.showToast("success", "已插入到光标位置");
     } else if (documents.activeId) {
-      documents.updateContent(appendToMarkdownContent(documents.content, md));
+      flushDraftToStore();
+      const next = appendToMarkdownContent(draftContent.value, md);
+      draftContent.value = next;
+      documents.updateContent(next);
       void editor.saveNow();
       ui.showToast("success", "已追加到文档末尾");
     } else {
@@ -366,7 +439,7 @@ watch(
 );
 
 const scrollSyncEnabled = computed(() => showSplitPreview.value);
-const scrollSyncContent = computed(() => documents.content);
+const scrollSyncContent = computed(() => draftContent.value);
 
 useEditorPreviewScrollSync(cmView, previewRef, scrollSyncEnabled, scrollSyncContent);
 
@@ -527,7 +600,7 @@ async function retrySave() {
             <MarkdownCodeEditor
               ref="cmRef"
               :key="documents.activeId!"
-              :model-value="documents.content"
+              :model-value="draftContent"
               class="min-h-0 flex-1"
               compact
               :typewriter="ui.typewriterMode && !showSplitPreview"
@@ -558,7 +631,7 @@ async function retrySave() {
               v-if="showGfmSplitPreview"
               :key="`split-preview-${documents.activeId}`"
               ref="gfmPreviewCmp"
-              :content="documents.content"
+              :content="draftContent"
               :typewriter="ui.typewriterMode"
               class="h-full min-h-0"
             />
@@ -567,7 +640,7 @@ async function retrySave() {
               :key="`wechat-split-preview-${documents.activeId}`"
               ref="wechatPreviewCmp"
               v-model:theme-id="wechatThemeId"
-              :content="documents.content"
+              :content="draftContent"
               embedded
               :show-toolbar="true"
               class="h-full min-h-0"
@@ -577,7 +650,7 @@ async function retrySave() {
               v-else
               :key="`card-split-preview-${documents.activeId}`"
               ref="cardPreviewCmp"
-              :content="documents.content"
+              :content="draftContent"
               embedded
               class="h-full min-h-0"
               @insert="insertEditorSnippet"
@@ -594,7 +667,7 @@ async function retrySave() {
             v-if="!showWechatPreview && !showCardPreview"
             :key="`preview-only-${documents.activeId}`"
             ref="gfmPreviewCmp"
-            :content="documents.content"
+            :content="draftContent"
             :typewriter="ui.typewriterMode"
             class="h-full min-h-0"
           />
@@ -603,7 +676,7 @@ async function retrySave() {
             :key="`wechat-preview-only-${documents.activeId}`"
             ref="wechatPreviewCmp"
             v-model:theme-id="wechatThemeId"
-            :content="documents.content"
+            :content="draftContent"
             embedded
             :show-toolbar="true"
             class="h-full min-h-0"
@@ -613,7 +686,7 @@ async function retrySave() {
             v-else
             :key="`card-preview-only-${documents.activeId}`"
             ref="cardPreviewCmp"
-            :content="documents.content"
+            :content="draftContent"
             embedded
             class="h-full min-h-0"
             @insert="insertEditorSnippet"
@@ -628,7 +701,7 @@ async function retrySave() {
           <MarkdownCodeEditor
             ref="cmRef"
             :key="documents.activeId!"
-            :model-value="documents.content"
+            :model-value="draftContent"
             class="min-h-0 flex-1"
             :typewriter="ui.typewriterMode"
             :show-toolbar="!ui.focusMode"
@@ -645,5 +718,7 @@ async function retrySave() {
         @select="onTocSelect"
       />
     </div>
+
+    <EditorPerfHud v-if="isDev && documents.activeId" />
   </div>
 </template>

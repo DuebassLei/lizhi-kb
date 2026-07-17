@@ -33,9 +33,10 @@ export function useKnowledgeCardPipeline(contentRef: Ref<string>) {
 
   function schedule() {
     if (timer) clearTimeout(timer);
+    // 输入停顿后再跑分页管线，减轻分栏打字卡顿
     timer = setTimeout(() => {
       void runPipeline(contentRef.value);
-    }, 300);
+    }, 500);
   }
 
   watch(

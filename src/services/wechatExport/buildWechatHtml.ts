@@ -39,7 +39,7 @@ async function embedImageSrcForWechat(src: string): Promise<string> {
   }
 
   if (isAssetRef(src)) {
-    return resolveAssetAsDataUrl(src);
+    return resolveAssetAsDataUrl(src, { compressForWechat: true });
   }
 
   const dataUrl = src.startsWith("data:") ? src : await urlToDataUrl(src);
@@ -49,7 +49,7 @@ async function embedImageSrcForWechat(src: string): Promise<string> {
 /** 将 asset:// 图片引用嵌入为 data URL */
 export async function embedAssetsInMarkdown(markdown: string): Promise<string> {
   const refs = new Set<string>();
-  const re = /!\[[^\]]*\]\((asset:\/\/[^)]+)\)/g;
+  const re = /!\[[^\]]*\]\(\s*(asset:\/\/[^\s)"']+)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(markdown)) !== null) {
     refs.add(m[1]);
@@ -61,7 +61,7 @@ export async function embedAssetsInMarkdown(markdown: string): Promise<string> {
   for (const ref of refs) {
     if (!isAssetRef(ref)) continue;
     try {
-      const dataUrl = await resolveAssetAsDataUrl(ref);
+      const dataUrl = await resolveAssetAsDataUrl(ref, { compressForWechat: true });
       result = result.split(ref).join(dataUrl);
     } catch {
       /* 保留原 ref */

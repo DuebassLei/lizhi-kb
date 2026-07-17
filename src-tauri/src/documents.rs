@@ -426,6 +426,49 @@ impl DocumentService {
         link_index::index_links_and_unlinked(conn, id, &link_body, title, &title_map, &all_metas)
     }
 
+    /// 自动保存热路径：FTS + 双链出边；跳过 O(库规模) 未链接扫描
+    fn index_document_fast(&self, id: &str, title: &str, content: &str) -> Result<(), AppError> {
+        let ai_exclude = self
+            .get_document_meta(id)
+            .map(|m| m.ai_exclude)
+            .unwrap_or(false);
+        let (fts_body, link_body) = self.index_bodies(ai_exclude, content);
+        let metas = self.list_documents()?;
+        let title_map = link_index::build_title_map(&metas);
+        let conn = self.conn()?;
+        search_index::upsert_document(conn, id, title, &fts_body)?;
+        link_index::upsert_links_for_document(conn, id, &link_body, &title_map)
+    }
+
+    /// 后台补齐：未链接提及 + 历史版本（可合并）
+    pub fn complete_deferred_save_index(
+        &self,
+        id: &str,
+        content: &str,
+        dek: Option<&[u8; DEK_LEN]>,
+    ) -> Result<(), AppError> {
+        let title = self.get_document_meta(id)?.title;
+        let ai_exclude = self
+            .get_document_meta(id)
+            .map(|m| m.ai_exclude)
+            .unwrap_or(false);
+        let (_fts_body, link_body) = self.index_bodies(ai_exclude, content);
+        let metas = self.list_documents()?;
+        let conn = self.conn()?;
+        link_index::upsert_unlinked_for_document(conn, id, &link_body, &title, &metas)?;
+
+        let data_dir = self.data_dir.clone();
+        let encryption_enabled = dek.is_some();
+        let _ = crate::revisions::save_revision(
+            &data_dir,
+            id,
+            content,
+            encryption_enabled,
+            dek,
+        );
+        Ok(())
+    }
+
     /// FTS5 全文检索
     pub fn search_documents(
         &self,
@@ -525,12 +568,33 @@ impl DocumentService {
         self.save_document_with_options(id, content, dek, false)
     }
 
+    /// 编辑器自动保存：落盘 + 轻量索引；重活由调用方 schedule
+    pub fn save_document_fast(
+        &mut self,
+        id: &str,
+        content: &str,
+        dek: Option<&[u8; DEK_LEN]>,
+    ) -> Result<SaveResult, AppError> {
+        self.save_document_inner(id, content, dek, false, true)
+    }
+
     pub fn save_document_with_options(
         &mut self,
         id: &str,
         content: &str,
         dek: Option<&[u8; DEK_LEN]>,
         sync_title_from_h1: bool,
+    ) -> Result<SaveResult, AppError> {
+        self.save_document_inner(id, content, dek, sync_title_from_h1, false)
+    }
+
+    fn save_document_inner(
+        &mut self,
+        id: &str,
+        content: &str,
+        dek: Option<&[u8; DEK_LEN]>,
+        sync_title_from_h1: bool,
+        fast_index: bool,
     ) -> Result<SaveResult, AppError> {
         let (folder, _path) = self.get_document_location(id)?;
         let now = now_millis();
@@ -555,17 +619,21 @@ impl DocumentService {
         }
 
         self.increment_edit_activity_today()?;
-        self.index_document(id, &title, content, &[])?;
 
-        let data_dir = self.data_dir.clone();
-        let encryption_enabled = dek.is_some();
-        let _ = crate::revisions::save_revision(
-            &data_dir,
-            id,
-            content,
-            encryption_enabled,
-            dek,
-        );
+        if fast_index {
+            self.index_document_fast(id, &title, content)?;
+        } else {
+            self.index_document(id, &title, content, &[])?;
+            let data_dir = self.data_dir.clone();
+            let encryption_enabled = dek.is_some();
+            let _ = crate::revisions::save_revision(
+                &data_dir,
+                id,
+                content,
+                encryption_enabled,
+                dek,
+            );
+        }
 
         Ok(SaveResult {
             id: id.to_string(),

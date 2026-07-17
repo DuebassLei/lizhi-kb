@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { nextTick, onUnmounted, ref, watch } from "vue";
+import { nextTick, ref, watch } from "vue";
 import { resolveAssetUrl, isAssetRef } from "../../services/assetService";
 import { useDocumentsStore } from "../../stores/documents";
 import { useUiStore } from "../../stores/ui";
 import { markdownToPreviewHtml } from "../../utils/markdownPreview";
 import { renderMermaidIn } from "../../utils/mermaidPreview";
 import { handlePreviewCodeCopyClick } from "../../composables/cc/usePreviewCodeCopy";
+import { useIdlePreviewSchedule } from "../../composables/useIdlePreviewSchedule";
+import { editorPerfMark, editorPerfMeasure } from "../../utils/editorPerf";
+
+/** 输入停顿后再全量 HTML，避免分栏打字卡顿 */
+const GFM_PREVIEW_IDLE_MS = 500;
 
 const props = defineProps<{
   content: string;
@@ -16,22 +21,30 @@ const documents = useDocumentsStore();
 const ui = useUiStore();
 const containerRef = ref<HTMLElement | null>(null);
 const html = ref("");
+const { pending: previewPending, schedule, runNow, isCurrent } = useIdlePreviewSchedule(GFM_PREVIEW_IDLE_MS);
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let mermaidToken = 0;
 
-function scheduleHtmlUpdate() {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
-    html.value = markdownToPreviewHtml(props.content || "");
-    void nextTick(() => afterHtmlPaint());
-  }, 200);
+function paintHtml(token: number) {
+  editorPerfMark("preview:html-start");
+  html.value = markdownToPreviewHtml(props.content || "");
+  editorPerfMark("preview:html-end");
+  editorPerfMeasure("preview:html-render", "preview:html-start", "preview:html-end");
+  void nextTick(() => {
+    if (!isCurrent(token)) return;
+    void afterHtmlPaint(token);
+  });
 }
 
-async function afterHtmlPaint() {
+function scheduleHtmlUpdate() {
+  schedule((token) => paintHtml(token));
+}
+
+async function afterHtmlPaint(scheduleToken: number) {
   const el = containerRef.value;
-  if (!el) return;
+  if (!el || !isCurrent(scheduleToken)) return;
   await resolvePreviewAssets();
+  if (!isCurrent(scheduleToken)) return;
   const token = ++mermaidToken;
   await renderMermaidIn(el);
   if (token !== mermaidToken) return;
@@ -87,26 +100,30 @@ watch(
 watch(
   () => ui.theme,
   () => {
-    // 主题切换后重新走一遍 HTML，便于 Mermaid 用对应 dark/default 主题重绘
-    scheduleHtmlUpdate();
+    // 主题切换后立即重绘，便于 Mermaid 用对应 dark/default 主题
+    runNow((token) => paintHtml(token));
   },
 );
-
-onUnmounted(() => {
-  if (debounceTimer) clearTimeout(debounceTimer);
-  mermaidToken += 1;
-});
 </script>
 
 <template>
-  <article
-    ref="containerRef"
-    class="markdown-preview scrollbar-thin h-full min-h-0 overflow-y-auto overflow-x-hidden"
-    :class="{ 'typewriter-preview': typewriter }"
-    data-testid="markdown-preview"
-    @click="onClick"
-    v-html="html"
-  />
+  <div class="markdown-preview-shell relative h-full min-h-0">
+    <p
+      v-if="previewPending && html"
+      class="pointer-events-none absolute right-3 top-2 z-10 text-[11px] text-muted-foreground/80"
+      aria-live="polite"
+    >
+      预览更新中…
+    </p>
+    <article
+      ref="containerRef"
+      class="markdown-preview scrollbar-thin h-full min-h-0 overflow-y-auto overflow-x-hidden"
+      :class="{ 'typewriter-preview': typewriter, 'opacity-90': previewPending && html }"
+      data-testid="markdown-preview"
+      @click="onClick"
+      v-html="html"
+    />
+  </div>
 </template>
 
 <style scoped>

@@ -323,7 +323,8 @@ export const useLinksStore = defineStore("links", () => {
     const docs = useDocumentsStore();
     patchDocument(docs.tree, id, content);
     if (isTauriRuntime()) {
-      await syncActiveDocLinksFromRust(id);
+      // 不阻塞保存收尾：链接面板打开时再 ensure；此处后台刷新
+      void syncActiveDocLinksFromRust(id);
     }
   }
 

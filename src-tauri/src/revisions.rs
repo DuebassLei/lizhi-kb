@@ -1,11 +1,19 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::Serialize;
 
 use crate::crypto::{decrypt, encrypt, DEK_LEN, NONCE_LEN};
 use crate::AppError;
+
+/// 自动保存时历史版本最小间隔（毫秒）；正文落盘不受此限制
+const REVISION_MIN_INTERVAL_MS: i64 = 30_000;
+
+static LAST_REVISION_AT: LazyLock<Mutex<HashMap<String, i64>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 fn now_millis() -> i64 {
     SystemTime::now()
@@ -43,11 +51,34 @@ pub fn save_revision(
     content: &str,
     encryption_enabled: bool,
     dek: Option<&[u8; DEK_LEN]>,
-) -> Result<RevisionMeta, AppError> {
+) -> Result<Option<RevisionMeta>, AppError> {
+    save_revision_throttled(data_dir, doc_id, content, encryption_enabled, dek, false)
+}
+
+/// `force`：忽略节流；自动保存路径传 false
+pub fn save_revision_throttled(
+    data_dir: &Path,
+    doc_id: &str,
+    content: &str,
+    encryption_enabled: bool,
+    dek: Option<&[u8; DEK_LEN]>,
+    force: bool,
+) -> Result<Option<RevisionMeta>, AppError> {
     let doc_id = validate_doc_id(doc_id)?;
+    let now = now_millis();
+    if !force {
+        if let Ok(map) = LAST_REVISION_AT.lock() {
+            if let Some(&last) = map.get(doc_id) {
+                if now.saturating_sub(last) < REVISION_MIN_INTERVAL_MS {
+                    return Ok(None);
+                }
+            }
+        }
+    }
+
     let dir = revisions_dir(data_dir, doc_id);
     fs::create_dir_all(&dir)?;
-    let created_at = now_millis();
+    let created_at = now;
     let id = created_at.to_string();
     let path = if encryption_enabled {
         dir.join(format!("{id}.md.enc"))
@@ -66,11 +97,15 @@ pub fn save_revision(
         fs::write(&path, content.as_bytes())?;
     }
 
-    Ok(RevisionMeta {
+    if let Ok(mut map) = LAST_REVISION_AT.lock() {
+        map.insert(doc_id.to_string(), created_at);
+    }
+
+    Ok(Some(RevisionMeta {
         id,
         created_at,
         size_bytes: content.len() as u64,
-    })
+    }))
 }
 
 pub fn list_revisions(data_dir: &Path, doc_id: &str) -> Result<Vec<RevisionMeta>, AppError> {
