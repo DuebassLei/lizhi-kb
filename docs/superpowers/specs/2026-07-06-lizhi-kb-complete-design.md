@@ -595,6 +595,7 @@ Home
 | 写作看板动效 | [2026-07-13-insights-dashboard-motion-design.md](./2026-07-13-insights-dashboard-motion-design.md) | 守夜猫主题动效 |
 | 文档回收站 | [2026-07-14-document-trash-design.md](./2026-07-14-document-trash-design.md) | 软删除 / 恢复 |
 | 安全导出审计 | [2026-07-14-security-export-audit-design.md](./2026-07-14-security-export-audit-design.md) | Insights 审计摘要 |
+| Word 导出样式 | [2026-07-17-word-export-styles-design.md](./2026-07-17-word-export-styles-design.md) | 三套 Styles+Numbering 模板 |
 | 资源库浏览 | [2026-07-14-asset-library-browse-design.md](./2026-07-14-asset-library-browse-design.md) | 附件库浏览 |
 | 启动记录 | [2026-07-09-launch-records-design.md](./2026-07-09-launch-records-design.md) | 启动与会话记录 |
 | 凭证库 | [2026-07-09-credentials-vault-design.md](./2026-07-09-credentials-vault-design.md) | 开发中 |

@@ -2,6 +2,8 @@ import { tauriInvoke } from "../composables/useTauriCommand";
 import { isTauriRuntime } from "../services/vaultService";
 import { embedAssetsInMarkdown } from "./exportAssets";
 import { markdownToPreviewHtml } from "./markdownPreview";
+import type { DocxThemeId } from "./docxThemeSetting";
+import { loadStoredDocxTheme } from "./docxThemeSetting";
 import { exportWord } from "./exportDocx";
 import {
   buildExportWatermarkLabel,
@@ -419,12 +421,17 @@ export async function exportPdf(title: string, content: string): Promise<boolean
   return true;
 }
 
-export async function exportDocument(title: string, content: string, format: ExportFormat): Promise<boolean> {
+export async function exportDocument(
+  title: string,
+  content: string,
+  format: ExportFormat,
+  options?: { docxTheme?: DocxThemeId },
+): Promise<boolean> {
   switch (format) {
     case "md":
       return exportMarkdown(title, content);
     case "docx":
-      return exportWord(title, content);
+      return exportWord(title, content, options?.docxTheme ?? loadStoredDocxTheme());
     case "html":
       return exportHtml(title, content);
     case "pdf":

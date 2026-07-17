@@ -17,6 +17,10 @@ test.describe("Document export", () => {
     await expect(wordItem).toBeVisible();
     await expect(wordItem).toContainText("Word");
     await expect(wordItem).toContainText("无水印");
+
+    await wordItem.click();
+    await expect(page.getByTestId("export-docx-theme")).toBeVisible();
+    await expect(page.getByTestId("export-docx-theme-tech")).toBeVisible();
   });
 
   test("exports Word docx with embedded vault image", async ({ page }) => {

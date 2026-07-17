@@ -16,6 +16,14 @@ import { useDocumentsStore } from "../../stores/documents";
 
 import { useUiStore } from "../../stores/ui";
 
+import {
+  loadStoredDocxTheme,
+  saveDocxTheme,
+  type DocxThemeId,
+} from "../../utils/docxThemeSetting";
+
+import { DOCX_THEME_OPTIONS } from "../../utils/docxThemes";
+
 import BtnIcon from "../ui/BtnIcon.vue";
 
 
@@ -43,6 +51,8 @@ const open = ref(false);
 const pendingFormat = ref<ExportFormat | null>(null);
 
 const pendingTag = ref<string | null>(null);
+
+const selectedDocxTheme = ref<DocxThemeId>(loadStoredDocxTheme());
 
 const rootRef = ref<HTMLElement | null>(null);
 
@@ -72,6 +82,10 @@ function toggle() {
 
     pendingTag.value = null;
 
+  } else {
+
+    selectedDocxTheme.value = loadStoredDocxTheme();
+
   }
 
 }
@@ -96,6 +110,12 @@ function pick(format: ExportFormat) {
 
   pendingTag.value = null;
 
+  if (format === "docx") {
+
+    selectedDocxTheme.value = loadStoredDocxTheme();
+
+  }
+
 }
 
 
@@ -114,7 +134,21 @@ async function confirmExport() {
 
   if (pendingFormat.value) {
 
-    void exportDocument(props.title, props.content, pendingFormat.value);
+    if (pendingFormat.value === "docx") {
+
+      saveDocxTheme(selectedDocxTheme.value);
+
+      void exportDocument(props.title, props.content, "docx", {
+
+        docxTheme: selectedDocxTheme.value,
+
+      });
+
+    } else {
+
+      void exportDocument(props.title, props.content, pendingFormat.value);
+
+    }
 
     close();
 
@@ -365,6 +399,56 @@ onUnmounted(() => {
           <template v-else>将导出该标签下全部文档为 Markdown 文件夹。</template>
 
         </p>
+
+        <div
+
+          v-if="pendingFormat === 'docx'"
+
+          class="space-y-1"
+
+          role="radiogroup"
+
+          aria-label="Word 样式模板"
+
+          data-testid="export-docx-theme"
+
+        >
+
+          <p class="text-[10px] text-muted">样式模板</p>
+
+          <button
+
+            v-for="theme in DOCX_THEME_OPTIONS"
+
+            :key="theme.id"
+
+            type="button"
+
+            role="radio"
+
+            class="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs hover:bg-surface-2"
+
+            :class="
+              selectedDocxTheme === theme.id
+                ? 'bg-surface-2 text-[var(--color-text)] ring-1 ring-link/40'
+                : 'text-[var(--color-text)]'
+            "
+
+            :aria-checked="selectedDocxTheme === theme.id"
+
+            :data-testid="`export-docx-theme-${theme.id}`"
+
+            @click="selectedDocxTheme = theme.id"
+
+          >
+
+            <span>{{ theme.label }}</span>
+
+            <span class="ml-2 text-[10px] text-muted">{{ theme.hint }}</span>
+
+          </button>
+
+        </div>
 
         <div class="flex justify-end gap-2">
 

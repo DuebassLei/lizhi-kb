@@ -1,4 +1,15 @@
-import type { Paragraph, TextRun } from "docx";
+import type { DocxThemeId } from "./docxThemeSetting";
+import { DEFAULT_DOCX_THEME } from "./docxThemeSetting";
+import {
+  buildDocxNumbering,
+  buildDocxStyles,
+  getDocxSectionProperties,
+  getDocxThemeBodyFont,
+  getDocxThemeCodeFont,
+  getDocxThemeCodeSize,
+  getDocxThemeLinkColor,
+  getDocxThemeQuoteColor,
+} from "./docxThemes";
 import { tauriInvoke } from "../composables/useTauriCommand";
 import { isTauriRuntime } from "../services/vaultService";
 import {
@@ -6,9 +17,13 @@ import {
   parseDataUrlImage,
   readImageDimensionsFromDataUrl,
   scaleImageDimensions,
+  toDocxCompatibleDataUrl,
 } from "./exportAssets";
 
 type DocxModule = typeof import("docx");
+type Paragraph = import("docx").Paragraph;
+type TextRun = import("docx").TextRun;
+type FileChild = import("docx").FileChild;
 
 let _docx: DocxModule | null = null;
 
@@ -21,8 +36,9 @@ type RunStyle = {
   bold?: boolean;
   italics?: boolean;
   strike?: boolean;
-  font?: string;
+  font?: string | { ascii: string; eastAsia: string; hAnsi: string };
   color?: string;
+  size?: number;
 };
 
 function sanitizeFilename(title: string): string {
@@ -60,18 +76,21 @@ function pushText(runs: TextRun[], text: string, style: RunStyle = {}) {
       strike: style.strike,
       font: style.font,
       color: style.color,
+      size: style.size,
     }),
   );
 }
 
-function parseInlineRuns(text: string, style: RunStyle = {}): TextRun[] {
+function parseInlineRuns(text: string, themeId: DocxThemeId, style: RunStyle = {}): TextRun[] {
   const runs: TextRun[] = [];
   let rest = text;
+  const linkColor = getDocxThemeLinkColor(themeId);
+  const codeFont = getDocxThemeCodeFont(themeId);
 
   while (rest.length > 0) {
     const wiki = rest.match(/^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/);
     if (wiki) {
-      pushText(runs, (wiki[2] ?? wiki[1]).trim(), { ...style, color: "2563EB" });
+      pushText(runs, (wiki[2] ?? wiki[1]).trim(), { ...style, color: linkColor });
       rest = rest.slice(wiki[0].length);
       continue;
     }
@@ -86,35 +105,35 @@ function parseInlineRuns(text: string, style: RunStyle = {}): TextRun[] {
 
     const link = rest.match(/^\[([^\]]+)\]\(([^)]+)\)/);
     if (link) {
-      pushText(runs, link[1], { ...style, color: "2563EB" });
+      pushText(runs, link[1], { ...style, color: linkColor });
       rest = rest.slice(link[0].length);
       continue;
     }
 
     const bold = rest.match(/^\*\*(.+?)\*\*/);
     if (bold) {
-      runs.push(...parseInlineRuns(bold[1], { ...style, bold: true }));
+      runs.push(...parseInlineRuns(bold[1], themeId, { ...style, bold: true }));
       rest = rest.slice(bold[0].length);
       continue;
     }
 
     const italic = rest.match(/^\*(.+?)\*/);
     if (italic) {
-      runs.push(...parseInlineRuns(italic[1], { ...style, italics: true }));
+      runs.push(...parseInlineRuns(italic[1], themeId, { ...style, italics: true }));
       rest = rest.slice(italic[0].length);
       continue;
     }
 
     const strike = rest.match(/^~~(.+?)~~/);
     if (strike) {
-      runs.push(...parseInlineRuns(strike[1], { ...style, strike: true }));
+      runs.push(...parseInlineRuns(strike[1], themeId, { ...style, strike: true }));
       rest = rest.slice(strike[0].length);
       continue;
     }
 
     const code = rest.match(/^`([^`]+)`/);
     if (code) {
-      pushText(runs, code[1], { ...style, font: "Consolas" });
+      pushText(runs, code[1], { ...style, font: codeFont });
       rest = rest.slice(code[0].length);
       continue;
     }
@@ -128,15 +147,35 @@ function parseInlineRuns(text: string, style: RunStyle = {}): TextRun[] {
   return runs;
 }
 
-function paragraphFromMarkdownLine(line: string, options?: { quote?: boolean; code?: boolean }): Paragraph {
-  const runs = options?.code
-    ? [new _docx!.TextRun({ text: line, font: "Consolas", size: 20 })]
-    : parseInlineRuns(line, options?.quote ? { italics: true, color: "64748B" } : {});
+function paragraphFromMarkdownLine(
+  line: string,
+  themeId: DocxThemeId,
+  options?: { quote?: boolean; code?: boolean },
+): Paragraph {
+  if (options?.code) {
+    return new _docx!.Paragraph({
+      style: "LizhiCode",
+      children: [
+        new _docx!.TextRun({
+          text: line || " ",
+          font: getDocxThemeCodeFont(themeId),
+          size: getDocxThemeCodeSize(themeId),
+        }),
+      ],
+    });
+  }
+
+  const runs = parseInlineRuns(
+    line,
+    themeId,
+    options?.quote
+      ? { italics: true, color: getDocxThemeQuoteColor(themeId), font: getDocxThemeBodyFont(themeId) }
+      : { font: getDocxThemeBodyFont(themeId) },
+  );
 
   return new _docx!.Paragraph({
+    style: options?.quote ? "LizhiQuote" : "Normal",
     children: runs.length > 0 ? runs : [new _docx!.TextRun("")],
-    spacing: { after: 120 },
-    indent: options?.quote ? { left: 720 } : undefined,
   });
 }
 
@@ -162,24 +201,29 @@ async function paragraphFromImageLine(src: string, alt: string): Promise<Paragra
   if (!src.startsWith("data:image/")) {
     return new _docx!.Paragraph({
       children: [new _docx!.TextRun({ text: `[${alt || "图片"}]`, italics: true, color: "64748B" })],
-      spacing: { after: 120 },
     });
   }
 
-  const parsed = parseDataUrlImage(src);
+  let dataUrl = src;
+  try {
+    dataUrl = await toDocxCompatibleDataUrl(src);
+  } catch {
+    // keep original
+  }
+
+  const parsed = parseDataUrlImage(dataUrl);
   if (!parsed) {
     return new _docx!.Paragraph({
       children: [new _docx!.TextRun({ text: `[${alt || "图片"}]`, italics: true, color: "64748B" })],
-      spacing: { after: 120 },
     });
   }
 
   let transformation = scaleImageDimensions(1, 1);
   try {
-    const size = await readImageDimensionsFromDataUrl(src);
+    const size = await readImageDimensionsFromDataUrl(dataUrl);
     transformation = scaleImageDimensions(size.width, size.height);
   } catch {
-    // Fall back to default dimensions
+    // default
   }
 
   return new _docx!.Paragraph({
@@ -191,118 +235,318 @@ async function paragraphFromImageLine(src: string, alt: string): Promise<Paragra
         altText: alt ? { title: alt, description: alt, name: alt } : undefined,
       }),
     ],
-    spacing: { after: 160 },
+    spacing: { after: 200 },
   });
 }
 
-export async function markdownToDocxParagraphs(content: string): Promise<Paragraph[]> {
+function isTableSeparator(line: string): boolean {
+  const cells = line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => c.trim());
+  return cells.length > 0 && cells.every((c) => /^:?-{3,}:?$/.test(c));
+}
+
+function splitTableRow(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => c.trim());
+}
+
+function tryParseTable(
+  lines: string[],
+  start: number,
+  themeId: DocxThemeId,
+): { table: FileChild; nextIndex: number } | null {
+  if (start + 1 >= lines.length) return null;
+  const headerLine = lines[start].trimEnd();
+  const sepLine = lines[start + 1].trimEnd();
+  if (!headerLine.includes("|") || !isTableSeparator(sepLine)) return null;
+
+  const headers = splitTableRow(headerLine);
+  if (headers.length === 0) return null;
+
+  const rows: string[][] = [];
+  let i = start + 2;
+  while (i < lines.length) {
+    const raw = lines[i].trimEnd();
+    if (!raw.trim() || !raw.includes("|")) break;
+    if (isTableSeparator(raw)) {
+      i += 1;
+      continue;
+    }
+    const cells = splitTableRow(raw);
+    while (cells.length < headers.length) cells.push("");
+    rows.push(cells.slice(0, headers.length));
+    i += 1;
+  }
+
+  const Border = {
+    style: _docx!.BorderStyle.SINGLE,
+    size: 4,
+    color: "CBD5E1",
+  };
+  const borders = { top: Border, bottom: Border, left: Border, right: Border };
+
+  const headerRow = new _docx!.TableRow({
+    tableHeader: true,
+    children: headers.map(
+      (cell) =>
+        new _docx!.TableCell({
+          borders,
+          width: { size: Math.floor(9000 / headers.length), type: _docx!.WidthType.DXA },
+          shading: { type: _docx!.ShadingType.CLEAR, fill: "F8FAFC" },
+          children: [
+            new _docx!.Paragraph({
+              children: parseInlineRuns(cell, themeId, {
+                bold: true,
+                font: getDocxThemeBodyFont(themeId),
+              }),
+            }),
+          ],
+        }),
+    ),
+  });
+
+  const bodyRows = rows.map(
+    (row) =>
+      new _docx!.TableRow({
+        children: row.map(
+          (cell) =>
+            new _docx!.TableCell({
+              borders,
+              width: { size: Math.floor(9000 / headers.length), type: _docx!.WidthType.DXA },
+              children: [
+                new _docx!.Paragraph({
+                  children: parseInlineRuns(cell, themeId, { font: getDocxThemeBodyFont(themeId) }),
+                }),
+              ],
+            }),
+        ),
+      }),
+  );
+
+  return {
+    table: new _docx!.Table({
+      width: { size: 9000, type: _docx!.WidthType.DXA },
+      rows: [headerRow, ...bodyRows],
+    }),
+    nextIndex: i,
+  };
+}
+
+function horizontalRuleParagraph(): Paragraph {
+  return new _docx!.Paragraph({
+    border: {
+      bottom: { style: _docx!.BorderStyle.SINGLE, size: 6, color: "CBD5E1", space: 1 },
+    },
+    spacing: { before: 120, after: 200 },
+    children: [new _docx!.TextRun("")],
+  });
+}
+
+export async function markdownToDocxChildren(
+  content: string,
+  themeId: DocxThemeId = DEFAULT_DOCX_THEME,
+): Promise<FileChild[]> {
   await ensureDocx();
   const lines = content.replace(/\r\n/g, "\n").split("\n");
-  const paragraphs: Paragraph[] = [];
+  const children: FileChild[] = [];
   let inCode = false;
   let codeLines: string[] = [];
+  let orderedInstance = 0;
+  let inOrderedList = false;
 
   const flushCode = () => {
     if (!inCode) return;
-    for (const codeLine of codeLines) {
-      paragraphs.push(paragraphFromMarkdownLine(codeLine, { code: true }));
+    if (codeLines.length === 0) {
+      children.push(paragraphFromMarkdownLine(" ", themeId, { code: true }));
+    } else {
+      for (const codeLine of codeLines) {
+        children.push(paragraphFromMarkdownLine(codeLine, themeId, { code: true }));
+      }
     }
+    // spacer after code block
+    children.push(
+      new _docx!.Paragraph({
+        children: [new _docx!.TextRun("")],
+        spacing: { after: 160 },
+      }),
+    );
     codeLines = [];
     inCode = false;
   };
 
-  for (const line of lines) {
+  const endOrderedList = () => {
+    inOrderedList = false;
+  };
+
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
     if (inCode) {
-      if (/^```\s*$/.test(line.trim())) flushCode();
-      else codeLines.push(line);
+      if (/^```\s*$/.test(line.trim())) {
+        flushCode();
+        i += 1;
+        continue;
+      }
+      codeLines.push(line);
+      i += 1;
       continue;
     }
 
     if (/^```(\w*)\s*$/.test(line.trim())) {
+      endOrderedList();
       inCode = true;
+      i += 1;
       continue;
     }
 
     const trimmed = line.trimEnd();
-    if (trimmed === "") continue;
+    if (trimmed === "") {
+      endOrderedList();
+      i += 1;
+      continue;
+    }
+
+    const table = tryParseTable(lines, i, themeId);
+    if (table) {
+      endOrderedList();
+      children.push(table.table);
+      children.push(
+        new _docx!.Paragraph({
+          children: [new _docx!.TextRun("")],
+          spacing: { after: 160 },
+        }),
+      );
+      i = table.nextIndex;
+      continue;
+    }
 
     const imageLine = trimmed.match(/^!\[([^\]]*)\]\(([^)]+)\)\s*$/);
     if (imageLine) {
-      flushCode();
-      paragraphs.push(await paragraphFromImageLine(imageLine[2].trim(), imageLine[1].trim()));
+      endOrderedList();
+      children.push(await paragraphFromImageLine(imageLine[2].trim(), imageLine[1].trim()));
+      i += 1;
       continue;
     }
 
     if (/^(-{3,}|\*{3,}|_{3,})\s*$/.test(trimmed)) {
-      paragraphs.push(new _docx!.Paragraph({ children: [new _docx!.TextRun("")], spacing: { after: 120 } }));
+      endOrderedList();
+      children.push(horizontalRuleParagraph());
+      i += 1;
       continue;
     }
 
     const heading = trimmed.match(/^(#{1,6})\s+(.*)$/);
     if (heading) {
-      paragraphs.push(
+      endOrderedList();
+      children.push(
         new _docx!.Paragraph({
           heading: headingLevelFromMarkdown(heading[1].length),
-          children: parseInlineRuns(heading[2]),
-          spacing: { before: 180, after: 120 },
+          children: parseInlineRuns(heading[2], themeId, { font: getDocxThemeBodyFont(themeId) }),
         }),
       );
+      i += 1;
       continue;
     }
 
     if (/^>\s?/.test(trimmed)) {
-      paragraphs.push(paragraphFromMarkdownLine(trimmed.replace(/^>\s?/, ""), { quote: true }));
+      endOrderedList();
+      children.push(paragraphFromMarkdownLine(trimmed.replace(/^>\s?/, ""), themeId, { quote: true }));
+      i += 1;
       continue;
     }
 
     if (/^[-*+]\s/.test(trimmed)) {
-      paragraphs.push(
+      endOrderedList();
+      children.push(
         new _docx!.Paragraph({
-          children: [new _docx!.TextRun("• "), ...parseInlineRuns(trimmed.replace(/^[-*+]\s/, ""))],
-          spacing: { after: 80 },
-          indent: { left: 360 },
+          style: "LizhiList",
+          numbering: { reference: "lizhi-bullets", level: 0 },
+          children: parseInlineRuns(trimmed.replace(/^[-*+]\s/, ""), themeId, {
+            font: getDocxThemeBodyFont(themeId),
+          }),
         }),
       );
+      i += 1;
       continue;
     }
 
     const ordered = trimmed.match(/^(\d+)\.\s+(.*)$/);
     if (ordered) {
-      paragraphs.push(
+      if (!inOrderedList) {
+        orderedInstance += 1;
+        inOrderedList = true;
+      }
+      children.push(
         new _docx!.Paragraph({
-          children: [new _docx!.TextRun(`${ordered[1]}. `), ...parseInlineRuns(ordered[2])],
-          spacing: { after: 80 },
-          indent: { left: 360 },
+          style: "LizhiList",
+          numbering: {
+            reference: "lizhi-numbers",
+            level: 0,
+            instance: orderedInstance,
+          },
+          children: parseInlineRuns(ordered[2], themeId, { font: getDocxThemeBodyFont(themeId) }),
         }),
       );
+      i += 1;
       continue;
     }
 
-    paragraphs.push(paragraphFromMarkdownLine(trimmed));
+    endOrderedList();
+    children.push(paragraphFromMarkdownLine(trimmed, themeId));
+    i += 1;
   }
 
   flushCode();
-  return paragraphs;
+  return children;
 }
 
-export async function buildDocxBlob(title: string, content: string): Promise<Blob> {
+/** @deprecated 使用 markdownToDocxChildren；保留别名便于测试过渡 */
+export async function markdownToDocxParagraphs(
+  content: string,
+  themeId: DocxThemeId = DEFAULT_DOCX_THEME,
+): Promise<Paragraph[]> {
+  const children = await markdownToDocxChildren(content, themeId);
+  return children.filter((c): c is Paragraph => c instanceof (_docx!.Paragraph));
+}
+
+export async function buildDocxBlob(
+  title: string,
+  content: string,
+  themeId: DocxThemeId = DEFAULT_DOCX_THEME,
+): Promise<Blob> {
   const docx = await ensureDocx();
   const withAssets = await embedAssetsInMarkdown(content);
-  const children = await markdownToDocxParagraphs(withAssets);
+  const body = await markdownToDocxChildren(withAssets, themeId);
   const doc = new docx.Document({
     creator: "",
     title,
     description: "",
+    styles: buildDocxStyles(themeId),
+    numbering: buildDocxNumbering(),
     sections: [
       {
-        properties: {},
+        properties: getDocxSectionProperties(themeId),
         children: [
           new docx.Paragraph({
             heading: docx.HeadingLevel.TITLE,
-            children: [new docx.TextRun({ text: title, bold: true, size: 36 })],
-            spacing: { after: 240 },
+            children: [
+              new docx.TextRun({
+                text: title,
+                bold: true,
+                font: getDocxThemeBodyFont(themeId),
+              }),
+            ],
           }),
-          ...children,
+          ...body,
         ],
       },
     ],
@@ -311,10 +555,14 @@ export async function buildDocxBlob(title: string, content: string): Promise<Blo
 }
 
 /** 导出 Word（.docx），不叠加水印、不加密，适合办公协作 */
-export async function exportWord(title: string, content: string): Promise<boolean> {
+export async function exportWord(
+  title: string,
+  content: string,
+  themeId: DocxThemeId = DEFAULT_DOCX_THEME,
+): Promise<boolean> {
   const safe = sanitizeFilename(title);
   const filename = `${safe}.docx`;
-  const blob = await buildDocxBlob(title, content);
+  const blob = await buildDocxBlob(title, content, themeId);
   const bytes = new Uint8Array(await blob.arrayBuffer());
 
   if (isTauriRuntime()) {
