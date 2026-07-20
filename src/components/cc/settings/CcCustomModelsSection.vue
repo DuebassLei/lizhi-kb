@@ -9,6 +9,7 @@ import type { CcProviderPublic } from "../../../services/ccWorkbenchService";
 import { isTauriRuntime } from "../../../services/vaultService";
 import { strip1mSuffix } from "../../../utils/ccChatModels";
 import Btn from "../../ui/Btn.vue";
+import ConfirmDialog from "../../common/ConfirmDialog.vue";
 import CcAddModelDialog from "../chat/CcAddModelDialog.vue";
 
 const props = defineProps<{
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 const catalog = useCcModelCatalog();
 const addDialogOpen = ref(false);
 const selectedProviderId = ref("");
+const deletePending = ref<string | null>(null);
 
 const providerId = computed(
   () => selectedProviderId.value || props.activeProvider?.id || props.providers[0]?.id || "",
@@ -43,7 +45,13 @@ function onAdd(payload: { id: string; label?: string; inputPrice?: number; outpu
 
 function onRemove(baseId: string) {
   if (!providerId.value) return;
-  if (!confirm(`确定删除自定义模型「${baseId}」？`)) return;
+  deletePending.value = baseId;
+}
+
+function confirmRemove() {
+  if (!providerId.value || !deletePending.value) return;
+  const baseId = deletePending.value;
+  deletePending.value = null;
   catalog.removeCustomModel(providerId.value, baseId);
   emit("removed", baseId);
 }
@@ -153,6 +161,18 @@ syncProviderSelect();
     <p v-else class="cc-custom-models__empty">当前供应商暂无自定义模型</p>
 
     <CcAddModelDialog :open="addDialogOpen" @close="addDialogOpen = false" @add="onAdd" />
+
+    <ConfirmDialog
+      :open="!!deletePending"
+      title="删除自定义模型"
+      :item-name="deletePending ?? undefined"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-cc-custom-model-dialog"
+      @confirm="confirmRemove"
+      @cancel="deletePending = null"
+    />
   </section>
 </template>
 

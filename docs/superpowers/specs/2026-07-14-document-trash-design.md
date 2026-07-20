@@ -2,8 +2,8 @@
 
 **文档版本**：v1.0.2  
 **日期**：2026-07-14  
-**状态**：已批准，待实现  
-**关联**：当前硬删除见 `delete_document`；产品 IA 见 [2026-07-06-lizhi-kb-complete-design.md](./2026-07-06-lizhi-kb-complete-design.md)；MCP 见 [2026-07-08-lizhi-mcp-design.md](./2026-07-08-lizhi-mcp-design.md)
+**状态**：已实现  
+**关联**：当前硬删除见 `purge_document`；产品 IA 见 [2026-07-06-lizhi-kb-complete-design.md](./2026-07-06-lizhi-kb-complete-design.md)；MCP 见 [2026-07-08-lizhi-mcp-design.md](./2026-07-08-lizhi-mcp-design.md)
 
 ---
 

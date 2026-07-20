@@ -349,9 +349,33 @@ export function registerLizhiTools(server: McpServer, backend: LizhiBackend) {
     },
     {
       name: "lizhi_delete_document",
-      description: "删除文档（需 MCP 写入）",
+      description: "将文档移至回收站（软删除，可恢复；需 MCP 写入）",
       schema: { id: z.string() },
       run: ({ id }) => wrap(() => backend.deleteDocument(String(id))),
+    },
+    {
+      name: "lizhi_restore_document",
+      description: "从回收站恢复文档（需 MCP 写入）",
+      schema: { id: z.string() },
+      run: ({ id }) => wrap(() => backend.restoreDocument(String(id))),
+    },
+    {
+      name: "lizhi_list_trashed_documents",
+      description: "列出回收站中的文档",
+      schema: {},
+      run: () => wrap(() => backend.listTrashedDocuments()),
+    },
+    {
+      name: "lizhi_purge_document",
+      description: "永久删除文档（活跃或回收站均可，不可恢复；需 MCP 写入）",
+      schema: { id: z.string() },
+      run: ({ id }) => wrap(() => backend.purgeDocument(String(id))),
+    },
+    {
+      name: "lizhi_empty_trash",
+      description: "清空回收站（永久删除全部回收站文档，不可恢复；需 MCP 写入）",
+      schema: {},
+      run: () => wrap(() => backend.emptyTrash()),
     },
   ];
 

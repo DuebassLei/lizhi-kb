@@ -58,11 +58,18 @@ pnpm tauri dev       # Tauri/IPC 手动验证
 
 ## CI
 
-`.github/workflows/ci.yml` 在 PR / main 上运行 `pnpm verify`（已含 Rust test）与 `pnpm test:unit`，不再单独重复 `cargo test`。
+`.github/workflows/ci.yml` 在 PR / main 上运行：
+
+| Job | 内容 |
+|-----|------|
+| `check` | `pnpm verify` + `pnpm test:unit` |
+| `e2e-smoke` | Playwright 冒烟子集（Word 导出 + workspace 基础 + trash）；失败不阻塞 nightly 全量 |
+
+夜间 / 手动全量 E2E：`.github/workflows/e2e-nightly.yml`（`pnpm test:e2e`）。
 
 本地 `pnpm verify` / `pnpm build`：先 `vue-tsc`，再并行 `vite build` 与 `build:mcp`（避免 tsc 与 Vite 双重量级争抢导致总时长不降反升）。
 
-**已知盲区**：CI **未**跑 Playwright E2E（`pnpm test:e2e`）；Agent 工作台等路由无专项 E2E（见 [CC Workbench §17.4](../superpowers/specs/2026-07-10-cc-workbench-design.md#174-差距追踪待对齐项)）。流程/UI 大改时请在本地补跑 E2E。
+流程/UI 大改时请在本地补跑相关 E2E；Agent 工作台等路由专项见 [CC Workbench §17.4](../superpowers/specs/2026-07-10-cc-workbench-design.md#174-差距追踪待对齐项)。
 
 ## 常见警告处理
 

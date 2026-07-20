@@ -61,13 +61,15 @@ AI Tool (stdio) → resources/lizhi-mcp/index.js → HTTP Bearer → Bridge(1372
 | PATCH | `/documents/:id/move` | 移动文件夹 |
 | DELETE | `/documents/:id` | 删除 |
 
-## 5. MCP Tools（26）
+## 5. MCP Tools（30）
 
 详见 `packages/lizhi-mcp/README.md`。
 
 `create` / `move` / `ensure` / `migrate` 会同步 upsert `vault-ui-state.json` 的 folders 注册表（祖先链），避免侧栏将未登记路径归一到「收件箱」。可省略 `projects/` 前缀。
 
 `lizhi_delete_folder`（`POST /folders/delete`）从侧栏树移除目录及子孙；夹内文档先迁往上级（或 `moveDocumentsTo`）；可向上 prune 空祖先。不可删 `inbox` / `projects`。`migrate` 后也会 prune 旧前缀的空祖先链。
+
+回收站：`lizhi_delete_document` 为软删；另提供 `lizhi_restore_document`、`lizhi_list_trashed_documents`、`lizhi_purge_document`（永久删除）、`lizhi_empty_trash`。
 
 ## 6. MCP Resources
 

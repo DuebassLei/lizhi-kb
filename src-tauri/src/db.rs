@@ -294,6 +294,13 @@ fn migrate_documents_columns(conn: &Connection) -> SqliteResult<()> {
             [],
         )?;
     }
+    if !cols.iter().any(|c| c == "deleted_at") {
+        conn.execute("ALTER TABLE documents ADD COLUMN deleted_at INTEGER", [])?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_documents_deleted_at ON documents(deleted_at)",
+            [],
+        )?;
+    }
     Ok(())
 }
 

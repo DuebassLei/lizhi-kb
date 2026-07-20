@@ -29,7 +29,7 @@ const folders = useFoldersStore();
 const journal = useJournalStore();
 const links = useLinksStore();
 const { createSubfolder } = useFolderActions();
-const { requestDelete } = useDocumentDelete();
+const { requestDelete, requestPurge } = useDocumentDelete();
 const folderDialog = useFolderNameDialog();
 const moveDialog = useMoveToFolderDialog();
 const router = useRouter();
@@ -301,11 +301,20 @@ const staticActions = computed((): Action[] => {
     });
     all.unshift({
       id: "delete",
-      label: "删除当前文档",
+      label: "移至回收站",
       hint: activeTitle,
       run: async () => {
         const id = documents.activeId!;
         requestDelete(id);
+      },
+    });
+    all.unshift({
+      id: "purge",
+      label: "永久删除当前文档",
+      hint: activeTitle,
+      run: async () => {
+        const id = documents.activeId!;
+        requestPurge(id);
       },
     });
   }

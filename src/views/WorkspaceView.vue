@@ -21,6 +21,8 @@ import LocalGraphView from "../components/graph/LocalGraphView.vue";
 
 import MindMapView from "../components/mindmap/MindMapView.vue";
 
+import TrashPanel from "../components/workspace/TrashPanel.vue";
+
 import { useUiStore } from "../stores/ui";
 
 import { useEditorStore } from "../stores/editor";
@@ -52,6 +54,10 @@ const mainView = computed(() => {
     case "mindmap":
 
       return MindMapView;
+
+    case "trash":
+
+      return TrashPanel;
 
     default:
 

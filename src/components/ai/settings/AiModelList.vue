@@ -2,6 +2,7 @@
 import { onMounted, onUnmounted, ref } from "vue";
 import { Check, ChevronDown, Cloud, Cpu, Pencil, Plus, Sparkles, Trash2 } from "@lucide/vue";
 import Btn from "../../ui/Btn.vue";
+import ConfirmDialog from "../../common/ConfirmDialog.vue";
 import type { ProviderDraft } from "../../../composables/useAiSettings";
 import { providerMatchesPreset, type AiCloudPreset } from "../../../utils/aiCloudPresets";
 
@@ -32,6 +33,7 @@ const emit = defineEmits<{
 
 const addMenuOpen = ref(false);
 const addMenuRef = ref<HTMLElement | null>(null);
+const deletePending = ref<{ index: number; name: string } | null>(null);
 
 function isPresetConfigured(preset: AiCloudPreset): boolean {
   return props.providers.some((p) => providerMatchesPreset(p, preset));
@@ -44,7 +46,13 @@ function providerKey(index: number, provider: ProviderDraft): string {
 function onDelete(index: number) {
   const provider = props.providers[index];
   if (!provider) return;
-  if (!confirm(`确定删除模型「${provider.name || "未命名"}」？`)) return;
+  deletePending.value = { index, name: provider.name || "未命名" };
+}
+
+function confirmDelete() {
+  if (!deletePending.value) return;
+  const { index } = deletePending.value;
+  deletePending.value = null;
   emit("deleteCloud", index);
 }
 
@@ -293,6 +301,18 @@ onUnmounted(() => {
         点击上方常见模型预设，或「添加」选择提供商
       </p>
     </div>
+
+    <ConfirmDialog
+      :open="!!deletePending"
+      title="删除模型"
+      :item-name="deletePending?.name"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-ai-model-dialog"
+      @confirm="confirmDelete"
+      @cancel="deletePending = null"
+    />
   </div>
 </template>
 

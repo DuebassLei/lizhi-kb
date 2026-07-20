@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Folder, Images, Search, Star } from "@lucide/vue";
+import { Folder, Images, Search, Star, Trash2 } from "@lucide/vue";
 import { computed, provide, ref } from "vue";
 
 import { useDocumentsStore } from "../../stores/documents";
@@ -31,6 +31,7 @@ const createTargetLabel = computed(
 );
 
 const folderTreeNodes = computed(() => folders.buildTree(documents.tree));
+const trashActive = computed(() => ui.workspaceViewMode === "trash");
 
 async function handleCreate(templateId?: string) {
   creating.value = true;
@@ -43,6 +44,11 @@ async function handleCreate(templateId?: string) {
 
 function openSearch() {
   ui.commandPaletteOpen = true;
+}
+
+function openTrash() {
+  assetLibraryOpen.value = false;
+  ui.setWorkspaceView("trash");
 }
 </script>
 
@@ -119,6 +125,17 @@ function openSearch() {
     <div class="sidebar-assets shrink-0 border-t border-border p-2">
       <button
         type="button"
+        class="sidebar-assets__toggle focus-ring mb-2"
+        :class="{ 'sidebar-assets__toggle--open': trashActive }"
+        data-testid="sidebar-trash-toggle"
+        :aria-pressed="trashActive"
+        @click="openTrash"
+      >
+        <Trash2 class="sidebar-assets__icon" aria-hidden="true" />
+        <span class="sidebar-assets__label">回收站</span>
+      </button>
+      <button
+        type="button"
         class="sidebar-assets__toggle focus-ring"
         :class="{ 'sidebar-assets__toggle--open': assetLibraryOpen }"
         data-testid="sidebar-asset-library-toggle"
@@ -143,7 +160,7 @@ function openSearch() {
   width: 100%;
   align-items: center;
   gap: 0.375rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-1);

@@ -14,6 +14,7 @@ import {
 import { useAssetThumbLoader } from "../../composables/useAssetThumbLoader";
 import { deleteAsset, listAssets, toAssetRef, type AssetEntry } from "../../services/assetService";
 import { useUiStore } from "../../stores/ui";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 import {
   formatAssetSize,
   formatAssetWhen,
@@ -37,6 +38,9 @@ const previewId = ref<string | null>(null);
 const selectMode = ref(false);
 const selected = ref<Set<string>>(new Set());
 const batchBusy = ref(false);
+const deletePending = ref<{ mode: "one"; id: string } | { mode: "batch"; ids: string[] } | null>(
+  null,
+);
 
 const { thumbs, setRoot, observe, enqueue, invalidate, retainOnly } = useAssetThumbLoader({
   concurrency: 4,
@@ -123,28 +127,50 @@ function isSelected(id: string) {
   return selected.value.has(id);
 }
 
-async function onDelete(id: string) {
-  const ok = window.confirm(`确定删除资产「${shortAssetId(id)}」？此操作不可恢复。`);
-  if (!ok) return;
-  await deleteAsset(id);
-  invalidate([id]);
-  if (previewId.value === id) previewId.value = null;
-  ui.showToast("success", "已删除资产");
-  await refresh();
+function onDelete(id: string) {
+  deletePending.value = { mode: "one", id };
 }
 
-async function onBatchDelete() {
+function onBatchDelete() {
   const ids = [...selected.value];
   if (!ids.length) return;
-  const ok = window.confirm(`确定删除选中的 ${ids.length} 个资产？此操作不可恢复。`);
-  if (!ok) return;
+  deletePending.value = { mode: "batch", ids };
+}
+
+const deleteDialogItemName = computed(() => {
+  const p = deletePending.value;
+  if (!p) return undefined;
+  if (p.mode === "one") return shortAssetId(p.id);
+  return `${p.ids.length} 个资产`;
+});
+
+const deleteDialogDescription = computed(() => {
+  const p = deletePending.value;
+  if (p?.mode === "batch") {
+    return `将永久删除选中的 ${p.ids.length} 个资产，删除后无法恢复。`;
+  }
+  return "删除后无法恢复，请确认是否继续。";
+});
+
+async function confirmDeleteAsset() {
+  const p = deletePending.value;
+  if (!p) return;
+  deletePending.value = null;
+  if (p.mode === "one") {
+    await deleteAsset(p.id);
+    invalidate([p.id]);
+    if (previewId.value === p.id) previewId.value = null;
+    ui.showToast("success", "已删除资产");
+    await refresh();
+    return;
+  }
   batchBusy.value = true;
   try {
-    for (const id of ids) {
+    for (const id of p.ids) {
       await deleteAsset(id);
     }
-    invalidate(ids);
-    ui.showToast("success", `已删除 ${ids.length} 个资产`);
+    invalidate(p.ids);
+    ui.showToast("success", `已删除 ${p.ids.length} 个资产`);
     selectMode.value = false;
     await refresh();
   } finally {
@@ -432,6 +458,18 @@ function setDensity(next: AssetLibDensity) {
         </div>
       </div>
     </Teleport>
+
+    <ConfirmDialog
+      :open="!!deletePending"
+      title="删除资产"
+      :item-name="deleteDialogItemName"
+      :description="deleteDialogDescription"
+      confirm-label="删除"
+      destructive
+      test-id="delete-asset-dialog"
+      @confirm="confirmDeleteAsset"
+      @cancel="deletePending = null"
+    />
   </section>
 </template>
 

@@ -143,6 +143,28 @@ export abstract class HttpBackendBase implements LizhiBackend {
     );
   }
 
+  restoreDocument(id: string): Promise<DocumentMeta> {
+    return this.request<DocumentMeta>(
+      "POST",
+      `/documents/${encodeURIComponent(id)}/restore`,
+    );
+  }
+
+  purgeDocument(id: string): Promise<{ purged: string }> {
+    return this.request<{ purged: string }>(
+      "DELETE",
+      `/documents/${encodeURIComponent(id)}/purge`,
+    );
+  }
+
+  listTrashedDocuments(): Promise<import("./types.js").TrashedDocumentMeta[]> {
+    return this.request("GET", "/trash");
+  }
+
+  emptyTrash(): Promise<{ purged: number }> {
+    return this.request<{ purged: number }>("POST", "/trash/empty");
+  }
+
   convertUnlinkedMention(sourceId: string, targetTitle: string): Promise<ConvertMentionResult> {
     return this.request<ConvertMentionResult>(
       "POST",

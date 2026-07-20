@@ -4,13 +4,16 @@ import {
   countWords,
   createDocument,
   deleteDocument,
+  emptyTrash,
   getDashboardStats,
   getEditActivity,
   listDocuments,
   migrateDocumentsFolderPrefix,
   moveDocumentToFolder,
+  purgeDocument,
   readDocument,
   renameDocument,
+  restoreDocument,
   saveDocument,
   setDocumentAiExclude,
 } from "../services/documentService";
@@ -38,6 +41,11 @@ import { isTauriRuntime } from "../services/vaultService";
 export const useDocumentsStore = defineStore("documents", () => {
   const tree = ref<DocumentMeta[]>([]);
   const activeId = ref<string | null>(null);
+  const trashTick = ref(0);
+
+  function bumpTrash() {
+    trashTick.value += 1;
+  }
   const content = ref("");
   const loading = ref(false);
   const error = ref<string | null>(null);
@@ -147,6 +155,10 @@ export const useDocumentsStore = defineStore("documents", () => {
 
   async function openDocument(id: string, options: { pushHistory?: boolean } = {}) {
     const { pushHistory = true } = options;
+    const ui = useUiStore();
+    if (ui.workspaceViewMode === "trash") {
+      ui.setWorkspaceView("edit");
+    }
     if (pushHistory && activeId.value && activeId.value !== id) {
       navStack.value.push(activeId.value);
       if (navStack.value.length > 30) navStack.value.shift();
@@ -281,6 +293,36 @@ export const useDocumentsStore = defineStore("documents", () => {
     }
     if (activeId.value === id) clearActive();
     useFoldersStore().onDocumentRemoved(id);
+    bumpTrash();
+  }
+
+  async function purge(id: string) {
+    (await getLinksStore()).removeDocument(tree.value, id);
+    await purgeDocument(id);
+    tree.value = tree.value.filter((d) => d.id !== id);
+    navStack.value = navStack.value.filter((nid) => nid !== id);
+    if (pinnedIds.value.includes(id)) {
+      pinnedIds.value = pinnedIds.value.filter((pid) => pid !== id);
+      savePinnedIds(pinnedIds.value);
+    }
+    if (activeId.value === id) clearActive();
+    useFoldersStore().onDocumentRemoved(id);
+    bumpTrash();
+  }
+
+  async function restore(id: string) {
+    const meta = await restoreDocument(id);
+    await fetchTree();
+    useFoldersStore().onDocumentMoved(meta.id, "", meta.folder);
+    bumpTrash();
+    return meta;
+  }
+
+  async function emptyTrashAll() {
+    const result = await emptyTrash();
+    await fetchTree();
+    bumpTrash();
+    return result;
   }
 
   function setActive(id: string) {
@@ -462,6 +504,7 @@ export const useDocumentsStore = defineStore("documents", () => {
   return {
     tree,
     activeId,
+    trashTick,
     content,
     loading,
     error,
@@ -481,6 +524,9 @@ export const useDocumentsStore = defineStore("documents", () => {
     openDocument,
     saveContent,
     remove,
+    purge,
+    restore,
+    emptyTrash: emptyTrashAll,
     setActive,
     clearActive,
     updateContent,

@@ -294,7 +294,13 @@ get_lock_status() -> LockState
 list_documents(filter) -> Vec<DocumentMeta>
 read_document(id) -> DecryptedContent  // 仅 unlocked 状态
 save_document(id, content) -> SaveResult
-delete_document(id) -> ()
+delete_document(id) -> ()  // 软删 → 回收站
+restore_document(id) -> DocumentMeta
+purge_document(id) -> ()  // 永久删除
+list_trashed_documents() -> Vec<TrashedDocumentMeta>
+empty_trash() -> PurgeExpiredResult
+purge_expired_documents() -> PurgeExpiredResult
+get_trash_retention_days() / set_trash_retention_days(days)
 
 // Links & Search
 get_backlinks(id) -> Vec<LinkMention>
@@ -593,7 +599,7 @@ Home
 | MCP 服务 | [2026-07-08-lizhi-mcp-design.md](./2026-07-08-lizhi-mcp-design.md) | 外部 AI 工具 HTTP Bridge |
 | 备份扩展 | [../design/2026-07-08-backup-extension.md](../design/2026-07-08-backup-extension.md) | `.lizhi` v2 包 |
 | 写作看板动效 | [2026-07-13-insights-dashboard-motion-design.md](./2026-07-13-insights-dashboard-motion-design.md) | 守夜猫主题动效 |
-| 文档回收站 | [2026-07-14-document-trash-design.md](./2026-07-14-document-trash-design.md) | 软删除 / 恢复 |
+| 文档回收站 | [2026-07-14-document-trash-design.md](./2026-07-14-document-trash-design.md) | 已实现：软删 / 恢复 / 永久删除 / 到期清理 |
 | 安全导出审计 | [2026-07-14-security-export-audit-design.md](./2026-07-14-security-export-audit-design.md) | Insights 审计摘要 |
 | Word 导出样式 | [2026-07-17-word-export-styles-design.md](./2026-07-17-word-export-styles-design.md) | 三套 Styles+Numbering 模板 |
 | 资源库浏览 | [2026-07-14-asset-library-browse-design.md](./2026-07-14-asset-library-browse-design.md) | 附件库浏览 |

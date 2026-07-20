@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
 use super::config::{find_provider, AiConfig};
-use super::network_gate::ensure_allowed_url;
+use super::network_gate::{effective_allowed_hosts, ensure_allowed_url};
 use super::secrets::{get_cloud_api_key, AiSecrets};
 use super::types::{ChatMessage, StreamEvent};
 
@@ -246,7 +246,7 @@ pub async fn test_connection(
         }
     };
 
-    if let Err(message) = ensure_allowed_url(&endpoint.base_url, &config.network_hosts) {
+    if let Err(message) = ensure_allowed_url(&endpoint.base_url, &effective_allowed_hosts(config)) {
         return super::types::ConnectionResult {
             ok: false,
             message,
@@ -390,7 +390,7 @@ pub async fn chat_stream(
 
     let provider_ref = cloud_provider_id.as_deref();
     let endpoint = resolve_endpoint(&config, &secrets, provider_ref)?;
-    ensure_allowed_url(&endpoint.base_url, &config.network_hosts)?;
+    ensure_allowed_url(&endpoint.base_url, &effective_allowed_hosts(config.as_ref()))?;
 
     let client = http_client()?;
 
@@ -467,7 +467,7 @@ pub async fn chat_once(
     }
 
     let endpoint = resolve_endpoint(config, secrets, cloud_provider_id)?;
-    ensure_allowed_url(&endpoint.base_url, &config.network_hosts)?;
+    ensure_allowed_url(&endpoint.base_url, &effective_allowed_hosts(config))?;
 
     let client = http_client()?;
 

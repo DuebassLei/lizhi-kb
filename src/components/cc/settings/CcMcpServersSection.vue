@@ -30,6 +30,7 @@ import {
   type CcWorkbenchStatus,
 } from "../../../services/ccWorkbenchService";
 import Btn from "../../ui/Btn.vue";
+import ConfirmDialog from "../../common/ConfirmDialog.vue";
 import CcMcpServerDialog from "./CcMcpServerDialog.vue";
 
 const ui = useUiStore();
@@ -38,6 +39,7 @@ const loading = ref(true);
 const statusLoading = ref(false);
 const saving = ref(false);
 const addOpen = ref(false);
+const deletePending = ref<CcMcpServer | null>(null);
 const dialogOpen = ref(false);
 const helpOpen = ref(false);
 const logOpen = ref(false);
@@ -148,8 +150,14 @@ async function onToggle(server: CcMcpServer, enabled: boolean) {
   }
 }
 
-async function onDelete(server: CcMcpServer) {
-  if (!confirm(`确定删除 MCP 服务器「${server.name || server.id}」？`)) return;
+function onDelete(server: CcMcpServer) {
+  deletePending.value = server;
+}
+
+async function confirmDelete() {
+  if (!deletePending.value) return;
+  const server = deletePending.value;
+  deletePending.value = null;
   try {
     await deleteCcMcpServer(server.id);
     ui.showToast("success", "已删除 MCP 服务器");
@@ -418,6 +426,18 @@ onMounted(() => {
         </div>
       </div>
     </Teleport>
+
+    <ConfirmDialog
+      :open="!!deletePending"
+      title="删除 MCP 服务器"
+      :item-name="deletePending?.name || deletePending?.id"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-cc-mcp-dialog"
+      @confirm="confirmDelete"
+      @cancel="deletePending = null"
+    />
   </div>
 </template>
 

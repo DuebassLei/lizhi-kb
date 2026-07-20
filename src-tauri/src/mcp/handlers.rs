@@ -557,6 +557,33 @@ fn dispatch(
                 .map_err(map_app_error)?;
             Ok(json_response(StatusCode(200), &result))
         }
+        ("POST", path) if path.starts_with("/documents/") && path.ends_with("/restore") => {
+            ensure_write_enabled(settings)?;
+            let id = parse_document_id(path, "restore")?;
+            let mut service = doc_service_lock(app_state)?;
+            let doc = service
+                .restore_document(&id, dek.as_ref())
+                .map_err(map_app_error)?;
+            Ok(json_response(StatusCode(200), &doc))
+        }
+        ("DELETE", path) if path.starts_with("/documents/") && path.ends_with("/purge") => {
+            ensure_write_enabled(settings)?;
+            let id = parse_document_id(path, "purge")?;
+            let mut service = doc_service_lock(app_state)?;
+            service.purge_document(&id).map_err(map_app_error)?;
+            Ok(json_response(StatusCode(200), &serde_json::json!({ "purged": id })))
+        }
+        ("GET", "/trash") => {
+            let service = doc_service_lock(app_state)?;
+            let docs = service.list_trashed_documents().map_err(map_app_error)?;
+            Ok(json_response(StatusCode(200), &docs))
+        }
+        ("POST", "/trash/empty") => {
+            ensure_write_enabled(settings)?;
+            let mut service = doc_service_lock(app_state)?;
+            let result = service.empty_trash().map_err(map_app_error)?;
+            Ok(json_response(StatusCode(200), &result))
+        }
         ("POST", "/folders/migrate") => {
             ensure_write_enabled(settings)?;
             let body: MigrateFolderBody = read_json_body(request)?;

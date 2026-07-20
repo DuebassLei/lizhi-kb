@@ -28,6 +28,8 @@ mod mubu;
 
 mod question_bank;
 
+mod path_guard;
+
 pub mod mcp;
 
 mod link_index;
@@ -362,6 +364,13 @@ pub fn run() {
             commands::rename_document,
 
             commands::delete_document,
+            commands::restore_document,
+            commands::purge_document,
+            commands::list_trashed_documents,
+            commands::empty_trash,
+            commands::purge_expired_documents,
+            commands::get_trash_retention_days,
+            commands::set_trash_retention_days,
 
             commands::move_document,
 

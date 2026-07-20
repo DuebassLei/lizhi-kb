@@ -31,6 +31,7 @@ import type {
   WaOutlineFramework,
 } from "../../types/writingAssistant";
 import { X } from "@lucide/vue";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 
 const store = useWritingAssistantStore();
 const emit = defineEmits<{ close: [] }>();
@@ -40,6 +41,7 @@ const coverTemplates: WaCoverTemplateId[] = ["plain", "grid", "accent"];
 const illLayouts: WaIllustrationLayout[] = ["hero", "split", "bullets"];
 
 const skillOptions = ref<string[]>([]);
+const deleteStylePending = ref<{ id: string; label: string } | null>(null);
 
 const targetWords = computed({
   get: () => resolveTargetWords(store.config.targetWords),
@@ -223,13 +225,19 @@ async function doReset() {
   }
 }
 
-async function doDelete() {
+function requestDeleteStyle() {
   const p = selectedPack.value;
   if (p.source !== "vault" || p.hasBuiltin) return;
-  if (!window.confirm(`确定删除自定义风格「${p.label}」？`)) return;
+  deleteStylePending.value = { id: p.id, label: p.label };
+}
+
+async function confirmDeleteStyle() {
+  if (!deleteStylePending.value) return;
+  const { id } = deleteStylePending.value;
+  deleteStylePending.value = null;
   busy.value = true;
   try {
-    await store.deleteStylePackFromVault(p.id);
+    await store.deleteStylePackFromVault(id);
     viewMode.value = "idle";
   } catch (e) {
     editorError.value = e instanceof Error ? e.message : String(e);
@@ -358,7 +366,7 @@ async function doDelete() {
                 type="button"
                 class="wa-config-chip-btn wa-config-chip-btn--danger focus-ring"
                 :disabled="!canWriteDisk || busy"
-                @click="doDelete"
+                @click="requestDeleteStyle"
               >
                 删除
               </button>
@@ -600,5 +608,17 @@ async function doDelete() {
         </button>
       </div>
     </aside>
+
+    <ConfirmDialog
+      :open="!!deleteStylePending"
+      title="删除自定义风格"
+      :item-name="deleteStylePending?.label"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-wa-style-dialog"
+      @confirm="confirmDeleteStyle"
+      @cancel="deleteStylePending = null"
+    />
   </div>
 </template>

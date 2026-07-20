@@ -25,7 +25,7 @@ pub const OPTIONAL_BACKUP_FILES: &[&str] = &[
     UI_STATE_FILENAME,
 ];
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VaultUiState {
     #[serde(default = "default_schema_version")]
@@ -46,10 +46,38 @@ pub struct VaultUiState {
     pub recent_doc_ids: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub document_templates: Option<Value>,
+    /// 回收站保留天数（1–365，默认 30）
+    #[serde(default = "default_trash_retention_days")]
+    pub trash_retention_days: u32,
+}
+
+impl Default for VaultUiState {
+    fn default() -> Self {
+        Self {
+            schema_version: default_schema_version(),
+            folders: None,
+            document_tags: None,
+            chat_sessions: None,
+            insights_hero_background: None,
+            graph_node_positions: None,
+            pinned_doc_ids: None,
+            recent_doc_ids: None,
+            document_templates: None,
+            trash_retention_days: default_trash_retention_days(),
+        }
+    }
 }
 
 fn default_schema_version() -> u32 {
     2
+}
+
+fn default_trash_retention_days() -> u32 {
+    30
+}
+
+pub fn clamp_trash_retention_days(days: u32) -> u32 {
+    days.clamp(1, 365)
 }
 
 mod document_ui;
@@ -70,15 +98,19 @@ pub fn load_ui_state(data_dir: &Path) -> Result<VaultUiState, String> {
         return Ok(VaultUiState::default());
     }
     let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    serde_json::from_str(&raw).map_err(|e| e.to_string())
+    let mut state: VaultUiState = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    state.trash_retention_days = clamp_trash_retention_days(state.trash_retention_days);
+    Ok(state)
 }
 
 pub fn save_ui_state(data_dir: &Path, state: &VaultUiState) -> Result<(), String> {
+    let mut state = state.clone();
+    state.trash_retention_days = clamp_trash_retention_days(state.trash_retention_days);
     let path = ui_state_path(data_dir);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let json = serde_json::to_string_pretty(state).map_err(|e| e.to_string())?;
+    let json = serde_json::to_string_pretty(&state).map_err(|e| e.to_string())?;
     fs::write(path, json).map_err(|e| e.to_string())
 }
 
@@ -132,6 +164,8 @@ pub fn merge_ui_state(existing: &VaultUiState, incoming: &VaultUiState) -> Vault
         .document_templates
         .clone()
         .or(existing.document_templates.clone());
+
+    merged.trash_retention_days = clamp_trash_retention_days(incoming.trash_retention_days);
 
     merged
 }

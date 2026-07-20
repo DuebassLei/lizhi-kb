@@ -37,6 +37,7 @@ import {
   messageHasSuccessfulLizhiQueryTool,
   vaultKbQueryModelHint,
 } from "../../utils/ccVaultQueryGuard";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 
 const cc = useCcWorkbenchStore();
 const ui = useUiStore();
@@ -85,6 +86,7 @@ const historyOpen = ref(false);
 const splitOpen = ref(false);
 const selectedFileChange = ref<CcFileChangeItem | null>(null);
 const selectedSubagent = ref<CcSubagentItem | null>(null);
+const deleteHistoryPending = ref<{ id: string; title: string } | null>(null);
 const exporting = ref(false);
 const commitDialogOpen = ref(false);
 
@@ -251,7 +253,18 @@ function onClarifySubmit(text: string) {
   void cc.send();
 }
 
-function deleteHistoryEntry(id: string) {
+function requestDeleteHistory(id: string) {
+  const entry = history.value.find((h) => h.id === id);
+  deleteHistoryPending.value = {
+    id,
+    title: entry?.title?.trim() || "未命名会话",
+  };
+}
+
+function confirmDeleteHistory() {
+  if (!deleteHistoryPending.value) return;
+  const { id } = deleteHistoryPending.value;
+  deleteHistoryPending.value = null;
   cc.deleteHistorySession(id);
   ui.showToast("success", "已删除会话");
 }
@@ -590,7 +603,7 @@ function onDiscardAllEdits() {
             :has-current-messages="messages.length > 0"
             @close="historyOpen = false"
             @load="loadHistoryEntry"
-            @delete="deleteHistoryEntry"
+            @delete="requestDeleteHistory"
             @rename="renameHistoryEntry"
             @export-current="handleExportCurrent"
             @export-all="handleExportHistory"
@@ -618,6 +631,18 @@ function onDiscardAllEdits() {
       :open="commitDialogOpen"
       :project-path="config?.projectPath ?? null"
       @close="commitDialogOpen = false"
+    />
+
+    <ConfirmDialog
+      :open="!!deleteHistoryPending"
+      title="删除会话"
+      :item-name="deleteHistoryPending?.title"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-cc-history-dialog"
+      @confirm="confirmDeleteHistory"
+      @cancel="deleteHistoryPending = null"
     />
   </div>
 </template>

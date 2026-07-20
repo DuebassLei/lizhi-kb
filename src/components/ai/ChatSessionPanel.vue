@@ -11,6 +11,7 @@ import type { RagSurface } from "../../stores/chat";
 import { useChatStore } from "../../stores/chat";
 import { useUiStore } from "../../stores/ui";
 import Btn from "../ui/Btn.vue";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 
 const props = defineProps<{
   surface: RagSurface;
@@ -25,6 +26,7 @@ const chat = useChatStore();
 const ui = useUiStore();
 const confirmClear = ref(false);
 const exporting = ref(false);
+const deletePending = ref<{ id: string; title: string } | null>(null);
 
 const sessions = computed(() => chat.sessionList(props.surface));
 const exportableCount = computed(
@@ -42,8 +44,19 @@ function selectSession(id: string) {
   emit("close");
 }
 
-function deleteSession(event: Event, id: string) {
+function requestDeleteSession(event: Event, id: string) {
   event.stopPropagation();
+  const session = sessions.value.find((s) => s.id === id);
+  deletePending.value = {
+    id,
+    title: session?.title?.trim() || "未命名会话",
+  };
+}
+
+function confirmDeleteSession() {
+  if (!deletePending.value) return;
+  const { id } = deletePending.value;
+  deletePending.value = null;
   chat.deleteSession(id);
   ui.showToast("success", "已删除会话");
 }
@@ -189,7 +202,7 @@ onUnmounted(() => {
                 aria-label="删除此会话"
                 :data-testid="`chat-session-delete-${session.id}`"
                 :disabled="chat.isStreaming"
-                @click="deleteSession($event, session.id)"
+                @click="requestDeleteSession($event, session.id)"
               >
                 <Trash2 class="h-3.5 w-3.5" />
               </button>
@@ -198,21 +211,7 @@ onUnmounted(() => {
         </div>
 
         <footer class="chat-history-drawer__foot">
-          <div
-            v-if="confirmClear"
-            class="rounded-lg border border-danger/30 bg-danger/5 p-2.5"
-            data-testid="chat-session-clear-confirm"
-          >
-            <p class="text-xs text-[var(--color-text)]">
-              确定清空「{{ surfaceLabel }}」的全部历史？此操作不可恢复。
-            </p>
-            <div class="mt-2 flex justify-end gap-2">
-              <Btn variant="ghost" size="sm" @click="cancelClearAll">取消</Btn>
-              <Btn variant="secondary" size="sm" @click="confirmClearAll">确认清空</Btn>
-            </div>
-          </div>
-
-          <div v-else class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2">
             <Btn
               variant="secondary"
               size="sm"
@@ -238,7 +237,6 @@ onUnmounted(() => {
           </div>
 
           <Btn
-            v-if="!confirmClear"
             variant="ghost"
             size="sm"
             class="w-full text-danger hover:bg-danger/10"
@@ -252,6 +250,30 @@ onUnmounted(() => {
         </footer>
       </aside>
     </div>
+
+    <ConfirmDialog
+      :open="!!deletePending"
+      title="删除会话"
+      :item-name="deletePending?.title"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-chat-session-dialog"
+      @confirm="confirmDeleteSession"
+      @cancel="deletePending = null"
+    />
+
+    <ConfirmDialog
+      :open="confirmClear"
+      title="清空全部历史"
+      :item-name="surfaceLabel"
+      description="将清空该面板下全部会话，删除后无法恢复。"
+      confirm-label="清空"
+      destructive
+      test-id="chat-session-clear-confirm"
+      @confirm="confirmClearAll"
+      @cancel="cancelClearAll"
+    />
   </Teleport>
 </template>
 

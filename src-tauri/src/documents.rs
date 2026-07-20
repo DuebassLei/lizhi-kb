@@ -27,6 +27,25 @@ pub struct DocumentMeta {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TrashedDocumentMeta {
+    pub id: String,
+    pub title: String,
+    pub path: String,
+    pub folder: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+    pub ai_exclude: bool,
+    pub deleted_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PurgeExpiredResult {
+    pub purged: u32,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct DecryptedContent {
     pub id: String,
     pub content: String,
@@ -262,11 +281,26 @@ impl DocumentService {
 
     pub fn list_documents(&self) -> Result<Vec<DocumentMeta>, AppError> {
         let mut stmt = self.conn()?.prepare(
-            "SELECT id, title, path, folder, created_at, updated_at, ai_exclude FROM documents ORDER BY updated_at DESC",
+            "SELECT id, title, path, folder, created_at, updated_at, ai_exclude
+             FROM documents
+             WHERE deleted_at IS NULL
+             ORDER BY updated_at DESC",
         )?;
 
         let rows = stmt.query_map([], map_document_meta)?;
 
+        rows.collect::<Result<Vec<_>, _>>().map_err(AppError::from)
+    }
+
+    pub fn list_trashed_documents(&self) -> Result<Vec<TrashedDocumentMeta>, AppError> {
+        let mut stmt = self.conn()?.prepare(
+            "SELECT id, title, path, folder, created_at, updated_at, ai_exclude, deleted_at
+             FROM documents
+             WHERE deleted_at IS NOT NULL
+             ORDER BY deleted_at DESC",
+        )?;
+
+        let rows = stmt.query_map([], map_trashed_document_meta)?;
         rows.collect::<Result<Vec<_>, _>>().map_err(AppError::from)
     }
 
@@ -332,6 +366,7 @@ impl DocumentService {
         id: &str,
         dek: Option<&[u8; DEK_LEN]>,
     ) -> Result<DecryptedContent, AppError> {
+        self.assert_document_active(id)?;
         let (folder, _path) = self.get_document_location(id)?;
         let content = self.read_content_resilient(&folder, id, dek)?;
         Ok(DecryptedContent {
@@ -596,6 +631,7 @@ impl DocumentService {
         sync_title_from_h1: bool,
         fast_index: bool,
     ) -> Result<SaveResult, AppError> {
+        self.assert_document_active(id)?;
         let (folder, _path) = self.get_document_location(id)?;
         let now = now_millis();
 
@@ -749,13 +785,77 @@ impl DocumentService {
         })
     }
 
+    /// 常规删除：移至回收站（软删）
     pub fn delete_document(&mut self, id: &str) -> Result<(), AppError> {
+        self.soft_delete_document(id)
+    }
+
+    pub fn soft_delete_document(&mut self, id: &str) -> Result<(), AppError> {
+        let _ = self.get_document_location(id)?;
+        let deleted_at = self.get_deleted_at(id)?;
+        if deleted_at.is_some() {
+            return Ok(());
+        }
+        let now = now_millis();
+
+        if let Ok(conn) = self.conn() {
+            search_index::remove_document(conn, id)?;
+            link_index::remove_links_for_document(conn, id)?;
+        }
+
+        let updated = self.conn_mut()?.execute(
+            "UPDATE documents SET deleted_at = ?1 WHERE id = ?2 AND deleted_at IS NULL",
+            params![now, id],
+        )?;
+        if updated == 0 {
+            return Err(AppError::DocumentNotFound(id.to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn restore_document(
+        &mut self,
+        id: &str,
+        dek: Option<&[u8; DEK_LEN]>,
+    ) -> Result<DocumentMeta, AppError> {
+        let deleted_at = self.get_deleted_at(id)?;
+        if deleted_at.is_none() {
+            return Err(AppError::CredentialValidation(
+                "文档不在回收站".into(),
+            ));
+        }
+
+        let (folder, _path) = self.get_document_location(id)?;
+        let _ = crate::prefs::ensure_folder_path(&self.data_dir, &folder);
+
+        let updated = self.conn_mut()?.execute(
+            "UPDATE documents SET deleted_at = NULL WHERE id = ?1 AND deleted_at IS NOT NULL",
+            params![id],
+        )?;
+        if updated == 0 {
+            return Err(AppError::CredentialValidation(
+                "文档不在回收站".into(),
+            ));
+        }
+
+        let meta = self.get_document_meta(id)?;
+        let content = self.read_content_resilient(&meta.folder, &meta.id, dek)?;
+        self.index_document(&meta.id, &meta.title, &content, &[])?;
+        Ok(meta)
+    }
+
+    /// 永久删除（活跃或回收站均可）
+    pub fn purge_document(&mut self, id: &str) -> Result<(), AppError> {
         let (folder, _path) = self.get_document_location(id)?;
         let file_path = self.absolute_path(&folder, id);
 
         if let Ok(conn) = self.conn() {
             search_index::remove_document(conn, id)?;
             link_index::remove_links_for_document(conn, id)?;
+            conn.execute(
+                "DELETE FROM document_links WHERE target_id = ?1",
+                params![id],
+            )?;
         }
 
         self.conn_mut()?
@@ -765,7 +865,42 @@ impl DocumentService {
             fs::remove_file(file_path)?;
         }
 
+        let _ = crate::prefs::set_document_tags(&self.data_dir, id, &[]);
         Ok(())
+    }
+
+    pub fn empty_trash(&mut self) -> Result<PurgeExpiredResult, AppError> {
+        let ids: Vec<String> = {
+            let mut stmt = self
+                .conn()?
+                .prepare("SELECT id FROM documents WHERE deleted_at IS NOT NULL")?;
+            let rows = stmt.query_map([], |row| row.get(0))?;
+            rows.collect::<Result<Vec<_>, _>>()?
+        };
+        let mut purged = 0u32;
+        for id in ids {
+            self.purge_document(&id)?;
+            purged += 1;
+        }
+        Ok(PurgeExpiredResult { purged })
+    }
+
+    pub fn purge_expired_documents(&mut self, retention_days: u32) -> Result<PurgeExpiredResult, AppError> {
+        let days = crate::prefs::clamp_trash_retention_days(retention_days) as i64;
+        let cutoff = now_millis() - days * 24 * 60 * 60 * 1000;
+        let ids: Vec<String> = {
+            let mut stmt = self.conn()?.prepare(
+                "SELECT id FROM documents WHERE deleted_at IS NOT NULL AND deleted_at <= ?1",
+            )?;
+            let rows = stmt.query_map(params![cutoff], |row| row.get(0))?;
+            rows.collect::<Result<Vec<_>, _>>()?
+        };
+        let mut purged = 0u32;
+        for id in ids {
+            self.purge_document(&id)?;
+            purged += 1;
+        }
+        Ok(PurgeExpiredResult { purged })
     }
 
     pub fn move_document(
@@ -876,17 +1011,17 @@ impl DocumentService {
         &self,
         dek: Option<&[u8; DEK_LEN]>,
     ) -> Result<DashboardStats, AppError> {
-        let total_docs: i64 = self
-            .conn()?
-            .query_row("SELECT COUNT(*) FROM documents", [], |row| row.get(0))?;
+        let total_docs: i64 = self.conn()?.query_row(
+            "SELECT COUNT(*) FROM documents WHERE deleted_at IS NULL",
+            [],
+            |row| row.get(0),
+        )?;
 
-        let mut total_words: i64 = self
-            .conn()?
-            .query_row(
-                "SELECT COALESCE(SUM(word_count), 0) FROM documents",
-                [],
-                |row| row.get(0),
-            )?;
+        let mut total_words: i64 = self.conn()?.query_row(
+            "SELECT COALESCE(SUM(word_count), 0) FROM documents WHERE deleted_at IS NULL",
+            [],
+            |row| row.get(0),
+        )?;
 
         if total_words == 0 && total_docs > 0 {
             total_words = self.backfill_word_counts(dek)?;
@@ -946,6 +1081,26 @@ impl DocumentService {
             )
             .optional()?
             .ok_or_else(|| AppError::DocumentNotFound(id.to_string()))
+    }
+
+    fn get_deleted_at(&self, id: &str) -> Result<Option<i64>, AppError> {
+        self.conn()?
+            .query_row(
+                "SELECT deleted_at FROM documents WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, Option<i64>>(0),
+            )
+            .optional()?
+            .ok_or_else(|| AppError::DocumentNotFound(id.to_string()))
+    }
+
+    fn assert_document_active(&self, id: &str) -> Result<(), AppError> {
+        if self.get_deleted_at(id)?.is_some() {
+            return Err(AppError::CredentialValidation(
+                "文档在回收站中，请先恢复后再操作".into(),
+            ));
+        }
+        Ok(())
     }
 
     fn get_document_meta(&self, id: &str) -> Result<DocumentMeta, AppError> {
@@ -1139,7 +1294,9 @@ impl DocumentService {
     }
 
     fn backfill_word_counts(&self, dek: Option<&[u8; DEK_LEN]>) -> Result<i64, AppError> {
-        let mut stmt = self.conn()?.prepare("SELECT folder, id FROM documents")?;
+        let mut stmt = self
+            .conn()?
+            .prepare("SELECT folder, id FROM documents WHERE deleted_at IS NULL")?;
         let rows: Vec<(String, String)> = stmt
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
             .collect::<Result<Vec<_>, _>>()?;
@@ -1340,9 +1497,102 @@ fn map_document_meta(row: &rusqlite::Row<'_>) -> rusqlite::Result<DocumentMeta> 
     })
 }
 
+fn map_trashed_document_meta(row: &rusqlite::Row<'_>) -> rusqlite::Result<TrashedDocumentMeta> {
+    Ok(TrashedDocumentMeta {
+        id: row.get(0)?,
+        title: row.get(1)?,
+        path: row.get(2)?,
+        folder: row.get(3)?,
+        created_at: row.get(4)?,
+        updated_at: row.get(5)?,
+        ai_exclude: row.get::<_, i32>(6)? != 0,
+        deleted_at: row.get(7)?,
+    })
+}
+
 fn count_words(content: &str) -> i64 {
     content
         .split_whitespace()
         .filter(|word| !word.is_empty())
         .count() as i64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn temp_service() -> DocumentService {
+        let dir = std::env::temp_dir().join(format!("lizhi-trash-{}", Uuid::new_v4()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::create_dir_all(db::workspace_dir(&dir)).unwrap();
+        let mut svc = DocumentService::new(dir);
+        svc.connect_plaintext().unwrap();
+        svc
+    }
+
+    #[test]
+    fn soft_delete_list_restore_purge_roundtrip() {
+        let mut svc = temp_service();
+        let meta = svc
+            .create_document("回收站测试".into(), Some("inbox".into()), None)
+            .unwrap();
+        let id = meta.id.clone();
+
+        svc.delete_document(&id).unwrap();
+        assert!(svc.list_documents().unwrap().is_empty());
+        let trash = svc.list_trashed_documents().unwrap();
+        assert_eq!(trash.len(), 1);
+        assert_eq!(trash[0].id, id);
+
+        let restored = svc.restore_document(&id, None).unwrap();
+        assert_eq!(restored.id, id);
+        assert_eq!(svc.list_documents().unwrap().len(), 1);
+        assert!(svc.list_trashed_documents().unwrap().is_empty());
+
+        svc.purge_document(&id).unwrap();
+        assert!(svc.list_documents().unwrap().is_empty());
+        assert!(svc.list_trashed_documents().unwrap().is_empty());
+        let _ = fs::remove_dir_all(svc.data_dir());
+    }
+
+    #[test]
+    fn restore_active_document_fails() {
+        let mut svc = temp_service();
+        let meta = svc
+            .create_document("活跃文档".into(), Some("inbox".into()), None)
+            .unwrap();
+        let err = svc.restore_document(&meta.id, None).unwrap_err();
+        assert!(err.to_string().contains("不在回收站"));
+        let _ = fs::remove_dir_all(svc.data_dir());
+    }
+
+    #[test]
+    fn purge_expired_respects_retention() {
+        let mut svc = temp_service();
+        let meta = svc
+            .create_document("过期文档".into(), Some("inbox".into()), None)
+            .unwrap();
+        let id = meta.id.clone();
+        svc.delete_document(&id).unwrap();
+
+        // Force deleted_at far in the past
+        let old = now_millis() - 40 * 24 * 60 * 60 * 1000;
+        svc.conn_mut()
+            .unwrap()
+            .execute(
+                "UPDATE documents SET deleted_at = ?1 WHERE id = ?2",
+                params![old, id],
+            )
+            .unwrap();
+
+        let kept = svc.purge_expired_documents(365).unwrap();
+        assert_eq!(kept.purged, 0);
+        assert_eq!(svc.list_trashed_documents().unwrap().len(), 1);
+
+        let purged = svc.purge_expired_documents(30).unwrap();
+        assert_eq!(purged.purged, 1);
+        assert!(svc.list_trashed_documents().unwrap().is_empty());
+        let _ = fs::remove_dir_all(svc.data_dir());
+    }
 }

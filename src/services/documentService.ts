@@ -8,7 +8,9 @@ import type {
   DecryptedContent,
   DocumentMeta,
   EditActivityDay,
+  PurgeExpiredResult,
   SaveResult,
+  TrashedDocumentMeta,
 } from "../types/document";
 
 const STORAGE_KEY = "lizhi-kb-data";
@@ -22,6 +24,7 @@ interface StoredDocument {
   updatedAt: number;
   content: string;
   aiExclude?: boolean;
+  deletedAt?: number | null;
 }
 
 interface LocalData {
@@ -87,6 +90,7 @@ async function invokeBackend<T>(
 function localListDocuments(): DocumentMeta[] {
   const data = loadLocal();
   return Object.values(data.documents)
+    .filter((doc) => !doc.deletedAt)
     .map(toMeta)
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
@@ -115,6 +119,7 @@ function localReadDocument(id: string): DecryptedContent {
   const data = loadLocal();
   const doc = data.documents[id];
   if (!doc) throw new Error(`Document not found: ${id}`);
+  if (doc.deletedAt) throw new Error("文档在回收站中，请先恢复后再打开");
   return { id, content: doc.content };
 }
 
@@ -136,6 +141,7 @@ function localSaveDocument(id: string, content: string): SaveResult {
   const data = loadLocal();
   const doc = data.documents[id];
   if (!doc) throw new Error(`Document not found: ${id}`);
+  if (doc.deletedAt) throw new Error("文档在回收站中，请先恢复后再编辑");
   const now = Date.now();
   doc.content = content;
   doc.updatedAt = now;
@@ -144,10 +150,83 @@ function localSaveDocument(id: string, content: string): SaveResult {
   return { id, savedAt: now };
 }
 
-function localDeleteDocument(id: string): void {
+function localSoftDeleteDocument(id: string): void {
+  const data = loadLocal();
+  const doc = data.documents[id];
+  if (!doc) throw new Error(`Document not found: ${id}`);
+  if (doc.deletedAt) return;
+  doc.deletedAt = Date.now();
+  saveLocal(data);
+}
+
+function localPurgeDocument(id: string): void {
   const data = loadLocal();
   delete data.documents[id];
   saveLocal(data);
+}
+
+function localListTrashedDocuments(): TrashedDocumentMeta[] {
+  const data = loadLocal();
+  return Object.values(data.documents)
+    .filter((doc): doc is StoredDocument & { deletedAt: number } => !!doc.deletedAt)
+    .map((doc) => ({ ...toMeta(doc), deletedAt: doc.deletedAt }))
+    .sort((a, b) => b.deletedAt - a.deletedAt);
+}
+
+function localRestoreDocument(id: string): DocumentMeta {
+  const data = loadLocal();
+  const doc = data.documents[id];
+  if (!doc) throw new Error(`Document not found: ${id}`);
+  if (!doc.deletedAt) throw new Error("文档不在回收站");
+  doc.deletedAt = null;
+  saveLocal(data);
+  return toMeta(doc);
+}
+
+function localEmptyTrash(): PurgeExpiredResult {
+  const data = loadLocal();
+  let purged = 0;
+  for (const [id, doc] of Object.entries(data.documents)) {
+    if (doc.deletedAt) {
+      delete data.documents[id];
+      purged += 1;
+    }
+  }
+  saveLocal(data);
+  return { purged };
+}
+
+function localGetTrashRetentionDays(): number {
+  try {
+    const raw = localStorage.getItem("lizhi-kb-trash-retention-days");
+    if (!raw) return 30;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return 30;
+    return Math.min(365, Math.max(1, Math.round(n)));
+  } catch {
+    return 30;
+  }
+}
+
+function localSetTrashRetentionDays(days: number): number {
+  const clamped = Math.min(365, Math.max(1, Math.round(days)));
+  localStorage.setItem("lizhi-kb-trash-retention-days", String(clamped));
+  return clamped;
+}
+
+function localPurgeExpiredDocuments(): PurgeExpiredResult {
+  const days = localGetTrashRetentionDays();
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  const data = loadLocal();
+  let purged = 0;
+  for (const [id, doc] of Object.entries(data.documents)) {
+    if (doc.deletedAt && doc.deletedAt <= cutoff) {
+      delete data.documents[id];
+      purged += 1;
+    }
+  }
+  saveLocal(data);
+  return { purged };
 }
 
 function localMoveDocument(id: string, folder: string): DocumentMeta {
@@ -177,7 +256,7 @@ function localGetEditActivity(days: number): EditActivityDay[] {
 
 function localGetDashboardStats(): DashboardStats {
   const data = loadLocal();
-  const docs = Object.values(data.documents);
+  const docs = Object.values(data.documents).filter((d) => !d.deletedAt);
   const totalWords = docs.reduce((sum, d) => sum + countWords(d.content), 0);
 
   const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
@@ -247,10 +326,12 @@ export async function readDocument(id: string): Promise<DecryptedContent> {
 
 function localReadAllDocuments(): DecryptedContent[] {
   const data = loadLocal();
-  return Object.values(data.documents).map((doc) => ({
-    id: doc.id,
-    content: doc.content,
-  }));
+  return Object.values(data.documents)
+    .filter((doc) => !doc.deletedAt)
+    .map((doc) => ({
+      id: doc.id,
+      content: doc.content,
+    }));
 }
 
 /** 批量读取全部文档（Tauri 单次 IPC；浏览器模式本地直读） */
@@ -282,8 +363,40 @@ export async function renameDocument(id: string, title: string): Promise<void> {
 
 export async function deleteDocument(id: string): Promise<void> {
   return invokeBackend("delete_document", { id }, () => {
-    localDeleteDocument(id);
+    localSoftDeleteDocument(id);
   });
+}
+
+export async function restoreDocument(id: string): Promise<DocumentMeta> {
+  return invokeBackend("restore_document", { id }, () => localRestoreDocument(id));
+}
+
+export async function purgeDocument(id: string): Promise<void> {
+  return invokeBackend("purge_document", { id }, () => {
+    localPurgeDocument(id);
+  });
+}
+
+export async function listTrashedDocuments(): Promise<TrashedDocumentMeta[]> {
+  return invokeBackend("list_trashed_documents", {}, () => localListTrashedDocuments());
+}
+
+export async function emptyTrash(): Promise<PurgeExpiredResult> {
+  return invokeBackend("empty_trash", {}, () => localEmptyTrash());
+}
+
+export async function purgeExpiredDocuments(): Promise<PurgeExpiredResult> {
+  return invokeBackend("purge_expired_documents", {}, () => localPurgeExpiredDocuments());
+}
+
+export async function getTrashRetentionDays(): Promise<number> {
+  return invokeBackend("get_trash_retention_days", {}, () => localGetTrashRetentionDays());
+}
+
+export async function setTrashRetentionDays(days: number): Promise<number> {
+  return invokeBackend("set_trash_retention_days", { days }, () =>
+    localSetTrashRetentionDays(days),
+  );
 }
 
 export async function moveDocumentToFolder(id: string, folder: string): Promise<DocumentMeta> {

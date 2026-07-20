@@ -9,6 +9,7 @@ import {
   Lock,
   Star,
   Trash2,
+  XCircle,
 } from "@lucide/vue";
 import { computed } from "vue";
 import type { FolderTreeNode as FolderNode } from "../../types/folder";
@@ -38,7 +39,7 @@ const documents = useDocumentsStore();
 const folders = useFoldersStore();
 const ui = useUiStore();
 const { showFolderMenu, showDocMenu } = useFolderContextMenu();
-const { requestDelete } = useDocumentDelete();
+const { requestDelete, requestPurge } = useDocumentDelete();
 
 const DRAG_DOC_MIME = "application/x-lizhi-doc";
 const DRAG_FOLDER_MIME = "application/x-lizhi-folder";
@@ -461,11 +462,22 @@ function onDocKeydown(e: KeyboardEvent, docId: string) {
           <button
             type="button"
             class="focus-ring hidden shrink-0 rounded p-0.5 text-muted hover:bg-surface-1 hover:text-danger group-hover/doc:inline-flex"
-            title="删除"
-            aria-label="删除文档"
+            title="移至回收站"
+            aria-label="移至回收站"
+            data-testid="doc-soft-delete-btn"
             @click.stop="requestDelete(doc.id)"
           >
             <Trash2 :size="11" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="focus-ring hidden shrink-0 rounded p-0.5 text-danger hover:bg-surface-1 group-hover/doc:inline-flex"
+            title="永久删除"
+            aria-label="永久删除"
+            data-testid="doc-purge-btn"
+            @click.stop="requestPurge(doc.id)"
+          >
+            <XCircle :size="11" aria-hidden="true" />
           </button>
         </li>
       </ul>

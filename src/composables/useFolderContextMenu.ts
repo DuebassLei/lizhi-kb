@@ -6,6 +6,7 @@ import { useFolderActions } from "./useFolderActions";
 import { exportDocument } from "../utils/exportFile";
 import { canDeleteFolder } from "../utils/folderHelpers";
 import { useDocumentDelete } from "./useDocumentDelete";
+import { useFolderDeleteConfirm } from "./useFolderDeleteConfirm";
 import { useFolderNameDialog } from "./useFolderNameDialog";
 import { useMoveToFolderDialog } from "./useMoveToFolderDialog";
 
@@ -14,7 +15,8 @@ export function useFolderContextMenu() {
   const documents = useDocumentsStore();
   const folders = useFoldersStore();
   const { createSubfolder, renameFolder } = useFolderActions();
-  const { requestDelete } = useDocumentDelete();
+  const { requestDelete, requestPurge } = useDocumentDelete();
+  const { requestDelete: requestFolderDelete } = useFolderDeleteConfirm();
   const folderDialog = useFolderNameDialog();
   const moveDialog = useMoveToFolderDialog();
 
@@ -61,16 +63,7 @@ export function useFolderContextMenu() {
           id: "delete",
           label: "删除目录",
           danger: true,
-          run: async () => {
-            if (!window.confirm("删除目录？文档将移至上级目录。")) return;
-            const result = folders.deleteFolder(folderId);
-            if (!result) return;
-            for (const doc of documents.tree) {
-              if (result.removeIds.includes(folders.normalizeFolder(doc.folder))) {
-                await documents.moveToFolder(doc.id, result.moveDocsTo);
-              }
-            }
-          },
+          run: () => requestFolderDelete(folderId),
         },
       );
     }
@@ -149,9 +142,14 @@ export function useFolderContextMenu() {
       },
       {
         id: "delete",
-        label: "删除文档",
-        danger: true,
+        label: "移至回收站",
         run: () => requestDelete(docId),
+      },
+      {
+        id: "purge",
+        label: "永久删除",
+        danger: true,
+        run: () => requestPurge(docId),
       },
     ]);
   }

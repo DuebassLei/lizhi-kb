@@ -120,7 +120,11 @@ pub fn needs_rebuild(conn: &Connection) -> Result<bool, AppError> {
     if stored_version.parse::<i64>().unwrap_or(0) < FTS_INDEX_FORMAT_VERSION {
         return Ok(true);
     }
-    let doc_count: i64 = conn.query_row("SELECT count(*) FROM documents", [], |row| row.get(0))?;
+    let doc_count: i64 = conn.query_row(
+        "SELECT count(*) FROM documents WHERE deleted_at IS NULL",
+        [],
+        |row| row.get(0),
+    )?;
     let fts_count: i64 = conn
         .query_row("SELECT count(*) FROM documents_fts", [], |row| row.get(0))
         .unwrap_or(0);
@@ -181,6 +185,7 @@ fn fts_search(
          FROM documents_fts f
          JOIN documents d ON d.id = f.document_id
          WHERE documents_fts MATCH ?1
+           AND d.deleted_at IS NULL
          ORDER BY rank
          LIMIT ?2",
     )?;
@@ -240,6 +245,7 @@ fn fallback_substring_search(
         "SELECT f.document_id, d.title, f.body
          FROM documents_fts f
          JOIN documents d ON d.id = f.document_id
+         WHERE d.deleted_at IS NULL
          ORDER BY d.updated_at DESC",
     )?;
 
@@ -308,7 +314,7 @@ fn direct_title_search(
     }
 
     let mut stmt = conn.prepare(
-        "SELECT id, title FROM documents ORDER BY updated_at DESC",
+        "SELECT id, title FROM documents WHERE deleted_at IS NULL ORDER BY updated_at DESC",
     )?;
 
     let rows = stmt.query_map([], |row| {

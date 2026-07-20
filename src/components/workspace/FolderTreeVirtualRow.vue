@@ -9,6 +9,7 @@ import {
   Lock,
   Star,
   Trash2,
+  XCircle,
 } from "@lucide/vue";
 import { computed } from "vue";
 import type { FlatTreeRow } from "../../utils/flattenFolderTree";
@@ -62,7 +63,7 @@ const {
   emit("reorder", folderId, docId, beforeDocId);
 });
 
-const { requestDelete } = useDocumentDelete();
+const { requestDelete, requestPurge } = useDocumentDelete();
 
 const indentStyle = computed(() => {
   const depth = props.row.kind === "folder" ? props.row.node.depth : props.row.depth;
@@ -222,11 +223,22 @@ const rowStyle = computed(() => ({
           <button
             type="button"
             class="focus-ring hidden shrink-0 rounded p-0.5 text-muted hover:bg-surface-1 hover:text-danger group-hover/doc:inline-flex"
-            title="删除"
-            aria-label="删除文档"
+            title="移至回收站"
+            aria-label="移至回收站"
+            data-testid="doc-soft-delete-btn"
             @click.stop="requestDelete(row.doc.id)"
           >
             <Trash2 :size="11" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            class="focus-ring hidden shrink-0 rounded p-0.5 text-danger hover:bg-surface-1 group-hover/doc:inline-flex"
+            title="永久删除"
+            aria-label="永久删除"
+            data-testid="doc-purge-btn"
+            @click.stop="requestPurge(row.doc.id)"
+          >
+            <XCircle :size="11" aria-hidden="true" />
           </button>
         </div>
       </div>

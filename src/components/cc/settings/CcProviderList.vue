@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, toRef } from "vue";
+import { computed, ref, toRef } from "vue";
 import { Check, GripVertical, Pencil, Plus, Trash2, Upload } from "@lucide/vue";
 
 import { useDragSort } from "../../../composables/useDragSort";
 import type { CcProviderPublic } from "../../../services/ccWorkbenchService";
 import { LOCAL_SETTINGS_PROVIDER_ID } from "../../../services/ccWorkbenchService";
 import Btn from "../../ui/Btn.vue";
+import ConfirmDialog from "../../common/ConfirmDialog.vue";
 
 const props = defineProps<{
   providers: CcProviderPublic[];
@@ -23,6 +24,7 @@ const emit = defineEmits<{
 }>();
 
 const pinnedIds = [LOCAL_SETTINGS_PROVIDER_ID];
+const deletePending = ref<CcProviderPublic | null>(null);
 
 const sortableProviders = computed(() =>
   props.providers.filter((p) => !pinnedIds.includes(p.id)),
@@ -53,7 +55,13 @@ const displayProviders = computed(() => [...pinnedProviders.value, ...localItems
 function onDelete(provider: CcProviderPublic) {
   if (provider.isBuiltin && provider.id !== LOCAL_SETTINGS_PROVIDER_ID) return;
   if (provider.id === LOCAL_SETTINGS_PROVIDER_ID) return;
-  if (!confirm(`确定删除供应商「${provider.name}」？`)) return;
+  deletePending.value = provider;
+}
+
+function confirmDelete() {
+  if (!deletePending.value) return;
+  const provider = deletePending.value;
+  deletePending.value = null;
   emit("delete", provider);
 }
 
@@ -158,6 +166,18 @@ function isSortable(id: string) {
         </div>
       </article>
     </div>
+
+    <ConfirmDialog
+      :open="!!deletePending"
+      title="删除供应商"
+      :item-name="deletePending?.name"
+      description="删除后无法恢复，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-cc-provider-dialog"
+      @confirm="confirmDelete"
+      @cancel="deletePending = null"
+    />
   </div>
 </template>
 

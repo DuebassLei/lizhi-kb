@@ -17,6 +17,10 @@ export interface DocumentMeta {
   aiExclude: boolean;
 }
 
+export interface TrashedDocumentMeta extends DocumentMeta {
+  deletedAt: number;
+}
+
 export interface DecryptedContent {
   id: string;
   content: string;
@@ -143,6 +147,10 @@ export interface LizhiBackend {
   renameDocument(id: string, title: string, propagateWikiLinks?: boolean): Promise<RenameResult>;
   moveDocument(id: string, folder: string): Promise<DocumentMeta>;
   deleteDocument(id: string): Promise<{ deleted: string }>;
+  restoreDocument(id: string): Promise<DocumentMeta>;
+  purgeDocument(id: string): Promise<{ purged: string }>;
+  listTrashedDocuments(): Promise<TrashedDocumentMeta[]>;
+  emptyTrash(): Promise<{ purged: number }>;
   convertUnlinkedMention(sourceId: string, targetTitle: string): Promise<ConvertMentionResult>;
   migrateFolderPrefix(oldPrefix: string, newPrefix: string): Promise<{ migratedCount: number }>;
   /** 将深层文件夹路径注册到侧栏树（可建空夹；可省略 projects/ 前缀） */

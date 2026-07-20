@@ -11,6 +11,7 @@ import LockOverlay from "./components/vault/LockOverlay.vue";
 import WatermarkOverlay from "./components/common/WatermarkOverlay.vue";
 import { useCommandPalette } from "./composables/useCommandPalette";
 import { useDocumentDelete } from "./composables/useDocumentDelete";
+import { useFolderDeleteConfirm } from "./composables/useFolderDeleteConfirm";
 import { useFolderNameDialog } from "./composables/useFolderNameDialog";
 import { useMoveToFolderDialog } from "./composables/useMoveToFolderDialog";
 
@@ -24,6 +25,13 @@ useAutoLock();
 useVaultUiStateSync();
 
 const { pending: deletePending, confirmDelete, cancelDelete } = useDocumentDelete();
+const softDeleteOpen = computed(() => deletePending.value?.kind === "soft");
+const purgeDeleteOpen = computed(() => deletePending.value?.kind === "purge");
+const {
+  pending: folderDeletePending,
+  confirmDelete: confirmFolderDelete,
+  cancelDelete: cancelFolderDelete,
+} = useFolderDeleteConfirm();
 const folderDialog = useFolderNameDialog();
 const folderDialogState = computed(() => folderDialog.state.value);
 const moveDialog = useMoveToFolderDialog();
@@ -40,15 +48,38 @@ const moveDialogState = computed(() => moveDialog.state.value);
     <LockOverlay />
 
     <ConfirmDialog
-      :open="!!deletePending"
-      title="删除文档"
+      :open="softDeleteOpen"
+      title="移至回收站"
       :item-name="deletePending?.title"
-      description="删除后无法恢复，请确认是否继续。"
-      confirm-label="删除"
-      destructive
+      description="文档将移至回收站，可从侧栏「回收站」恢复。"
+      confirm-label="移至回收站"
       test-id="delete-document-dialog"
       @confirm="confirmDelete"
       @cancel="cancelDelete"
+    />
+
+    <ConfirmDialog
+      :open="purgeDeleteOpen"
+      title="永久删除"
+      :item-name="deletePending?.title"
+      description="将立即永久删除，此操作无法恢复。"
+      confirm-label="永久删除"
+      destructive
+      test-id="purge-document-dialog"
+      @confirm="confirmDelete"
+      @cancel="cancelDelete"
+    />
+
+    <ConfirmDialog
+      :open="!!folderDeletePending"
+      title="删除目录"
+      :item-name="folderDeletePending?.label"
+      description="目录内文档将移至上级目录，请确认是否继续。"
+      confirm-label="删除"
+      destructive
+      test-id="delete-folder-dialog"
+      @confirm="confirmFolderDelete"
+      @cancel="cancelFolderDelete"
     />
 
     <InputDialog

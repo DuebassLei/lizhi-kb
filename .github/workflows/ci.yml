@@ -65,3 +65,40 @@ jobs:
 
       - name: Unit tests
         run: pnpm test:unit
+
+  e2e-smoke:
+    name: E2E Smoke
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm playwright:install
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Run E2E smoke
+        run: >
+          pnpm exec playwright test
+          tests/e2e/export.spec.ts
+          tests/e2e/workspace.spec.ts
+          tests/e2e/trash.spec.ts
+          --grep "creates a document|Word|soft-deletes"

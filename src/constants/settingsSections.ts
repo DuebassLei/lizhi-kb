@@ -11,6 +11,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
   { id: "settings-insights-hero", label: "看板背景" },
   { id: "settings-access", label: "访问控制" },
   { id: "settings-index", label: "知识库索引" },
+  { id: "settings-trash", label: "回收站" },
   { id: "settings-backup", label: "备份与恢复" },
   { id: "settings-migration", label: "迁移导出" },
   { id: "settings-mcp", label: "AI 集成 / MCP" },

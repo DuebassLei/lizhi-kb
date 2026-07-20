@@ -11,9 +11,8 @@ use crate::backup;
 use crate::db;
 
 use crate::documents::{
-
-    DashboardStats, DecryptedContent, DocumentMeta, EditActivityDay, SaveResult, SearchHit,
-
+    DashboardStats, DecryptedContent, DocumentMeta, EditActivityDay, PurgeExpiredResult,
+    SaveResult, SearchHit, TrashedDocumentMeta,
 };
 
 use crate::credentials::{
@@ -96,6 +95,29 @@ fn vault_meta(state: &State<Arc<AppState>>) -> Result<(bool, bool), String> {
 
     Ok((true, meta.encryption_enabled))
 
+}
+
+fn ensure_vault_unlocked_for_io(state: &State<Arc<AppState>>) -> Result<(), String> {
+    let vault = state
+        .vault_service
+        .lock()
+        .map_err(|_| "vault service lock poisoned".to_string())?;
+    if !vault.is_vault_initialized() {
+        return Ok(());
+    }
+    let meta = vault.load_meta().map_err(|e| e.to_string())?;
+    if meta.encryption_enabled && vault.session_dek().is_none() {
+        return Err("知识库未解锁".into());
+    }
+    Ok(())
+}
+
+fn vault_data_dir(state: &State<Arc<AppState>>) -> Result<std::path::PathBuf, String> {
+    let vault = state
+        .vault_service
+        .lock()
+        .map_err(|_| "vault service lock poisoned".to_string())?;
+    Ok(vault.data_dir().to_path_buf())
 }
 
 fn map_backup_vault_error(e: crate::vault::VaultError) -> String {
@@ -257,21 +279,93 @@ pub fn rename_document(state: State<Arc<AppState>>, id: String, title: String) -
 
 
 #[tauri::command]
-
 pub fn delete_document(state: State<Arc<AppState>>, id: String) -> Result<(), String> {
-
     state
-
         .document_service
-
         .lock()
-
         .map_err(|_| "document service lock poisoned".to_string())?
-
         .delete_document(&id)
-
         .map_err(|e| e.to_string())
+}
 
+#[tauri::command]
+pub fn restore_document(
+    state: State<Arc<AppState>>,
+    id: String,
+) -> Result<DocumentMeta, String> {
+    let dek = session_dek(&state)?;
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .restore_document(&id, dek.as_ref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn purge_document(state: State<Arc<AppState>>, id: String) -> Result<(), String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .purge_document(&id)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_trashed_documents(
+    state: State<Arc<AppState>>,
+) -> Result<Vec<TrashedDocumentMeta>, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .list_trashed_documents()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn empty_trash(state: State<Arc<AppState>>) -> Result<PurgeExpiredResult, String> {
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .empty_trash()
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn purge_expired_documents(
+    state: State<Arc<AppState>>,
+) -> Result<PurgeExpiredResult, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let days = crate::prefs::load_ui_state(&data_dir)
+        .map(|s| s.trash_retention_days)
+        .unwrap_or(30);
+    state
+        .document_service
+        .lock()
+        .map_err(|_| "document service lock poisoned".to_string())?
+        .purge_expired_documents(days)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_trash_retention_days() -> Result<u32, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let state = crate::prefs::load_ui_state(&data_dir)?;
+    Ok(crate::prefs::clamp_trash_retention_days(
+        state.trash_retention_days,
+    ))
+}
+
+#[tauri::command]
+pub fn set_trash_retention_days(days: u32) -> Result<u32, String> {
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let mut state = crate::prefs::load_ui_state(&data_dir)?;
+    state.trash_retention_days = crate::prefs::clamp_trash_retention_days(days);
+    crate::prefs::save_ui_state(&data_dir, &state)?;
+    Ok(state.trash_retention_days)
 }
 
 
@@ -864,6 +958,12 @@ pub fn unlock_vault(state: State<Arc<AppState>>, password: String) -> Result<Vau
 
     sync_document_connection(&mut docs, &vault).map_err(|e| e.to_string())?;
 
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let days = crate::prefs::load_ui_state(&data_dir)
+        .map(|s| s.trash_retention_days)
+        .unwrap_or(30);
+    let _ = docs.purge_expired_documents(days);
+
     Ok(status)
 
 }
@@ -1172,39 +1272,49 @@ pub fn export_markdown_folder(
 }
 
 #[tauri::command]
-pub fn write_export_file(path: String, content: String) -> Result<(), String> {
-    write_export_bytes(path, content.into_bytes())
+pub fn write_export_file(
+    state: State<Arc<AppState>>,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    write_export_bytes(&state, path, content.into_bytes())
 }
 
 #[tauri::command]
-pub fn write_export_binary(path: String, content: Vec<u8>) -> Result<(), String> {
-    write_export_bytes(path, content)
+pub fn write_export_binary(
+    state: State<Arc<AppState>>,
+    path: String,
+    content: Vec<u8>,
+) -> Result<(), String> {
+    write_export_bytes(&state, path, content)
 }
 
-fn write_export_bytes(path: String, content: Vec<u8>) -> Result<(), String> {
-    let path = std::path::Path::new(&path);
-    if !path.is_absolute() {
-        return Err("导出路径无效".into());
-    }
+fn write_export_bytes(
+    state: &State<Arc<AppState>>,
+    path: String,
+    content: Vec<u8>,
+) -> Result<(), String> {
+    ensure_vault_unlocked_for_io(state)?;
+    let data_dir = vault_data_dir(state)?;
+    let path = crate::path_guard::assert_export_write_path(std::path::Path::new(&path), &data_dir)?;
     if path.is_dir() {
         return Err("导出路径不能是文件夹".into());
     }
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    std::fs::write(path, content).map_err(|e| e.to_string())
+    std::fs::write(&path, content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn read_text_file(path: String) -> Result<String, String> {
-    let path = std::path::Path::new(&path);
-    if !path.is_absolute() {
-        return Err("文件路径无效".into());
-    }
+pub fn read_text_file(state: State<Arc<AppState>>, path: String) -> Result<String, String> {
+    ensure_vault_unlocked_for_io(&state)?;
+    let data_dir = vault_data_dir(&state)?;
+    let path = crate::path_guard::assert_export_read_path(std::path::Path::new(&path), &data_dir)?;
     if !path.is_file() {
         return Err("文件不存在".into());
     }
-    std::fs::read_to_string(path).map_err(|e| e.to_string())
+    std::fs::read_to_string(&path).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1260,6 +1370,12 @@ pub fn unlock_vault_with_recovery(
         .map_err(|_| "document service lock poisoned".to_string())?;
 
     sync_document_connection(&mut docs, &vault).map_err(|e| e.to_string())?;
+
+    let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    let days = crate::prefs::load_ui_state(&data_dir)
+        .map(|s| s.trash_retention_days)
+        .unwrap_or(30);
+    let _ = docs.purge_expired_documents(days);
 
     Ok(status)
 
@@ -2562,6 +2678,11 @@ pub fn save_vault_ui_state(
     state: crate::prefs::VaultUiState,
 ) -> Result<(), String> {
     let data_dir = db::data_dir().map_err(|e| e.to_string())?;
+    // 前端 hydrate/persist 可能未带 trash_retention_days（serde 会落默认 30），保留磁盘值；
+    // 保留天数仅由 get/set_trash_retention_days 修改。
+    let existing = crate::prefs::load_ui_state(&data_dir)?;
+    let mut state = state;
+    state.trash_retention_days = existing.trash_retention_days;
     crate::prefs::save_ui_state(&data_dir, &state)?;
     // 前端可能覆盖掉 MCP ensure 写入的树：按文档实际 folder 再 reconcile 一次
     if let Ok(svc) = app.document_service.lock() {

@@ -509,15 +509,6 @@ export async function markdownToDocxChildren(
   return children;
 }
 
-/** @deprecated 使用 markdownToDocxChildren；保留别名便于测试过渡 */
-export async function markdownToDocxParagraphs(
-  content: string,
-  themeId: DocxThemeId = DEFAULT_DOCX_THEME,
-): Promise<Paragraph[]> {
-  const children = await markdownToDocxChildren(content, themeId);
-  return children.filter((c): c is Paragraph => c instanceof (_docx!.Paragraph));
-}
-
 export async function buildDocxBlob(
   title: string,
   content: string,

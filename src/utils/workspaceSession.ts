@@ -27,7 +27,10 @@ export function loadWorkspaceSession(): WorkspaceSession {
     const parsed = JSON.parse(raw) as Partial<WorkspaceSession>;
     const viewMode = parsed.workspaceViewMode;
     const normalizedViewMode: WorkspaceViewMode =
-      viewMode === "edit" || viewMode === "graph" || viewMode === "mindmap"
+      viewMode === "edit" ||
+      viewMode === "graph" ||
+      viewMode === "mindmap" ||
+      viewMode === "trash"
         ? viewMode
         : "edit";
     return {

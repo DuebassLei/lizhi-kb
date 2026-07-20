@@ -33,6 +33,10 @@ import {
 } from "../utils/autoLockSetting";
 import { useVaultStore } from "../stores/vault";
 import { rebuildSearchIndex } from "../services/knowledgeIndexService";
+import {
+  getTrashRetentionDays,
+  setTrashRetentionDays,
+} from "../services/documentService";
 
 
 const ui = useUiStore();
@@ -63,6 +67,31 @@ const { activeId, scrollToSection } = useScrollSpy(sectionIds, scrollEl);
 
 const indexRebuilding = ref(false);
 const indexResult = ref<{ ok: boolean; message: string } | null>(null);
+
+const trashRetentionDays = ref(30);
+const trashRetentionSaving = ref(false);
+const trashRetentionMsg = ref<string | null>(null);
+
+async function loadTrashRetention() {
+  try {
+    trashRetentionDays.value = await getTrashRetentionDays();
+  } catch {
+    trashRetentionDays.value = 30;
+  }
+}
+
+async function onTrashRetentionChange() {
+  trashRetentionSaving.value = true;
+  trashRetentionMsg.value = null;
+  try {
+    trashRetentionDays.value = await setTrashRetentionDays(trashRetentionDays.value);
+    trashRetentionMsg.value = "已保存";
+  } catch (e) {
+    trashRetentionMsg.value = e instanceof Error ? e.message : "保存失败";
+  } finally {
+    trashRetentionSaving.value = false;
+  }
+}
 
 function onAutoLockChange() {
   saveAutoLockMinutes(autoLockMinutes.value);
@@ -103,6 +132,7 @@ const trustBadges = [
 
 onMounted(() => {
   ui.setTheme(ui.theme);
+  void loadTrashRetention();
   const hash = route.hash.replace(/^#/, "");
   if (hash && sectionIds.includes(hash)) {
     window.setTimeout(() => scrollToSection(hash), 120);
@@ -609,6 +639,38 @@ async function onRebuildIndex() {
           >
             {{ indexResult.message }}
           </p>
+        </div>
+      </section>
+
+      <section id="settings-trash" class="settings-section mb-8 scroll-mt-6" data-testid="trash-retention-settings">
+        <h2 class="settings-panel__title mb-3">回收站</h2>
+        <div class="settings-list-card px-4 py-3">
+          <label class="mb-2 block text-sm text-[var(--color-text)]" for="trash-retention-days">
+            保留天数
+          </label>
+          <p class="mb-2 text-xs text-muted">
+            软删除文档在回收站中保留的天数（1–365，默认 30）。解锁或打开回收站时清理到期项。
+          </p>
+          <div class="flex items-center gap-2">
+            <input
+              id="trash-retention-days"
+              v-model.number="trashRetentionDays"
+              type="number"
+              min="1"
+              max="365"
+              class="focus-ring w-24 rounded-md border border-border bg-surface-1 px-2 py-1.5 text-sm"
+              data-testid="trash-retention-input"
+              @change="onTrashRetentionChange"
+            />
+            <span class="text-xs text-muted">天</span>
+            <span
+              v-if="trashRetentionMsg"
+              class="text-xs"
+              :class="trashRetentionMsg === '已保存' ? 'text-success' : 'text-danger'"
+            >
+              {{ trashRetentionSaving ? "保存中…" : trashRetentionMsg }}
+            </span>
+          </div>
         </div>
       </section>
 

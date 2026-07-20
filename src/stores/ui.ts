@@ -32,7 +32,7 @@ import {
 import type { QuickNavId, QuickNavVisibility } from "../constants/quickNav";
 
 export type EditorMode = "edit" | "preview";
-export type WorkspaceViewMode = "edit" | "graph" | "mindmap";
+export type WorkspaceViewMode = "edit" | "graph" | "mindmap" | "trash";
 export type ThemeId =
   | "dark"
   | "light"

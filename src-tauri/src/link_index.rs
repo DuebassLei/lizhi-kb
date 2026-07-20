@@ -334,7 +334,11 @@ pub fn update_inbound_link_titles(
 
 pub fn needs_rebuild(conn: &Connection) -> Result<bool, AppError> {
     ensure_links_schema(conn)?;
-    let doc_count: i64 = conn.query_row("SELECT count(*) FROM documents", [], |row| row.get(0))?;
+    let doc_count: i64 = conn.query_row(
+        "SELECT count(*) FROM documents WHERE deleted_at IS NULL",
+        [],
+        |row| row.get(0),
+    )?;
     let source_count: i64 = conn
         .query_row(
             "SELECT count(DISTINCT source_id) FROM document_links",

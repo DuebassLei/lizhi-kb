@@ -8,6 +8,14 @@ export interface DocumentMeta {
   aiExclude: boolean;
 }
 
+export interface TrashedDocumentMeta extends DocumentMeta {
+  deletedAt: number;
+}
+
+export interface PurgeExpiredResult {
+  purged: number;
+}
+
 export interface DecryptedContent {
   id: string;
   content: string;

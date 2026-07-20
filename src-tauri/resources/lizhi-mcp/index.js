@@ -21444,6 +21444,24 @@ var HttpBackendBase = class {
       `/documents/${encodeURIComponent(id)}`
     );
   }
+  restoreDocument(id) {
+    return this.request(
+      "POST",
+      `/documents/${encodeURIComponent(id)}/restore`
+    );
+  }
+  purgeDocument(id) {
+    return this.request(
+      "DELETE",
+      `/documents/${encodeURIComponent(id)}/purge`
+    );
+  }
+  listTrashedDocuments() {
+    return this.request("GET", "/trash");
+  }
+  emptyTrash() {
+    return this.request("POST", "/trash/empty");
+  }
   convertUnlinkedMention(sourceId, targetTitle) {
     return this.request(
       "POST",
@@ -21840,9 +21858,33 @@ ${doc.content}`);
     },
     {
       name: "lizhi_delete_document",
-      description: "\u5220\u9664\u6587\u6863\uFF08\u9700 MCP \u5199\u5165\uFF09",
+      description: "\u5C06\u6587\u6863\u79FB\u81F3\u56DE\u6536\u7AD9\uFF08\u8F6F\u5220\u9664\uFF0C\u53EF\u6062\u590D\uFF1B\u9700 MCP \u5199\u5165\uFF09",
       schema: { id: external_exports.string() },
       run: ({ id }) => wrap(() => backend.deleteDocument(String(id)))
+    },
+    {
+      name: "lizhi_restore_document",
+      description: "\u4ECE\u56DE\u6536\u7AD9\u6062\u590D\u6587\u6863\uFF08\u9700 MCP \u5199\u5165\uFF09",
+      schema: { id: external_exports.string() },
+      run: ({ id }) => wrap(() => backend.restoreDocument(String(id)))
+    },
+    {
+      name: "lizhi_list_trashed_documents",
+      description: "\u5217\u51FA\u56DE\u6536\u7AD9\u4E2D\u7684\u6587\u6863",
+      schema: {},
+      run: () => wrap(() => backend.listTrashedDocuments())
+    },
+    {
+      name: "lizhi_purge_document",
+      description: "\u6C38\u4E45\u5220\u9664\u6587\u6863\uFF08\u6D3B\u8DC3\u6216\u56DE\u6536\u7AD9\u5747\u53EF\uFF0C\u4E0D\u53EF\u6062\u590D\uFF1B\u9700 MCP \u5199\u5165\uFF09",
+      schema: { id: external_exports.string() },
+      run: ({ id }) => wrap(() => backend.purgeDocument(String(id)))
+    },
+    {
+      name: "lizhi_empty_trash",
+      description: "\u6E05\u7A7A\u56DE\u6536\u7AD9\uFF08\u6C38\u4E45\u5220\u9664\u5168\u90E8\u56DE\u6536\u7AD9\u6587\u6863\uFF0C\u4E0D\u53EF\u6062\u590D\uFF1B\u9700 MCP \u5199\u5165\uFF09",
+      schema: {},
+      run: () => wrap(() => backend.emptyTrash())
     }
   ];
   for (const tool of tools) {
