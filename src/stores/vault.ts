@@ -80,13 +80,20 @@ export const useVaultStore = defineStore("vault", () => {
     loading.value = true;
     initError.value = null;
     try {
-      const status = await getVaultStatus();
+      let status: VaultStatus;
+      try {
+        status = await getVaultStatus();
+      } catch {
+        // 冷启动偶发 IPC 未就绪：短延迟后重试，避免误判「未建库」反复进入欢迎页
+        await new Promise((r) => setTimeout(r, 120));
+        status = await getVaultStatus();
+      }
       applyStatus(status);
       const secs = await getVaultLockoutStatus();
       if (secs > 0) startLockCountdown(secs);
     } catch (e) {
       initError.value = e instanceof Error ? e.message : "无法读取库状态";
-      setupComplete.value = false;
+      // 不强制 setupComplete=false：未知时由欢迎页二次拉取状态决定
     } finally {
       loading.value = false;
     }

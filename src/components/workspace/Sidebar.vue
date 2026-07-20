@@ -54,7 +54,7 @@ function openTrash() {
 
 <template>
   <div class="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
-    <div class="sidebar-tools shrink-0 border-b border-border px-3 pb-3 pt-2.5">
+    <div class="sidebar-tools relative z-20 shrink-0 overflow-visible border-b border-border px-3 pb-3 pt-2.5">
       <button
         type="button"
         class="sidebar-cmd-trigger focus-ring mb-2.5 flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left"

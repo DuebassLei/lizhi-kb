@@ -1,5 +1,5 @@
 ﻿<script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { Lock, Shield, Sparkles } from "@lucide/vue";
 import { useRoute, useRouter } from "vue-router";
 import HintBanner from "../components/common/HintBanner.vue";
@@ -7,6 +7,7 @@ import LogoNest from "../components/common/LogoNest.vue";
 import Btn from "../components/ui/Btn.vue";
 import Input from "../components/ui/Input.vue";
 import { DEFAULT_APP_ROUTE } from "../router/constants";
+import { getVaultStatus, isTauriRuntime } from "../services/vaultService";
 import { useVaultStore } from "../stores/vault";
 
 const router = useRouter();
@@ -34,19 +35,57 @@ const introSteps = [
   },
 ];
 
-async function nextIntro() {
-  if (step.value < introSteps.length - 1) {
-    step.value += 1;
-    return;
+function leaveWelcome() {
+  router.replace(vault.needsUnlock ? "/unlock" : DEFAULT_APP_ROUTE);
+}
+
+/** 库已存在时不应再走 FTUE（初始化竞态或中途退出后再次打开） */
+async function redirectIfVaultExists() {
+  if (isPasswordSetup.value) return false;
+  try {
+    if (isTauriRuntime()) {
+      const status = await getVaultStatus();
+      vault.applyStatus(status);
+    }
+    if (vault.setupComplete) {
+      leaveWelcome();
+      return true;
+    }
+  } catch {
+    /* 保持欢迎页，由用户重试 */
   }
+  return false;
+}
+
+onMounted(() => {
+  void redirectIfVaultExists();
+});
+
+async function ensureVaultCreated() {
+  if (vault.setupComplete) return;
+  await vault.completeSetup({ withPassword: false });
+}
+
+async function nextIntro() {
   error.value = "";
   try {
-    await vault.completeSetup({ withPassword: false });
-    router.replace(vault.needsUnlock ? "/unlock" : DEFAULT_APP_ROUTE);
+    // 第一次「继续」即建库，避免只点了引导、未点「开始使用」就退出后每次重来
+    await ensureVaultCreated();
+    if (step.value < introSteps.length - 1) {
+      step.value += 1;
+      return;
+    }
+    leaveWelcome();
   } catch (e) {
     const message = e instanceof Error ? e.message : "初始化失败";
-    error.value =
-      message === "vault already exists" ? "知识库已存在，请直接进入应用" : message;
+    if (message === "vault already exists") {
+      await redirectIfVaultExists();
+      if (!vault.setupComplete) {
+        error.value = "知识库已存在，请直接进入应用";
+      }
+      return;
+    }
+    error.value = message;
   }
 }
 

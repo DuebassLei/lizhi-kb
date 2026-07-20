@@ -5,9 +5,20 @@ import {
   syncEditorToPreviewHeadings,
   syncPreviewToEditorHeadings,
 } from "../utils/headingScrollSync";
+import { createScrollSyncDriver, type ScrollSyncSide } from "../utils/scrollSyncDriver";
 
 /** 预览 HTML debounce 期间暂停标题对齐，避免源码标题与旧 DOM 不一致时乱跳 */
 const CONTENT_COOLDOWN_MS = 280;
+
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
 
 /** 分栏时：源码 ⇄ 预览按标题双向对齐（无标题时退回比例） */
 export function useEditorPreviewScrollSync(
@@ -16,11 +27,12 @@ export function useEditorPreviewScrollSync(
   enabled: Ref<boolean>,
   content: Ref<string> | ComputedRef<string>,
 ) {
-  let syncingFrom: "editor" | "preview" | null = null;
+  let syncingFrom: ScrollSyncSide | null = null;
   let detach: (() => void) | null = null;
   let rafId = 0;
-  let pending: "editor" | "preview" | null = null;
+  let pending: ScrollSyncSide | null = null;
   let cooldownUntil = 0;
+  const driver = createScrollSyncDriver();
 
   function attach() {
     detach?.();
@@ -30,6 +42,7 @@ export function useEditorPreviewScrollSync(
       rafId = 0;
     }
     pending = null;
+    driver.clear();
 
     const view = editorView.value;
     const preview = previewRef.value;
@@ -42,6 +55,7 @@ export function useEditorPreviewScrollSync(
       const side = pending;
       pending = null;
       if (!side || !enabled.value || syncingFrom) return;
+      if (!driver.shouldSyncFrom(side)) return;
       if (performance.now() < cooldownUntil) return;
 
       const currentPreview = previewRef.value;
@@ -61,12 +75,16 @@ export function useEditorPreviewScrollSync(
       }
     };
 
-    const schedule = (side: "editor" | "preview") => {
+    const schedule = (side: ScrollSyncSide) => {
       if (syncingFrom && syncingFrom !== side) return;
+      if (!driver.shouldSyncFrom(side)) return;
       pending = side;
       if (rafId) return;
       rafId = requestAnimationFrame(flush);
     };
+
+    const armEditor = () => driver.arm("editor");
+    const armPreview = () => driver.arm("preview");
 
     const onEditorScroll = () => {
       if (syncingFrom === "preview") return;
@@ -78,10 +96,26 @@ export function useEditorPreviewScrollSync(
       schedule("preview");
     };
 
+    const onEditorKeydown = (event: KeyboardEvent) => {
+      if (SCROLL_KEYS.has(event.key)) armEditor();
+    };
+
+    const userIntentOpts: AddEventListenerOptions = { passive: true, capture: true };
+    for (const type of ["wheel", "touchstart", "pointerdown"] as const) {
+      scrollDOM.addEventListener(type, armEditor, userIntentOpts);
+      preview.addEventListener(type, armPreview, userIntentOpts);
+    }
+    view.dom.addEventListener("keydown", onEditorKeydown, true);
+
     scrollDOM.addEventListener("scroll", onEditorScroll, { passive: true });
     preview.addEventListener("scroll", onPreviewScroll, { passive: true });
 
     detach = () => {
+      for (const type of ["wheel", "touchstart", "pointerdown"] as const) {
+        scrollDOM.removeEventListener(type, armEditor, userIntentOpts);
+        preview.removeEventListener(type, armPreview, userIntentOpts);
+      }
+      view.dom.removeEventListener("keydown", onEditorKeydown, true);
       scrollDOM.removeEventListener("scroll", onEditorScroll);
       preview.removeEventListener("scroll", onPreviewScroll);
       if (rafId) {
@@ -89,6 +123,7 @@ export function useEditorPreviewScrollSync(
         rafId = 0;
       }
       pending = null;
+      driver.clear();
     };
   }
 

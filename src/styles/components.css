@@ -312,7 +312,8 @@
 }
 
 .sidebar-new-doc {
-  overflow: hidden;
+  /* 下拉模板菜单 absolute 定位，不能 overflow 裁切（圆角交给子按钮） */
+  overflow: visible;
   border-radius: var(--radius-md);
   border: 1px solid color-mix(in srgb, var(--color-paw) 32%, transparent);
   background: color-mix(in srgb, var(--color-paw) 16%, transparent);
@@ -324,6 +325,7 @@
 }
 
 .sidebar-new-doc__main {
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
   color: var(--color-paw);
   transition: background-color 150ms ease-out;
 }
@@ -334,6 +336,7 @@
 
 .sidebar-new-doc__menu {
   border-left: 1px solid color-mix(in srgb, var(--color-paw) 28%, transparent);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
   color: var(--color-paw);
   transition: background-color 150ms ease-out;
 }
